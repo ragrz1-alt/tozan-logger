@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-07-28T11:41:08.359726+09:00",
+  "updatedAt": "2026-07-28T12:07:07.831976+09:00",
   "cameras": {
     "oshidomari": {
       "name": "鴛泊コース側（北側・港側）",
@@ -18,6 +18,11 @@
         "timestamp": "2026-07-28T11:41:05.583430+09:00",
         "oshidomari": "cams/2026-07-28/11_oshidomari.jpg",
         "kutsugata": "cams/2026-07-28/11_kutsugata.jpg"
+      },
+      "12": {
+        "timestamp": "2026-07-28T12:07:04.846282+09:00",
+        "oshidomari": "cams/2026-07-28/12_oshidomari.jpg",
+        "kutsugata": "cams/2026-07-28/12_kutsugata.jpg"
       }
     }
   }
