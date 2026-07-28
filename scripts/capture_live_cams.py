@@ -46,9 +46,85 @@ def get_project_root():
     # scripts ディレクトリの親をプロジェクトルートとする
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+def capture_with_streamlink_hls(video_url, output_path):
+    """
+    ライブ配信専門ツール streamlink で HLS ストリームURLを抽出し ffmpeg で高速キャプチャする
+    （60fpsの鴛泊および30fpsの沓形・仙法志に最も強い専用エンジン）
+    """
+    try:
+        res = subprocess.run(
+            ["streamlink", "--stream-url", video_url, "best,1080p60,720p60,1080p,720p,480p,360p,worst"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=25
+        )
+        if res.returncode != 0 or not res.stdout.strip():
+            return False
+        
+        stream_url = res.stdout.strip().splitlines()[0]
+        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        headers = (
+            f"User-Agent: {user_agent}\r\n"
+            "Referer: https://www.youtube.com/\r\n"
+            "Origin: https://www.youtube.com\r\n"
+        )
+        cmd = [
+            "ffmpeg", "-y",
+            "-rw_timeout", "15000000",
+            "-user_agent", user_agent,
+            "-headers", headers,
+            "-i", stream_url,
+            "-vframes", "1",
+            "-vf", "scale=800:-1",
+            "-q:v", "3",
+            output_path
+        ]
+        ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+        return ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+    except Exception as e:
+        print(f"[WARN] streamlink HLS キャプチャ失敗: {e}")
+        return False
+
+def capture_with_streamlink_pipe(video_url, output_path):
+    """
+    streamlink から動画ストリームをパイプ出力し ffmpeg で確実にキャプチャする
+    """
+    try:
+        sl_cmd = [
+            "streamlink",
+            "--stdout",
+            video_url,
+            "best,1080p60,720p60,1080p,720p,worst"
+        ]
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-rw_timeout", "15000000",
+            "-i", "pipe:0",
+            "-vframes", "1",
+            "-vf", "scale=800:-1",
+            "-q:v", "3",
+            output_path
+        ]
+        
+        p_sl = subprocess.Popen(sl_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p_ffmpeg = subprocess.Popen(ffmpeg_cmd, stdin=p_sl.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p_ffmpeg.communicate(timeout=30)
+        
+        try:
+            p_sl.terminate()
+            p_sl.wait(timeout=5)
+        except Exception:
+            p_sl.kill()
+
+        return p_ffmpeg.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+    except Exception as e:
+        print(f"[WARN] streamlink パイプキャプチャ失敗: {e}")
+        return False
+
 def capture_with_stream_url_hls(video_url, output_path):
     """
-    HLS(.m3u8)および各種ライブのストリームURLを取得し ffmpeg からキャプチャする
+    yt-dlp で HLS(.m3u8)および各種ライブのストリームURLを取得し ffmpeg からキャプチャする
     """
     try:
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
@@ -82,7 +158,7 @@ def capture_with_stream_url_hls(video_url, output_path):
         ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=35)
         return ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
     except Exception as e:
-        print(f"[WARN] HLS URLキャプチャ失敗: {e}")
+        print(f"[WARN] yt-dlp HLS URLキャプチャ失敗: {e}")
         return False
 
 def capture_with_ytdlp_download(video_url, output_path):
@@ -177,17 +253,25 @@ def capture_with_pipe(video_url, output_path):
 
 def capture_stream_frame_with_ytdlp(video_url, output_path):
     """
-    yt-dlp と ffmpeg を使用してリアルタイムのライブストリームから直接1フレームをキャプチャする
+    streamlink および yt-dlp と ffmpeg を組み合わせてリアルタイムストリームから直接1フレームをキャプチャする（全5段階対応）
     """
-    # 方式1: 30fps・HLSプレイリスト対応（沓形・仙法志など）
+    # 方式1: ライブ専門ツール streamlink によるHLSストリームURL直接取得（60fps・30fpsで最強）
+    if capture_with_streamlink_hls(video_url, output_path):
+        return True
+        
+    # 方式2: streamlink によるパイプストリーム処理
+    if capture_with_streamlink_pipe(video_url, output_path):
+        return True
+
+    # 方式3: yt-dlp HLSストリームURL直接取得
     if capture_with_stream_url_hls(video_url, output_path):
         return True
     
-    # 方式2: 60fps・DASH・高画質対応ローカル一時保存方式（鴛泊など）
+    # 方式4: yt-dlp 3秒セクションローカル保存方式
     if capture_with_ytdlp_download(video_url, output_path):
         return True
         
-    # 方式3: パイプストリームキャプチャ
+    # 方式5: yt-dlp パイプストリームキャプチャ
     if capture_with_pipe(video_url, output_path):
         return True
         
@@ -250,9 +334,10 @@ def main():
     if date_str not in history_data["records"]:
         history_data["records"][date_str] = {}
     if hour_str not in history_data["records"][date_str]:
-        history_data["records"][date_str][hour_str] = {
-            "timestamp": now.isoformat()
-        }
+        history_data["records"][date_str][hour_str] = {}
+    
+    # 手動実行時でも必ず最新の実行タイムスタンプに更新する
+    history_data["records"][date_str][hour_str]["timestamp"] = now.isoformat()
 
     print(f"=== 利尻山ライブカメラ 定時撮影処理開始 ({date_str} {hour_str}:00) ===")
 
