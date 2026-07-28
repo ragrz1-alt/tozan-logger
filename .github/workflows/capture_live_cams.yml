@@ -27,6 +27,9 @@ jobs:
           sudo apt-get install -y ffmpeg
           pip install yt-dlp
 
+      - name: Debug oshidomari capture (全方式テスト)
+        run: python scripts/debug_oshidomari.py || true
+
       - name: Run live camera capture script
         run: |
           python scripts/capture_live_cams.py --debug || true
@@ -40,6 +43,8 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
+            git pull --rebase origin main || true
             git commit -m "🤖 [Auto-Capture] 利尻山ライブカメラ スクショ記録 ($(date +'%Y-%m-%d %H:%M JST'))"
             git push
           fi
+
