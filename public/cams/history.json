@@ -1,0 +1,16 @@
+{
+  "updatedAt": "2026-07-28T11:00:00+09:00",
+  "cameras": {
+    "oshidomari": {
+      "name": "鴛泊コース側（北側・港側）",
+      "videoId": "bAWueJBFcT0",
+      "url": "https://www.youtube.com/watch?v=bAWueJBFcT0"
+    },
+    "kutsugata": {
+      "name": "沓形コース側（西・南側）",
+      "videoId": "P9stiZVACSg",
+      "url": "https://www.youtube.com/watch?v=P9stiZVACSg"
+    }
+  },
+  "records": {}
+}

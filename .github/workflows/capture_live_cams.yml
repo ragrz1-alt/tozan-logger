@@ -1,0 +1,44 @@
+name: Capture Rishiri Live Cameras
+
+on:
+  schedule:
+    # 毎時0分（日中帯 05:00 - 19:00 JST = 20:00 - 10:00 UTC を含む毎時）
+    - cron: '0 * * * *'
+  workflow_dispatch: # GitHub Actions画面からの手動実行にも対応
+
+permissions:
+  contents: write
+
+jobs:
+  capture_cams:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install yt-dlp & dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install yt-dlp
+
+      - name: Run live camera capture script
+        run: |
+          python scripts/capture_live_cams.py
+
+      - name: Commit and push recorded screenshots
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add public/cams/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 [Auto-Capture] 利尻山ライブカメラ スクショ記録 ($(date +'%Y-%m-%d %H:%M JST'))"
+            git push
+          fi

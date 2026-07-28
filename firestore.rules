@@ -1,0 +1,17 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 利尻山 登山者カウンターのログデータ (counter_logs コレクション)
+    // テストモードの「30日間の有効期限切れ」をなくし、
+    // 関係者様へのダッシュボード公開(閲覧)および管理者様のデータ同期保存を無期限で許可します。
+    match /counter_logs/{docId} {
+      allow read, write: if true;
+    }
+
+    // 必要に応じて全体も許可する場合は以下を有効化
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
