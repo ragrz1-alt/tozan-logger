@@ -42,7 +42,8 @@ const CAMERAS = [
 ];
 
 const HOURS = [
-  '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'
+  '00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11',
+  '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23'
 ];
 
 export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWeather }) => {
@@ -137,8 +138,8 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
         </div>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(66px, 1fr))',
-          gap: '0.45rem',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(58px, 1fr))',
+          gap: '0.4rem',
           paddingBottom: '0.4rem'
         }}>
           {HOURS.map(hr => {
@@ -149,18 +150,18 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                 key={hr}
                 onClick={() => setSelectedHour(hr)}
                 style={{
-                  padding: '0.45rem 0.2rem',
+                  padding: '0.42rem 0.15rem',
                   border: isSelected ? '2px solid #3b82f6' : '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-sm)',
                   backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.14)' : 'var(--bg-primary)',
                   color: isSelected ? '#3b82f6' : 'var(--text-primary)',
                   fontWeight: isSelected ? 700 : 600,
-                  fontSize: '0.86rem',
+                  fontSize: '0.84rem',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '0.25rem',
+                  gap: '0.2rem',
                   boxShadow: isSelected ? '0 2px 8px rgba(59, 130, 246, 0.28)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
