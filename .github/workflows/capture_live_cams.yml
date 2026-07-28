@@ -42,6 +42,6 @@ jobs:
             echo "No changes to commit"
           else
             git pull --rebase origin main || true
-            git commit -m "🤖 [Auto-Capture] 利尻山ライブカメラ スクショ記録 ($(date +'%Y-%m-%d %H:%M JST'))"
+            git commit -m "🤖 [Auto-Capture] 利尻山ライブカメラ スクショ記録 ($(TZ='Asia/Tokyo' date +'%Y-%m-%d %H:%M JST'))"
             git push
           fi
