@@ -87,6 +87,7 @@ def capture_with_ytdlp_ffmpeg_downloader(video_url, output_path):
             "yt-dlp",
             "-f", "bestvideo[height<=1080]/best[height<=1080]/best",
             "--no-part",
+            "--extractor-args", "youtube:player_client=ios,android,web",
             "--downloader", "ffmpeg",
             "--downloader-args", "ffmpeg_i:-t 5 ffmpeg_o:-vframes 1 -vf scale=800:-1 -q:v 3",
             "--referer", "https://www.youtube.com/",
@@ -110,7 +111,7 @@ def capture_with_stream_url_hls(video_url, output_path):
     try:
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         res = subprocess.run(
-            ["yt-dlp", "-f", "best[protocol=m3u8]/96/95/94/93/best", "-g", video_url],
+            ["yt-dlp", "-f", "best[protocol=m3u8]/96/95/94/93/best", "--extractor-args", "youtube:player_client=ios,android,web", "-g", video_url],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -155,7 +156,7 @@ def capture_with_stream_url_dash(video_url, output_path):
     try:
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         res = subprocess.run(
-            ["yt-dlp", "-f", "bestvideo[height<=1080]/bestvideo/best", "-g", video_url],
+            ["yt-dlp", "-f", "bestvideo[height<=1080]/bestvideo/best", "--extractor-args", "youtube:player_client=ios,android,web", "-g", video_url],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -205,6 +206,7 @@ def capture_with_pipe(video_url, output_path):
             "yt-dlp",
             "-f", "bestvideo[height<=1080]/best[height<=1080]/best",
             "--no-part",
+            "--extractor-args", "youtube:player_client=ios,android,web",
             "--referer", "https://www.youtube.com/",
             "-o", "-",
             video_url
