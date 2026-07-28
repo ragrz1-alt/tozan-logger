@@ -48,12 +48,12 @@ def get_project_root():
 
 def capture_with_stream_url_hls(video_url, output_path):
     """
-    HLS(.m3u8)のストリームURLを取得し ffmpeg からキャプチャする（30fpsや通常のHLS配信で最も高速）
+    HLS(.m3u8)および各種ライブのストリームURLを取得し ffmpeg からキャプチャする
     """
     try:
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         res = subprocess.run(
-            ["yt-dlp", "-f", "best[protocol=m3u8]/96/95/94/93/best", "-g", video_url],
+            ["yt-dlp", "-f", "301/300/96/95/94/93/92/91/bestvideo/best", "-g", video_url],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -87,7 +87,7 @@ def capture_with_stream_url_hls(video_url, output_path):
 
 def capture_with_ytdlp_download(video_url, output_path):
     """
-    60fpsやDASH配信など URL 直接再生が困難な場合、数秒間をローカル一時ファイルに保存し、ディスク上のファイルから確実にフレームを切り出す
+    60fpsやDASH配信など URL 直接再生が困難な場合、冒頭3秒間をローカル一時ファイルに正確に保存し、ディスク上のファイルから確実にフレームを切り出す
     """
     temp_file = output_path + ".temp.ts"
     try:
@@ -99,18 +99,14 @@ def capture_with_ytdlp_download(video_url, output_path):
 
         ytdlp_cmd = [
             "yt-dlp",
-            "-f", "bestvideo[height<=1080]/best[height<=1080]/best",
+            "-f", "301/300/96/95/94/93/92/91/bestvideo/best",
             "--no-part",
+            "--download-sections", "*00:00:00-00:00:03",
             "--referer", "https://www.youtube.com/",
             "-o", temp_file,
             video_url
         ]
-        p = subprocess.Popen(ytdlp_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        try:
-            p.communicate(timeout=6)
-        except subprocess.TimeoutExpired:
-            p.kill()
-            p.communicate()
+        p = subprocess.run(ytdlp_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=28)
 
         if not os.path.exists(temp_file) or os.path.getsize(temp_file) < 1000:
             return False
@@ -148,7 +144,7 @@ def capture_with_pipe(video_url, output_path):
     try:
         ytdlp_cmd = [
             "yt-dlp",
-            "-f", "bestvideo[height<=1080]/bestvideo/best",
+            "-f", "301/300/96/95/94/93/92/91/bestvideo/best",
             "--no-part",
             "--referer", "https://www.youtube.com/",
             "-o", "-",
