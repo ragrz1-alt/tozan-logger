@@ -51,11 +51,10 @@ def capture_with_pipe(video_url, output_path):
     yt-dlp でライブ映像をストリーム受信し、標準出力をパイプ経由で ffmpeg に送ってリアルタイム1フレームを抜き出す
     """
     try:
-        # 60fps HLS(301, 300), 30fps HLS(96, 95, 94, 93), または任意の HLS ストリームを優先指定
-        # ※鴛泊コースは60fps(フォーマットID: 301/300)配信であるためこれらを明示的に含める
+        # ライブ配信の現在最適なストリームをシンプルかつ確実に取得
         ytdlp_cmd = [
             "yt-dlp",
-            "-f", "best[protocol^=m3u8]/301/300/96/95/94/93/best",
+            "-f", "best",
             "--no-part",
             "-o", "-",
             video_url
@@ -97,7 +96,7 @@ def capture_with_stream_url(video_url, output_path):
     try:
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         res = subprocess.run(
-            ["yt-dlp", "-f", "best[protocol^=m3u8]/301/300/96/95/94/93/best", "-g", video_url],
+            ["yt-dlp", "-f", "best", "-g", video_url],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
