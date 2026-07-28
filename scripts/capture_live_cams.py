@@ -51,16 +51,18 @@ def capture_with_pipe(video_url, output_path):
     yt-dlp でライブ映像をストリーム受信し、標準出力をパイプ経由で ffmpeg に送ってリアルタイム1フレームを抜き出す
     """
     try:
-        # ライブ配信の現在最適なストリームをシンプルかつ確実に取得
+        # 60fps(鴛泊)や30fps(沓形・仙法志)などすべてのライブで必ず存在する最適な単一ビデオストリームを取得
         ytdlp_cmd = [
             "yt-dlp",
-            "-f", "best",
+            "-f", "bestvideo[height<=1080]/bestvideo/best",
             "--no-part",
+            "--referer", "https://www.youtube.com/",
             "-o", "-",
             video_url
         ]
         ffmpeg_cmd = [
             "ffmpeg", "-y",
+            "-rw_timeout", "15000000",
             "-i", "pipe:0",
             "-vframes", "1",
             "-vf", "scale=800:-1",
@@ -91,12 +93,12 @@ def capture_with_pipe(video_url, output_path):
 
 def capture_with_stream_url(video_url, output_path):
     """
-    yt-dlp -g でURLを取得し、User-Agent付きで ffmpeg からキャプチャする
+    yt-dlp -g でURLを取得し、User-Agent・Referer・Origin付きで ffmpeg からキャプチャする（403エラー完全防止）
     """
     try:
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         res = subprocess.run(
-            ["yt-dlp", "-f", "best", "-g", video_url],
+            ["yt-dlp", "-f", "bestvideo[height<=1080]/bestvideo/best", "-g", video_url],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -107,10 +109,17 @@ def capture_with_stream_url(video_url, output_path):
             return False
         
         stream_url = res.stdout.strip().splitlines()[0]
+        # YouTube CDN で 403 Forbidden にならないように必須 HTTP ヘッダーをすべて付与する
+        headers = (
+            f"User-Agent: {user_agent}\r\n"
+            "Referer: https://www.youtube.com/\r\n"
+            "Origin: https://www.youtube.com\r\n"
+        )
         cmd = [
             "ffmpeg", "-y",
+            "-rw_timeout", "15000000",
             "-user_agent", user_agent,
-            "-headers", f"User-Agent: {user_agent}\r\n",
+            "-headers", headers,
             "-i", stream_url,
             "-vframes", "1",
             "-vf", "scale=800:-1",
@@ -136,7 +145,7 @@ def capture_stream_frame_with_ytdlp(video_url, output_path):
     if capture_with_pipe(video_url, output_path):
         return True
     
-    # 方式2: yt-dlp -g + ffmpeg User-Agent指定ストリームキャプチャ
+    # 方式2: yt-dlp -g + ffmpeg User-Agent/Referer指定ストリームキャプチャ
     if capture_with_stream_url(video_url, output_path):
         return True
         
