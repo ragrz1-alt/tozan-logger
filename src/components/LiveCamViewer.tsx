@@ -342,23 +342,9 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
               <div style={{
                 padding: '0.6rem 1rem',
                 fontSize: '0.8rem',
-                color: 'var(--text-secondary)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
+                color: 'var(--text-secondary)'
               }}>
                 <span>対象日時: {dateStr} {selectedHour}時台</span>
-                <span
-                  title={displayUrl ? '定時撮影記録済' : '記録なし'}
-                  style={{
-                    color: displayUrl ? '#10b981' : 'var(--text-secondary)',
-                    fontWeight: 700,
-                    fontSize: '1rem',
-                    lineHeight: 1
-                  }}
-                >
-                  {displayUrl ? '●' : '○'}
-                </span>
               </div>
             </div>
           );
