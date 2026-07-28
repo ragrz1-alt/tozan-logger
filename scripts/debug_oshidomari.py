@@ -91,7 +91,9 @@ def test_capture_ffmpeg_downloader():
         # ファイルの先頭バイトを確認してJPEGかどうか判定
         with open(out, 'rb') as f:
             header = f.read(4)
-            print(f"[HEADER] {header.hex()} ({'JPEG' if header[:2] == b'\\xff\\xd8' else 'NOT JPEG'})")
+            jpeg_magic = b'\xff\xd8'
+            fmt = 'JPEG' if header[:2] == jpeg_magic else 'NOT JPEG'
+            print(f"[HEADER] {header.hex()} ({fmt})")
         os.remove(out)
     else:
         print("[FILE] 出力ファイル生成されず")
@@ -133,7 +135,9 @@ def test_capture_stream_url_ffmpeg():
             print(f"[FILE] {out} => {size} bytes ({'OK' if size > 1000 else 'TOO SMALL'})")
             with open(out, 'rb') as f:
                 header = f.read(4)
-                print(f"[HEADER] {header.hex()} ({'JPEG' if header[:2] == b'\\xff\\xd8' else 'NOT JPEG'})")
+                jpeg_magic = b'\xff\xd8'
+                fmt = 'JPEG' if header[:2] == jpeg_magic else 'NOT JPEG'
+                print(f"[HEADER] {header.hex()} ({fmt})")
             os.remove(out)
         else:
             print("[FILE] 出力ファイル生成されず")
