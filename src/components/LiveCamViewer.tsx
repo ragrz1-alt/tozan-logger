@@ -136,12 +136,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
             ●マークは定時撮影ログが存在する時間帯です
           </span>
         </div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(58px, 1fr))',
-          gap: '0.4rem',
-          paddingBottom: '0.4rem'
-        }}>
+        <div className="hours-grid">
           {HOURS.map(hr => {
             const hasRec = hasRecordForHour(hr);
             const isSelected = selectedHour === hr;

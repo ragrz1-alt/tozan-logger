@@ -264,3 +264,23 @@ input:checked + .slider:before {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* 24時間タイムテーブル用 12列×2行 厳密グリッド */
+.hours-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+
+@media (max-width: 768px) {
+  .hours-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .hours-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
