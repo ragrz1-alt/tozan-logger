@@ -1,10 +1,10 @@
 {
-  "updatedAt": "2026-07-28T15:35:41.269163+09:00",
+  "updatedAt": "2026-07-28T15:44:57.013902+09:00",
   "cameras": {
     "oshidomari": {
-      "name": "鴛泊コース（鴛泊）",
-      "videoId": "8BwfUCuPcVE",
-      "url": "https://www.youtube.com/watch?v=8BwfUCuPcVE"
+      "name": "鴛泊コース（富士岬）",
+      "videoId": "bAWueJBFcT0",
+      "url": "https://www.youtube.com/watch?v=bAWueJBFcT0"
     },
     "kutsugata": {
       "name": "沓形コース（栄浜）",
@@ -13,8 +13,8 @@
     },
     "senposhi": {
       "name": "仙法志（御崎）",
-      "videoId": "Mn9EszbHh4Y",
-      "url": "https://www.youtube.com/watch?v=Mn9EszbHh4Y"
+      "videoId": "5BG3KJVFRVM",
+      "url": "https://www.youtube.com/watch?v=5BG3KJVFRVM"
     }
   },
   "records": {
@@ -41,7 +41,7 @@
         "senposhi": "cams/2026-07-28/14_senposhi.jpg"
       },
       "15": {
-        "timestamp": "2026-07-28T15:33:14.027442+09:00",
+        "timestamp": "2026-07-28T15:43:32.751945+09:00",
         "oshidomari": "cams/2026-07-28/15_oshidomari.jpg",
         "kutsugata": "cams/2026-07-28/15_kutsugata.jpg",
         "senposhi": "cams/2026-07-28/15_senposhi.jpg"
