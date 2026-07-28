@@ -46,97 +46,70 @@ def get_project_root():
     # scripts ディレクトリの親をプロジェクトルートとする
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def capture_with_streamlink_hls(video_url, output_path):
+def ensure_compressed_image(image_path):
     """
-    ライブ配信専門ツール streamlink で HLS ストリームURLを抽出し ffmpeg で高速キャプチャする
-    （60fpsの鴛泊および30fpsの沓形・仙法志に最も強い専用エンジン）
+    保存された画像ファイルサイズを確認し、不要に大きい場合（35KB超過や未圧縮サムネイル等）は
+    必ず幅800px・高画質軽量JPEG（約15〜25KB）に最適化して容量圧迫を完全に防ぐ
     """
     try:
-        res = subprocess.run(
-            ["streamlink", "--stream-url", video_url, "best,1080p60,720p60,1080p,720p,480p,360p,worst"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=25
-        )
-        if res.returncode != 0 or not res.stdout.strip():
-            print(f"[DEBUG streamlink_hls] 失敗 returncode={res.returncode}, err={res.stderr.strip()[:200]}")
-            return False
-        
-        stream_url = res.stdout.strip().splitlines()[0]
-        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-        headers = (
-            f"User-Agent: {user_agent}\r\n"
-            "Referer: https://www.youtube.com/\r\n"
-            "Origin: https://www.youtube.com\r\n"
-        )
+        if not os.path.exists(image_path):
+            return
+        size = os.path.getsize(image_path)
+        # 35KB以上ある場合は必ず圧縮・最適化を行う（フォールバック時の100KB超えを100%排除）
+        if size > 35000:
+            tmp_path = image_path + ".tmp.jpg"
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", image_path,
+                "-vf", "scale=800:-1",
+                "-q:v", "3",
+                tmp_path
+            ]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)
+            if res.returncode == 0 and os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1000:
+                os.replace(tmp_path, image_path)
+                print(f" -> [容量最適化] {size} bytes => {os.path.getsize(image_path)} bytes に軽量化")
+    except Exception as e:
+        print(f"[WARN] 画像圧縮処理例外: {e}")
+
+def capture_with_ytdlp_ffmpeg_downloader(video_url, output_path):
+    """
+    yt-dlp の ffmpeg 統合ダウンローダー機能を使い、DASHやHLSを問わず
+    ライブ配信から直接1フレーム（幅800px・高画質軽量JPEG）をリアルタイム取得する最強エンジン
+    """
+    try:
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
         cmd = [
-            "ffmpeg", "-y",
-            "-rw_timeout", "15000000",
-            "-user_agent", user_agent,
-            "-headers", headers,
-            "-i", stream_url,
-            "-vframes", "1",
-            "-vf", "scale=800:-1",
-            "-q:v", "3",
-            output_path
+            "yt-dlp",
+            "-f", "best[ext=mp4]/best",
+            "--no-part",
+            "--downloader", "ffmpeg",
+            "--downloader-args", "ffmpeg:-vframes 1 -vf scale=800:-1 -q:v 3",
+            "--referer", "https://www.youtube.com/",
+            "-o", output_path,
+            video_url
         ]
-        ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
-        if ffmpeg_res.returncode != 0 or not (os.path.exists(output_path) and os.path.getsize(output_path) > 1000):
-            print(f"[DEBUG streamlink_hls->ffmpeg] 失敗 rc={ffmpeg_res.returncode}, err={ffmpeg_res.stderr.decode('utf-8', 'ignore')[-200:]}")
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=35)
+        if res.returncode != 0 or not (os.path.exists(output_path) and os.path.getsize(output_path) > 1000):
+            print(f"[DEBUG ytdlp_ffmpeg_downloader] 失敗 rc={res.returncode}, err={res.stderr.decode('utf-8', 'ignore')[-200:]}")
             return False
         return True
     except Exception as e:
-        print(f"[WARN] streamlink HLS キャプチャ例外: {e}")
-        return False
-
-def capture_with_streamlink_pipe(video_url, output_path):
-    """
-    streamlink から動画ストリームをパイプ出力し ffmpeg で確実にキャプチャする
-    """
-    try:
-        sl_cmd = [
-            "streamlink",
-            "--stdout",
-            video_url,
-            "best,1080p60,720p60,1080p,720p,worst"
-        ]
-        ffmpeg_cmd = [
-            "ffmpeg", "-y",
-            "-rw_timeout", "15000000",
-            "-i", "pipe:0",
-            "-vframes", "1",
-            "-vf", "scale=800:-1",
-            "-q:v", "3",
-            output_path
-        ]
-        
-        p_sl = subprocess.Popen(sl_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p_ffmpeg = subprocess.Popen(ffmpeg_cmd, stdin=p_sl.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = p_ffmpeg.communicate(timeout=30)
-        
-        try:
-            p_sl.terminate()
-            p_sl.wait(timeout=5)
-        except Exception:
-            p_sl.kill()
-
-        if p_ffmpeg.returncode != 0 or not (os.path.exists(output_path) and os.path.getsize(output_path) > 1000):
-            print(f"[DEBUG streamlink_pipe] 失敗 rc={p_ffmpeg.returncode}, err={err.decode('utf-8', 'ignore')[-200:] if err else ''}")
-            return False
-        return True
-    except Exception as e:
-        print(f"[WARN] streamlink パイプキャプチャ例外: {e}")
+        print(f"[WARN] ytdlp_ffmpeg_downloader 例外: {e}")
         return False
 
 def capture_with_stream_url_hls(video_url, output_path):
     """
-    yt-dlp で HLS(.m3u8)および各種ライブのストリームURLを取得し ffmpeg からキャプチャする
+    yt-dlp で HLS(.m3u8)のストリームURLを明示的に取得し ffmpeg からキャプチャする
     """
     try:
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         res = subprocess.run(
-            ["yt-dlp", "-f", "301/300/96/95/94/93/92/91/bestvideo/best", "-g", video_url],
+            ["yt-dlp", "-f", "301/300/96/95/94/93/92/91/best[protocol^=m3u8]/best[protocol=m3u8_native]/best", "-g", video_url],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -163,8 +136,11 @@ def capture_with_stream_url_hls(video_url, output_path):
             "-q:v", "3",
             output_path
         ]
-        ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=35)
-        return ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+        ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+        if ffmpeg_res.returncode != 0 or not (os.path.exists(output_path) and os.path.getsize(output_path) > 1000):
+            print(f"[DEBUG ytdlp_hls->ffmpeg] 失敗 rc={ffmpeg_res.returncode}, err={ffmpeg_res.stderr.decode('utf-8', 'ignore')[-200:]}")
+            return False
+        return True
     except Exception as e:
         print(f"[WARN] yt-dlp HLS URLキャプチャ失敗: {e}")
         return False
@@ -228,7 +204,7 @@ def capture_with_pipe(video_url, output_path):
     try:
         ytdlp_cmd = [
             "yt-dlp",
-            "-f", "301/300/96/95/94/93/92/91/bestvideo/best",
+            "-f", "best[ext=mp4]/best",
             "--no-part",
             "--referer", "https://www.youtube.com/",
             "-o", "-",
@@ -261,25 +237,21 @@ def capture_with_pipe(video_url, output_path):
 
 def capture_stream_frame_with_ytdlp(video_url, output_path):
     """
-    streamlink および yt-dlp と ffmpeg を組み合わせてリアルタイムストリームから直接1フレームをキャプチャする（全5段階対応）
+    yt-dlp と ffmpeg を組み合わせてリアルタイムストリームから直接1フレームをキャプチャする最強多層構成
     """
-    # 方式1: ライブ専門ツール streamlink によるHLSストリームURL直接取得（60fps・30fpsで最強）
-    if capture_with_streamlink_hls(video_url, output_path):
+    # 方式1: yt-dlp の ffmpeg 統合ダウンローダー（DASH/HLS/全解像度対応で動画ストリームから実フレームを確実切り出し）
+    if capture_with_ytdlp_ffmpeg_downloader(video_url, output_path):
         return True
         
-    # 方式2: streamlink によるパイプストリーム処理
-    if capture_with_streamlink_pipe(video_url, output_path):
-        return True
-
-    # 方式3: yt-dlp HLSストリームURL直接取得
+    # 方式2: yt-dlp HLSストリームURL直接取得（30fps・HLSで高速）
     if capture_with_stream_url_hls(video_url, output_path):
         return True
     
-    # 方式4: yt-dlp 3秒セクションローカル保存方式
+    # 方式3: yt-dlp 3秒セクションローカル保存方式
     if capture_with_ytdlp_download(video_url, output_path):
         return True
         
-    # 方式5: yt-dlp パイプストリームキャプチャ
+    # 方式4: yt-dlp パイプストリームキャプチャ
     if capture_with_pipe(video_url, output_path):
         return True
         
@@ -368,6 +340,7 @@ def main():
             success = capture_fallback_thumbnail(info["videoId"], img_path)
 
         if success:
+            ensure_compressed_image(img_path)
             print(f" -> 成功: {rel_path} ({os.path.getsize(img_path)} bytes)")
             history_data["records"][date_str][hour_str][course_id] = rel_path
         else:
