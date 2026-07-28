@@ -213,11 +213,6 @@ def process_camera(course_id, info, target_dir, date_str, hour_str, force=False)
     img_path = os.path.join(target_dir, img_name)
     rel_path = f"cams/{date_str}/{img_name}"
 
-    # すでに正常な画像ファイルが存在する場合は二重実行をスキップ（0.01秒で完了）
-    if not force and os.path.exists(img_path) and os.path.getsize(img_path) > 5000:
-        print(f"[{course_id}] ({info['name']}) -> 既に本時台の画像が保存済みのため撮影をスキップします ({os.path.getsize(img_path)} bytes)")
-        return course_id, True, rel_path
-
     print(f"[{course_id}] ({info['name']}) リアルタイム撮影試行中...")
 
     success = capture_stream_frame(info["url"], img_path)
