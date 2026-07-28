@@ -23,7 +23,9 @@ jobs:
           cache: 'pip'
 
       - name: Set up FFmpeg (超高速バイナリ設置・aptダウンロード全廃)
-        uses: jwlawson/actions-setup-ffmpeg@v2
+        uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
 
       - name: Install yt-dlp
         run: pip install -U yt-dlp
