@@ -1,10 +1,10 @@
 /**
- * Playwright (ヘッドレス Chromium) で YouTube ライブ配信の画面を直接スクリーンショットする
+ * Playwright (ヘッドレス Chromium) で YouTube ライブ配信ページを直接開き、
+ * 再生中の映像フレームをスクリーンショットする。
  * 
  * 使い方: node capture_playwright.mjs <youtube_url> <output_path>
  * 
- * yt-dlp が「Sign in to confirm you're not a bot」でブロックされる動画に対して、
- * 本物のブラウザで配信ページを開き、再生中の映像フレームをそのまま撮影する。
+ * embed 無効の動画にも対応するため、通常の /watch?v= ページを使用する。
  */
 import { chromium } from 'playwright';
 import { existsSync, statSync } from 'fs';
@@ -17,19 +17,7 @@ if (!videoUrl || !outputPath) {
   process.exit(1);
 }
 
-// YouTube URL から videoId を抽出
-const match = videoUrl.match(/(?:v=|\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-const videoId = match ? match[1] : null;
-
-if (!videoId) {
-  console.error(`[Playwright] 無効な YouTube URL: ${videoUrl}`);
-  process.exit(1);
-}
-
-// embed URL（自動再生・ミュート・コントロール非表示）で最もクリーンに映像だけ取得
-const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&controls=0&rel=0&modestbranding=1`;
-
-console.log(`[Playwright] 対象: ${embedUrl}`);
+console.log(`[Playwright] 対象: ${videoUrl}`);
 console.log(`[Playwright] 出力: ${outputPath}`);
 
 (async () => {
@@ -46,31 +34,32 @@ console.log(`[Playwright] 出力: ${outputPath}`);
     });
 
     const context = await browser.newContext({
-      viewport: { width: 854, height: 480 },
+      viewport: { width: 1280, height: 720 },
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
     });
 
     const page = await context.newPage();
 
-    // embed ページに移動
-    await page.goto(embedUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    // YouTube の通常ページに移動（embed ではなく /watch?v= を使用）
+    await page.goto(videoUrl, { waitUntil: 'domcontentloaded', timeout: 25000 });
 
-    // 同意画面（GDPR等）が出た場合の処理
+    // Cookie 同意画面の処理
     try {
-      const consentBtn = page.locator('button:has-text("Accept all"), button:has-text("同意して続行"), button:has-text("I agree")');
-      if (await consentBtn.isVisible({ timeout: 3000 })) {
+      const consentBtn = page.locator('button[aria-label="Accept all"], button:has-text("Accept all"), button:has-text("同意して続行"), tp-yt-paper-button:has-text("Accept all")');
+      if (await consentBtn.first().isVisible({ timeout: 3000 })) {
         await consentBtn.first().click();
+        console.log('[Playwright] Cookie同意画面をクリック');
         await page.waitForTimeout(2000);
       }
     } catch {
-      // 同意画面なし → 問題なし
+      // 同意画面なし
     }
 
     // video 要素の出現を待つ
-    const video = page.locator('video');
-    await video.waitFor({ state: 'attached', timeout: 15000 });
+    await page.waitForSelector('video', { state: 'attached', timeout: 15000 });
+    console.log('[Playwright] video要素を検出');
 
-    // 自動再生を確実にする
+    // 自動再生を試行し、ミュートにする
     await page.evaluate(() => {
       const v = document.querySelector('video');
       if (v) {
@@ -79,10 +68,22 @@ console.log(`[Playwright] 出力: ${outputPath}`);
       }
     });
 
-    // 映像フレームが実際にレンダリングされるのを待つ（5秒）
-    await page.waitForTimeout(5000);
+    // 再生ボタンが表示されていればクリック
+    try {
+      const playBtn = page.locator('.ytp-play-button[aria-label="再生"], .ytp-play-button[aria-label="Play"],.ytp-large-play-button');
+      if (await playBtn.first().isVisible({ timeout: 2000 })) {
+        await playBtn.first().click();
+        console.log('[Playwright] 再生ボタンをクリック');
+      }
+    } catch {
+      // 再生ボタンなし（自動再生済み）
+    }
 
-    // 映像が実際に再生中かチェック
+    // 映像が実際にレンダリングされるまで待つ
+    console.log('[Playwright] 映像レンダリング待機中 (8秒)...');
+    await page.waitForTimeout(8000);
+
+    // video 要素の状態を確認
     const videoInfo = await page.evaluate(() => {
       const v = document.querySelector('video');
       if (!v) return { exists: false };
@@ -92,21 +93,33 @@ console.log(`[Playwright] 出力: ${outputPath}`);
         paused: v.paused,
         videoWidth: v.videoWidth,
         videoHeight: v.videoHeight,
-        currentTime: v.currentTime,
-        duration: v.duration
+        currentTime: v.currentTime
       };
     });
-
     console.log(`[Playwright] Video状態: ${JSON.stringify(videoInfo)}`);
 
-    if (videoInfo.exists && videoInfo.videoWidth > 0 && videoInfo.readyState >= 2) {
+    const video = page.locator('video');
+
+    if (videoInfo.exists && videoInfo.videoWidth > 0 && videoInfo.readyState >= 2 && videoInfo.currentTime > 0) {
       // video 要素を直接スクリーンショット（UIなし、映像フレームのみ）
       await video.screenshot({ path: outputPath, type: 'jpeg', quality: 85 });
       console.log('[Playwright] video要素の直接スクリーンショット成功');
     } else {
-      // フォールバック：ページ全体をスクリーンショット
-      console.log('[Playwright] video要素が取得できないため、ページ全体をスクリーンショット');
-      await page.screenshot({ path: outputPath, type: 'jpeg', quality: 85 });
+      // video が再生されていない場合、プレイヤー領域をスクリーンショット
+      console.log('[Playwright] video未再生のため、プレイヤー領域をスクリーンショット試行');
+      try {
+        const player = page.locator('#movie_player, .html5-video-player');
+        if (await player.first().isVisible({ timeout: 3000 })) {
+          await player.first().screenshot({ path: outputPath, type: 'jpeg', quality: 85 });
+          console.log('[Playwright] プレイヤー領域のスクリーンショット成功');
+        } else {
+          await page.screenshot({ path: outputPath, type: 'jpeg', quality: 85 });
+          console.log('[Playwright] ページ全体のスクリーンショット（フォールバック）');
+        }
+      } catch {
+        await page.screenshot({ path: outputPath, type: 'jpeg', quality: 85 });
+        console.log('[Playwright] ページ全体のスクリーンショット（フォールバック）');
+      }
     }
 
     // 出力ファイルの検証
@@ -114,7 +127,7 @@ console.log(`[Playwright] 出力: ${outputPath}`);
       const size = statSync(outputPath).size;
       console.log(`[Playwright] 保存完了: ${size} bytes`);
       if (size < 3000) {
-        console.error('[Playwright] ファイルサイズが小さすぎます（無効な画像の可能性）');
+        console.error('[Playwright] ファイルサイズが小さすぎます');
         process.exit(1);
       }
       process.exit(0);
