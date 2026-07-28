@@ -60,6 +60,7 @@ def capture_with_streamlink_hls(video_url, output_path):
             timeout=25
         )
         if res.returncode != 0 or not res.stdout.strip():
+            print(f"[DEBUG streamlink_hls] 失敗 returncode={res.returncode}, err={res.stderr.strip()[:200]}")
             return False
         
         stream_url = res.stdout.strip().splitlines()[0]
@@ -81,9 +82,12 @@ def capture_with_streamlink_hls(video_url, output_path):
             output_path
         ]
         ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
-        return ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+        if ffmpeg_res.returncode != 0 or not (os.path.exists(output_path) and os.path.getsize(output_path) > 1000):
+            print(f"[DEBUG streamlink_hls->ffmpeg] 失敗 rc={ffmpeg_res.returncode}, err={ffmpeg_res.stderr.decode('utf-8', 'ignore')[-200:]}")
+            return False
+        return True
     except Exception as e:
-        print(f"[WARN] streamlink HLS キャプチャ失敗: {e}")
+        print(f"[WARN] streamlink HLS キャプチャ例外: {e}")
         return False
 
 def capture_with_streamlink_pipe(video_url, output_path):
@@ -109,7 +113,7 @@ def capture_with_streamlink_pipe(video_url, output_path):
         
         p_sl = subprocess.Popen(sl_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p_ffmpeg = subprocess.Popen(ffmpeg_cmd, stdin=p_sl.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p_ffmpeg.communicate(timeout=30)
+        out, err = p_ffmpeg.communicate(timeout=30)
         
         try:
             p_sl.terminate()
@@ -117,9 +121,12 @@ def capture_with_streamlink_pipe(video_url, output_path):
         except Exception:
             p_sl.kill()
 
-        return p_ffmpeg.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+        if p_ffmpeg.returncode != 0 or not (os.path.exists(output_path) and os.path.getsize(output_path) > 1000):
+            print(f"[DEBUG streamlink_pipe] 失敗 rc={p_ffmpeg.returncode}, err={err.decode('utf-8', 'ignore')[-200:] if err else ''}")
+            return False
+        return True
     except Exception as e:
-        print(f"[WARN] streamlink パイプキャプチャ失敗: {e}")
+        print(f"[WARN] streamlink パイプキャプチャ例外: {e}")
         return False
 
 def capture_with_stream_url_hls(video_url, output_path):
@@ -136,6 +143,7 @@ def capture_with_stream_url_hls(video_url, output_path):
             timeout=30
         )
         if res.returncode != 0 or not res.stdout.strip():
+            print(f"[DEBUG ytdlp_hls] 失敗 returncode={res.returncode}, err={res.stderr.strip()[:200]}")
             return False
         
         stream_url = res.stdout.strip().splitlines()[0]
@@ -283,7 +291,10 @@ def capture_fallback_thumbnail(video_id, output_path):
     YouTube公式のライブ配信リアルタイムサムネイルを保存するフォールバック機能
     """
     thumb_urls = [
+        f"https://i.ytimg.com/vi/{video_id}/maxresdefault_live.jpg",
+        f"https://i.ytimg.com/vi/{video_id}/sddefault_live.jpg",
         f"https://i.ytimg.com/vi/{video_id}/hqdefault_live.jpg",
+        f"https://i.ytimg.com/vi/{video_id}/mqdefault_live.jpg",
         f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg",
         f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
     ]
@@ -298,9 +309,11 @@ def capture_fallback_thumbnail(video_id, output_path):
                 if len(data) > 1000: # 正常な画像バイナリサイズか確認
                     with open(output_path, "wb") as f:
                         f.write(data)
+                    print(f" -> フォールバック成功 URL: {url} ({len(data)} bytes)")
                     return True
-        except Exception:
+        except Exception as e:
             continue
+    print(f" -> フォールバック全滅 (videoId={video_id})")
     return False
 
 def main():
