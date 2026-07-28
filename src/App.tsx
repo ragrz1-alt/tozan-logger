@@ -2,10 +2,11 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { FileUploader } from './components/FileUploader';
 import { Charts } from './components/Charts';
 import { DailyDetailView } from './components/DailyDetailView';
+import { LiveCamArchivePage } from './components/LiveCamArchivePage';
 import { parseLogFile, aggregateData, getDailyDetails, type LogEntry, type CourseId } from './utils/logParser';
 import { fetchWeatherData, fetchHourlyWeatherData, type WeatherData, type HourlyWeatherData } from './utils/weatherApi';
 import { saveLogsToDB, loadLogsFromDB, clearLogsFromDB } from './utils/storage';
-import { Trash2, Calendar as CalendarIcon, Cloud, CloudDownload, CloudUpload, Key, Database, Mountain, Compass, Layers, PlusCircle, X, Lock, Unlock, Eye, RefreshCw } from 'lucide-react';
+import { Trash2, Calendar as CalendarIcon, Cloud, CloudDownload, CloudUpload, Key, Database, Mountain, Compass, Layers, PlusCircle, X, Lock, Unlock, Eye, RefreshCw, Video } from 'lucide-react';
 import { FirebaseModal } from './components/FirebaseModal';
 import { AdminModal } from './components/AdminModal';
 import { saveLogsToFirestore, loadLogsFromFirestore, checkCloudMetadata } from './utils/firebaseStorage';
@@ -14,7 +15,7 @@ import { isFirebaseConfigured } from './config/firebaseConfig';
 function App() {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
-  const [selectedCourse, setSelectedCourse] = useState<CourseId | 'all'>('oshidomari');
+  const [selectedCourse, setSelectedCourse] = useState<CourseId | 'all' | 'cameras'>('oshidomari');
   const [showAddUploader, setShowAddUploader] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [weatherData, setWeatherData] = useState<Record<string, WeatherData>>({});
@@ -650,6 +651,31 @@ function App() {
                   <Layers size={18} />
                   <span>利尻山 全体合算</span>
                 </button>
+
+                <button
+                  onClick={() => {
+                    setSelectedCourse('cameras');
+                    setSelectedDate(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.65rem 1.45rem',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    borderRadius: '10px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: selectedCourse === 'cameras' ? '#10b981' : 'transparent',
+                    color: selectedCourse === 'cameras' ? '#ffffff' : 'var(--text-primary)',
+                    boxShadow: selectedCourse === 'cameras' ? '0 2px 8px rgba(16, 185, 129, 0.35)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Video size={18} />
+                  <span>ライブカメラ状況確認</span>
+                </button>
               </div>
             </div>
 
@@ -915,8 +941,12 @@ function App() {
               </div>
             )}
 
-            {/* 4. 年・月 ワンクリック絞り込み ＆ 特定日の詳細分析を一つにまとめた統合フィルターカード */}
-            <div className="card" style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
+            {selectedCourse === 'cameras' ? (
+              <LiveCamArchivePage />
+            ) : (
+              <>
+                {/* 4. 年・月 ワンクリック絞り込み ＆ 特定日の詳細分析を一つにまとめた統合フィルターカード */}
+                <div className="card" style={{ marginBottom: '1.5rem', padding: '1.25rem' }}>
               <div style={{
                 display: 'flex',
                 flexWrap: 'wrap',
@@ -1080,6 +1110,8 @@ function App() {
               weatherData={weatherData} 
               onSelectDate={(date) => setSelectedDate(date)} 
             />
+              </>
+            )}
           </>
         )}
       </main>
