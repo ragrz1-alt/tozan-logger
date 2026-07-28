@@ -240,9 +240,42 @@ def capture_with_pipe(video_url, output_path):
         print(f"[WARN] パイプキャプチャ失敗: {e}")
         return False
 
-def capture_stream_frame_with_ytdlp(video_url, output_path):
+def capture_with_playwright(video_url, output_path):
     """
-    yt-dlp と ffmpeg を組み合わせてリアルタイムストリームから直接1フレームをキャプチャする最強多層構成
+    Playwright（ヘッドレス Chromium）でYouTubeライブ配信の embed ページを開き、
+    再生中の映像フレームを直接スクリーンショットする。
+    yt-dlp が「Sign in to confirm you're not a bot」でブロックされる動画用の最終手段。
+    """
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        script_path = os.path.join(script_dir, "capture_playwright.mjs")
+        if not os.path.exists(script_path):
+            print("[DEBUG playwright] capture_playwright.mjs が見つかりません")
+            return False
+        
+        cmd = ["node", script_path, video_url, output_path]
+        print(f"[DEBUG playwright] 実行: {' '.join(cmd)}")
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+        stdout = res.stdout.decode('utf-8', errors='ignore')
+        stderr = res.stderr.decode('utf-8', errors='ignore')
+        if stdout.strip():
+            print(f"[DEBUG playwright stdout] {stdout.strip()}")
+        if stderr.strip():
+            print(f"[DEBUG playwright stderr] {stderr.strip()[:300]}")
+        
+        if res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 3000:
+            print(" -> [BROWSER_SCREENSHOT] Playwright ヘッドレスブラウザでリアルタイム撮影成功")
+            return True
+        else:
+            print(f"[DEBUG playwright] 失敗 rc={res.returncode}")
+            return False
+    except Exception as e:
+        print(f"[WARN] Playwright キャプチャ失敗: {e}")
+        return False
+
+def capture_stream_frame(video_url, output_path):
+    """
+    yt-dlp / ffmpeg / Playwright を組み合わせてリアルタイムストリームから直接1フレームをキャプチャする多層構成
     """
     # 方式1: yt-dlp の ffmpeg 統合ダウンローダー（DASH/HLS/全解像度対応で動画ストリームから実フレームを確実切り出し）
     if capture_with_ytdlp_ffmpeg_downloader(video_url, output_path):
@@ -258,6 +291,10 @@ def capture_stream_frame_with_ytdlp(video_url, output_path):
         
     # 方式4: yt-dlp パイプストリームキャプチャ
     if capture_with_pipe(video_url, output_path):
+        return True
+    
+    # 方式5: Playwright ヘッドレスブラウザ（yt-dlpがボット判定でブロックされた場合の最終手段）
+    if capture_with_playwright(video_url, output_path):
         return True
         
     return False
@@ -338,10 +375,10 @@ def main():
 
         print(f"[{course_id}] ({info['name']}) 撮影試行中...")
 
-        # 優先: yt-dlp + ffmpeg
-        success = capture_stream_frame_with_ytdlp(info["url"], img_path)
+        # 優先: yt-dlp + ffmpeg / Playwright
+        success = capture_stream_frame(info["url"], img_path)
         if not success:
-            print(f"[{course_id}] yt-dlp/ffmpeg での取得が困難なため公式ライブサムネイルでフォールバック中...")
+            print(f"[{course_id}] 全方式でのリアルタイム取得が困難なため公式サムネイルでフォールバック中...")
             success = capture_fallback_thumbnail(info["videoId"], img_path)
 
         if success:

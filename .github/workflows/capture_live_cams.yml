@@ -21,18 +21,21 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install yt-dlp & dependencies
+      - name: Install yt-dlp & ffmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           pip install yt-dlp
 
-      - name: Debug oshidomari capture (全方式テスト)
-        run: python scripts/debug_oshidomari.py || true
+      - name: Install Playwright (ヘッドレスブラウザ)
+        run: |
+          npm install playwright
+          npx playwright install chromium --with-deps
 
       - name: Run live camera capture script
         run: |
           python scripts/capture_live_cams.py --debug || true
+          echo "=== 撮影結果一覧 ==="
           ls -lh public/cams/2026-*/* || true
 
       - name: Commit and push recorded screenshots
@@ -47,4 +50,3 @@ jobs:
             git commit -m "🤖 [Auto-Capture] 利尻山ライブカメラ スクショ記録 ($(date +'%Y-%m-%d %H:%M JST'))"
             git push
           fi
-
