@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExternalLink, Maximize2, X, Thermometer, Wind, Droplets, Mountain, VideoOff } from 'lucide-react';
 import type { HourlyWeatherData } from '../utils/weatherApi';
+import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
 
 interface LiveCamViewerProps {
   dateStr: string;
@@ -49,11 +50,14 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
   const [history, setHistory] = useState<CamHistory | null>(null);
   const [modalImage, setModalImage] = useState<{ url: string; title: string } | null>(null);
 
-  // カメラ履歴 metadata をロード
+  // カメラ履歴 metadata をロード（GitHub Rawから即時取得、失敗時はローカルフォールバック）
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch('/cams/history.json?t=' + Date.now());
+        let res = await fetch(getHistoryJsonUrl());
+        if (!res.ok) {
+          res = await fetch('/cams/history.json?t=' + Date.now());
+        }
         if (res.ok) {
           const data: CamHistory = await res.json();
           setHistory(data);
@@ -218,7 +222,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
       }}>
         {CAMERAS.map(cam => {
           const imgPath = dateRecords[selectedHour]?.[cam.id];
-          const displayUrl = imgPath ? `/${imgPath}` : null;
+          const displayUrl = imgPath ? getCamImageUrl(imgPath) : null;
 
           return (
             <div

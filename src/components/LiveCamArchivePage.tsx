@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Video, RefreshCw, Eye, Sun } from 'lucide-react';
 import { LiveCamViewer } from './LiveCamViewer';
 import { fetchHourlyWeatherData, type HourlyWeatherData } from '../utils/weatherApi';
+import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
 
 interface CamHistory {
   updatedAt: string;
   cameras: Record<string, { name: string; videoId: string; url: string }>;
-  records: Record<string, Record<string, Record<string, string>>>; // dateStr -> hour -> { oshidomari: "...", kutsugata: "..." }
+  records: Record<string, Record<string, Record<string, string>>>;
 }
 
 export const LiveCamArchivePage: React.FC = () => {
@@ -15,10 +16,13 @@ export const LiveCamArchivePage: React.FC = () => {
   const [hourlyWeather, setHourlyWeather] = useState<Record<string, HourlyWeatherData>>({});
   const [activeViewMode, setActiveViewMode] = useState<'compare' | 'gallery'>('compare');
 
-  // Load /cams/history.json
+  // Load /cams/history.json（GitHub Rawから最新即時取得、失敗時はローカルフォールバック）
   const loadHistory = async () => {
     try {
-      const res = await fetch('/cams/history.json?t=' + Date.now());
+      let res = await fetch(getHistoryJsonUrl());
+      if (!res.ok) {
+        res = await fetch('/cams/history.json?t=' + Date.now());
+      }
       if (res.ok) {
         const data: CamHistory = await res.json();
         setHistory(data);
@@ -315,7 +319,7 @@ export const LiveCamArchivePage: React.FC = () => {
                       <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: oshidomariPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
                         {oshidomariPath ? (
                           <img
-                            src={`/${oshidomariPath}`}
+                            src={getCamImageUrl(oshidomariPath)}
                             alt={`鴛泊 ${hr}:00`}
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                           />
@@ -333,7 +337,7 @@ export const LiveCamArchivePage: React.FC = () => {
                       <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: kutsugataPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
                         {kutsugataPath ? (
                           <img
-                            src={`/${kutsugataPath}`}
+                            src={getCamImageUrl(kutsugataPath)}
                             alt={`沓形 ${hr}:00`}
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                           />
@@ -351,7 +355,7 @@ export const LiveCamArchivePage: React.FC = () => {
                       <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: senposhiPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
                         {senposhiPath ? (
                           <img
-                            src={`/${senposhiPath}`}
+                            src={getCamImageUrl(senposhiPath)}
                             alt={`仙法志 ${hr}:00`}
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                           />

@@ -1,12 +1,13 @@
 import React from 'react';
 import { X, ExternalLink, Thermometer, Wind, Droplets, Mountain } from 'lucide-react';
 import type { HourlyWeatherData } from '../utils/weatherApi';
+import { getCamImageUrl } from '../utils/camUrl';
 
 interface HourlyCamModalProps {
   dateStr: string;
   hour: string;
   hourlyWeather?: HourlyWeatherData;
-  historyRecords?: Record<string, Record<string, string>>; // records[hour] -> { oshidomari: "...", kutsugata: "..." }
+  historyRecords?: Record<string, string>; // { oshidomari: "...", kutsugata: "..." }
   onClose: () => void;
 }
 
@@ -239,7 +240,7 @@ export const HourlyCamModal: React.FC<HourlyCamModalProps> = ({
                   >
                     {imgPath ? (
                       <img
-                        src={`/${imgPath}`}
+                        src={getCamImageUrl(imgPath)}
                         alt={`${cam.name} ${hour}時`}
                         style={{
                           position: 'absolute',
