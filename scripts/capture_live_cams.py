@@ -85,10 +85,10 @@ def capture_with_ytdlp_ffmpeg_downloader(video_url, output_path):
                 pass
         cmd = [
             "yt-dlp",
-            "-f", "best[ext=mp4]/best",
+            "-f", "bestvideo[height<=1080]/best[height<=1080]/best",
             "--no-part",
             "--downloader", "ffmpeg",
-            "--downloader-args", "ffmpeg:-vframes 1 -vf scale=800:-1 -q:v 3",
+            "--downloader-args", "ffmpeg_i:-t 5 ffmpeg_o:-vframes 1 -vf scale=800:-1 -q:v 3",
             "--referer", "https://www.youtube.com/",
             "-o", output_path,
             video_url
@@ -97,6 +97,7 @@ def capture_with_ytdlp_ffmpeg_downloader(video_url, output_path):
         if res.returncode != 0 or not (os.path.exists(output_path) and os.path.getsize(output_path) > 1000):
             print(f"[DEBUG ytdlp_ffmpeg_downloader] 失敗 rc={res.returncode}, err={res.stderr.decode('utf-8', 'ignore')[-200:]}")
             return False
+        print(" -> [STREAM_SCREENSHOT] ytdlp_ffmpeg_downloader エンジンでリアルタイム撮影成功")
         return True
     except Exception as e:
         print(f"[WARN] ytdlp_ffmpeg_downloader 例外: {e}")
@@ -104,12 +105,12 @@ def capture_with_ytdlp_ffmpeg_downloader(video_url, output_path):
 
 def capture_with_stream_url_hls(video_url, output_path):
     """
-    yt-dlp で HLS(.m3u8)のストリームURLを明示的に取得し ffmpeg からキャプチャする
+    yt-dlp で HLS(.m3u8)のストリームURLを取得し ffmpeg からキャプチャする（30fpsやHLS配信で最強）
     """
     try:
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         res = subprocess.run(
-            ["yt-dlp", "-f", "301/300/96/95/94/93/92/91/best[protocol^=m3u8]/best[protocol=m3u8_native]/best", "-g", video_url],
+            ["yt-dlp", "-f", "best[protocol=m3u8]/96/95/94/93/best", "-g", video_url],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -140,61 +141,59 @@ def capture_with_stream_url_hls(video_url, output_path):
         if ffmpeg_res.returncode != 0 or not (os.path.exists(output_path) and os.path.getsize(output_path) > 1000):
             print(f"[DEBUG ytdlp_hls->ffmpeg] 失敗 rc={ffmpeg_res.returncode}, err={ffmpeg_res.stderr.decode('utf-8', 'ignore')[-200:]}")
             return False
+        print(" -> [STREAM_SCREENSHOT] ytdlp_hls エンジンでリアルタイム撮影成功")
         return True
     except Exception as e:
         print(f"[WARN] yt-dlp HLS URLキャプチャ失敗: {e}")
         return False
 
-def capture_with_ytdlp_download(video_url, output_path):
+def capture_with_stream_url_dash(video_url, output_path):
     """
-    60fpsやDASH配信など URL 直接再生が困難な場合、冒頭3秒間をローカル一時ファイルに正確に保存し、ディスク上のファイルから確実にフレームを切り出す
+    yt-dlp でストリームURLを取得し、HTTPヘッダー・再接続フラグ付きの ffmpeg で直接キャプチャする
+    （鴛泊などDASH配信でもリアルタイム配信から実フレームを切り出す確実なバックアップ方式）
     """
-    temp_file = output_path + ".temp.ts"
     try:
-        if os.path.exists(temp_file):
-            try:
-                os.remove(temp_file)
-            except Exception:
-                pass
-
-        ytdlp_cmd = [
-            "yt-dlp",
-            "-f", "301/300/96/95/94/93/92/91/bestvideo/best",
-            "--no-part",
-            "--download-sections", "*00:00:00-00:00:03",
-            "--referer", "https://www.youtube.com/",
-            "-o", temp_file,
-            video_url
-        ]
-        p = subprocess.run(ytdlp_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=28)
-
-        if not os.path.exists(temp_file) or os.path.getsize(temp_file) < 1000:
+        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        res = subprocess.run(
+            ["yt-dlp", "-f", "bestvideo[height<=1080]/bestvideo/best", "-g", video_url],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=30
+        )
+        if res.returncode != 0 or not res.stdout.strip():
+            print(f"[DEBUG ytdlp_dash] URL取得失敗 rc={res.returncode}, err={res.stderr.strip()[:200]}")
             return False
-
-        ffmpeg_cmd = [
+        
+        # 先頭行（動画ストリームURL）を採用
+        stream_url = res.stdout.strip().splitlines()[0]
+        headers = (
+            f"User-Agent: {user_agent}\r\n"
+            "Referer: https://www.youtube.com/\r\n"
+            "Origin: https://www.youtube.com\r\n"
+        )
+        cmd = [
             "ffmpeg", "-y",
-            "-i", temp_file,
+            "-reconnect", "1",
+            "-reconnect_streamed", "1",
+            "-reconnect_delay_max", "5",
+            "-rw_timeout", "15000000",
+            "-user_agent", user_agent,
+            "-headers", headers,
+            "-i", stream_url,
             "-vframes", "1",
             "-vf", "scale=800:-1",
             "-q:v", "3",
             output_path
         ]
-        ffmpeg_res = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
-        
-        try:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-        except Exception:
-            pass
-
-        return ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+        ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+        if ffmpeg_res.returncode != 0 or not (os.path.exists(output_path) and os.path.getsize(output_path) > 1000):
+            print(f"[DEBUG ytdlp_dash->ffmpeg] 失敗 rc={ffmpeg_res.returncode}, err={ffmpeg_res.stderr.decode('utf-8', 'ignore')[-200:]}")
+            return False
+        print(" -> [STREAM_SCREENSHOT] ytdlp_dash エンジンでリアルタイム撮影成功")
+        return True
     except Exception as e:
-        print(f"[WARN] yt-dlp一時ファイルダウンロードキャプチャ失敗: {e}")
-        try:
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-        except Exception:
-            pass
+        print(f"[WARN] ytdlp_dash 例外: {e}")
         return False
 
 def capture_with_pipe(video_url, output_path):
@@ -204,7 +203,7 @@ def capture_with_pipe(video_url, output_path):
     try:
         ytdlp_cmd = [
             "yt-dlp",
-            "-f", "best[ext=mp4]/best",
+            "-f", "bestvideo[height<=1080]/best[height<=1080]/best",
             "--no-part",
             "--referer", "https://www.youtube.com/",
             "-o", "-",
@@ -212,6 +211,7 @@ def capture_with_pipe(video_url, output_path):
         ]
         ffmpeg_cmd = [
             "ffmpeg", "-y",
+            "-t", "5",
             "-rw_timeout", "15000000",
             "-i", "pipe:0",
             "-vframes", "1",
@@ -230,7 +230,10 @@ def capture_with_pipe(video_url, output_path):
         except Exception:
             p_ytdlp.kill()
 
-        return p_ffmpeg.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+        if p_ffmpeg.returncode != 0 or not (os.path.exists(output_path) and os.path.getsize(output_path) > 1000):
+            return False
+        print(" -> [STREAM_SCREENSHOT] ytdlp_pipe エンジンでリアルタイム撮影成功")
+        return True
     except Exception as e:
         print(f"[WARN] パイプキャプチャ失敗: {e}")
         return False
@@ -247,8 +250,8 @@ def capture_stream_frame_with_ytdlp(video_url, output_path):
     if capture_with_stream_url_hls(video_url, output_path):
         return True
     
-    # 方式3: yt-dlp 3秒セクションローカル保存方式
-    if capture_with_ytdlp_download(video_url, output_path):
+    # 方式3: yt-dlp DASH/サーバーABR対応ストリームURL直接取得（再接続・認証ヘッダー完備）
+    if capture_with_stream_url_dash(video_url, output_path):
         return True
         
     # 方式4: yt-dlp パイプストリームキャプチャ
