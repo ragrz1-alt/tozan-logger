@@ -280,7 +280,6 @@ export const LiveCamArchivePage: React.FC = () => {
                 const oshidomariPath = selectedDateRecords[hr]?.oshidomari;
                 const kutsugataPath = selectedDateRecords[hr]?.kutsugata;
                 const senposhiPath = selectedDateRecords[hr]?.senposhi;
-                const hw = hourlyWeather[hr] || hourlyWeather[parseInt(hr, 10).toString()];
 
                 return (
                   <div
@@ -305,13 +304,6 @@ export const LiveCamArchivePage: React.FC = () => {
                       }}
                     >
                       <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{hr}時台</strong>
-                      {hw ? (
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                          {hw.weatherEmoji} {hw.weatherText} ({hw.temp}℃)
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>気象データなし</span>
-                      )}
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px', backgroundColor: 'var(--border-color)' }}>
