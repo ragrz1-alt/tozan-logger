@@ -42,7 +42,7 @@ const CAMERAS = [
 ];
 
 const HOURS = [
-  '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18'
+  '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'
 ];
 
 export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWeather }) => {
@@ -137,9 +137,10 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
         </div>
         <div style={{
           display: 'flex',
-          gap: '0.4rem',
+          gap: '0.35rem',
           overflowX: 'auto',
-          paddingBottom: '0.5rem'
+          paddingBottom: '0.55rem',
+          scrollbarWidth: 'thin'
         }}>
           {HOURS.map(hr => {
             const hasRec = hasRecordForHour(hr);
@@ -149,7 +150,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                 key={hr}
                 onClick={() => setSelectedHour(hr)}
                 style={{
-                  padding: '0.45rem 0.8rem',
+                  padding: '0.4rem 0.65rem',
                   border: isSelected ? '2px solid #3b82f6' : '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-sm)',
                   backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'var(--bg-primary)',
@@ -165,7 +166,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                   transition: 'all 0.15s ease'
                 }}
               >
-                <span>{hr}:00</span>
+                <span>{hr}時台</span>
                 {hasRec && (
                   <span style={{
                     width: '6px',
