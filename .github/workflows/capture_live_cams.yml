@@ -9,6 +9,11 @@ on:
 permissions:
   contents: write
 
+# 同時実行・二重起動による git push 衝突を完全防止
+concurrency:
+  group: capture-live-cams
+  cancel-in-progress: false
+
 jobs:
   capture_cams:
     runs-on: ubuntu-latest
