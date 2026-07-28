@@ -304,13 +304,13 @@ export const LiveCamArchivePage: React.FC = () => {
                         alignItems: 'center'
                       }}
                     >
-                      <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{hr}:00 台</strong>
+                      <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{hr}時台</strong>
                       {hw ? (
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                           {hw.weatherEmoji} {hw.weatherText} ({hw.temp}℃)
                         </span>
                       ) : (
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>気象データ読込中</span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>気象データなし</span>
                       )}
                     </div>
 
@@ -370,10 +370,6 @@ export const LiveCamArchivePage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div style={{ padding: '0.5rem 0.75rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      <span>アーカイブ記録済み</span>
-                      <span>鴛泊 / 沓形 / 仙法志</span>
-                    </div>
                   </div>
                 );
               })}

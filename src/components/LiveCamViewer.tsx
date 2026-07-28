@@ -17,19 +17,19 @@ interface CamHistory {
 const CAMERAS = [
   {
     id: 'oshidomari',
-    name: '鴛泊コース（富士岬）',
+    name: '鴛泊（富士岬）',
     videoId: 'bAWueJBFcT0',
     url: 'https://www.youtube.com/watch?v=bAWueJBFcT0',
     color: '#3b82f6',
-    badge: '鴛泊コース'
+    badge: '鴛泊'
   },
   {
     id: 'kutsugata',
-    name: '沓形コース（栄浜）',
+    name: '沓形（栄浜）',
     videoId: 'P9stiZVACSg',
     url: 'https://www.youtube.com/watch?v=P9stiZVACSg',
     color: '#10b981',
-    badge: '沓形コース'
+    badge: '沓形'
   },
   {
     id: 'senposhi',
@@ -121,9 +121,6 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
             <h4 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               利尻山 ライブカメラ コンディション対比
             </h4>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
-              鴛泊側（北側）と沓形側（南・西側）の空の様子・雲のかかり具合を時間帯や天気データと照合
-            </p>
           </div>
         </div>
       </div>
@@ -132,7 +129,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-            時刻を選択 ({selectedHour}:00 台の定時記録)
+            時刻を選択 ({selectedHour}時台の定時記録)
           </span>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
             ●マークは定時撮影ログが存在する時間帯です
@@ -353,7 +350,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <span>対象日時: {dateStr} {selectedHour}:00 台</span>
+                <span>対象日時: {dateStr} {selectedHour}時台</span>
                 <span style={{ color: displayUrl ? '#10b981' : 'var(--text-secondary)', fontWeight: displayUrl ? 600 : 400 }}>
                   {displayUrl ? '● アーカイブ保存済' : '○ 記録なし'}
                 </span>

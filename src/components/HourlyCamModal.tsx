@@ -14,19 +14,19 @@ interface HourlyCamModalProps {
 const CAMERAS = [
   {
     id: 'oshidomari',
-    name: '鴛泊コース（富士岬）',
+    name: '鴛泊（富士岬）',
     videoId: 'bAWueJBFcT0',
     url: 'https://www.youtube.com/watch?v=bAWueJBFcT0',
     color: '#3b82f6',
-    badge: '鴛泊コース'
+    badge: '鴛泊'
   },
   {
     id: 'kutsugata',
-    name: '沓形コース（栄浜）',
+    name: '沓形（栄浜）',
     videoId: 'P9stiZVACSg',
     url: 'https://www.youtube.com/watch?v=P9stiZVACSg',
     color: '#10b981',
-    badge: '沓形コース'
+    badge: '沓形'
   },
   {
     id: 'senposhi',
@@ -103,7 +103,7 @@ export const HourlyCamModal: React.FC<HourlyCamModalProps> = ({
             </div>
             <div>
               <h4 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>
-                {dateStr} 【 {hour}:00 台 】 利尻山 状況確認
+                {dateStr} 【 {hour}時台 】 利尻山 状況確認
               </h4>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
                 時間帯別通行ログ・気象要因テーブルからのカメラ照合
@@ -285,7 +285,7 @@ export const HourlyCamModal: React.FC<HourlyCamModalProps> = ({
                       alignItems: 'center'
                     }}
                   >
-                    <span>{dateStr} {hour}:00 台</span>
+                    <span>{dateStr} {hour}時台</span>
                     <span
                       style={{
                         color: imgPath ? '#10b981' : 'var(--text-secondary)',

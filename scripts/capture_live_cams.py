@@ -26,12 +26,12 @@ JST = timezone(timedelta(hours=9))
 # カメラ定義
 CAMERAS = {
     "oshidomari": {
-        "name": "鴛泊コース（富士岬）",
+        "name": "鴛泊（富士岬）",
         "videoId": "bAWueJBFcT0",
         "url": "https://www.youtube.com/watch?v=bAWueJBFcT0"
     },
     "kutsugata": {
-        "name": "沓形コース（栄浜）",
+        "name": "沓形（栄浜）",
         "videoId": "P9stiZVACSg",
         "url": "https://www.youtube.com/watch?v=P9stiZVACSg"
     },

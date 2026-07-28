@@ -269,13 +269,23 @@ const fetchSingleLocationHourlyWeather = async (
   dateStr: string
 ): Promise<Record<string, HourlyWeatherData>> => {
   try {
-    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-    
-    let response = await fetch(url);
+    // 1. まず今日や最近の日付（および直近の過去日）に対応する forecast API を試行
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    let response = await fetch(forecastUrl);
     if (!response.ok) {
-      const fallbackUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-      response = await fetch(fallbackUrl);
-      if (!response.ok) return {};
+      const forecastFallback = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+      response = await fetch(forecastFallback);
+    }
+
+    // 2. 古い日付等で forecast API から取得できない場合は archive API へフォールバック
+    if (!response.ok) {
+      const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+      response = await fetch(archiveUrl);
+      if (!response.ok) {
+        const archiveFallback = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+        response = await fetch(archiveFallback);
+        if (!response.ok) return {};
+      }
     }
     
     const data = await response.json();
