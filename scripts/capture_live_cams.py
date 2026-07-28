@@ -18,6 +18,8 @@ import sys
 import json
 import subprocess
 import urllib.request
+import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 
 # 日本標準時 (JST)
@@ -206,7 +208,37 @@ def capture_fallback_thumbnail(video_id, output_path):
     print(f" -> フォールバック全滅 (videoId={video_id})")
     return False
 
+def process_camera(course_id, info, target_dir, date_str, hour_str, force=False):
+    img_name = f"{hour_str}_{course_id}.jpg"
+    img_path = os.path.join(target_dir, img_name)
+    rel_path = f"cams/{date_str}/{img_name}"
+
+    # すでに正常な画像ファイルが存在する場合は二重実行をスキップ（0.01秒で完了）
+    if not force and os.path.exists(img_path) and os.path.getsize(img_path) > 5000:
+        print(f"[{course_id}] ({info['name']}) -> 既に本時台の画像が保存済みのため撮影をスキップします ({os.path.getsize(img_path)} bytes)")
+        return course_id, True, rel_path
+
+    print(f"[{course_id}] ({info['name']}) リアルタイム撮影試行中...")
+
+    success = capture_stream_frame(info["url"], img_path)
+    if not success:
+        print(f"[{course_id}] 全方式でのリアルタイム取得が困難なため公式サムネイルでフォールバック中...")
+        success = capture_fallback_thumbnail(info["videoId"], img_path)
+
+    if success:
+        ensure_compressed_image(img_path)
+        print(f" -> 成功: {rel_path} ({os.path.getsize(img_path)} bytes)")
+        return course_id, True, rel_path
+    else:
+        print(f" -> 失敗: {course_id} の画像取得ができませんでした。")
+        return course_id, False, None
+
 def main():
+    parser = argparse.ArgumentParser(description="利尻山ライブカメラ定時撮影スクリプト")
+    parser.add_argument("--debug", action="store_true", help="デバッグモード")
+    parser.add_argument("--force", action="store_true", help="既存画像があっても強制再撮影する")
+    args = parser.parse_args()
+
     root_dir = get_project_root()
     cams_dir = os.path.join(root_dir, "public", "cams")
     os.makedirs(cams_dir, exist_ok=True)
@@ -239,30 +271,21 @@ def main():
     if hour_str not in history_data["records"][date_str]:
         history_data["records"][date_str][hour_str] = {}
     
-    # 手動実行時でも必ず最新の実行タイムスタンプに更新する
+    # 手動・定時いずれもタイムスタンプを更新
     history_data["records"][date_str][hour_str]["timestamp"] = now.isoformat()
 
     print(f"=== 利尻山ライブカメラ 定時撮影処理開始 ({date_str} {hour_str}:00) ===")
 
-    for course_id, info in CAMERAS.items():
-        img_name = f"{hour_str}_{course_id}.jpg"
-        img_path = os.path.join(target_dir, img_name)
-        rel_path = f"cams/{date_str}/{img_name}"
-
-        print(f"[{course_id}] ({info['name']}) 撮影試行中...")
-
-        # 優先: yt-dlp + ffmpeg / Playwright
-        success = capture_stream_frame(info["url"], img_path)
-        if not success:
-            print(f"[{course_id}] 全方式でのリアルタイム取得が困難なため公式サムネイルでフォールバック中...")
-            success = capture_fallback_thumbnail(info["videoId"], img_path)
-
-        if success:
-            ensure_compressed_image(img_path)
-            print(f" -> 成功: {rel_path} ({os.path.getsize(img_path)} bytes)")
-            history_data["records"][date_str][hour_str][course_id] = rel_path
-        else:
-            print(f" -> 失敗: {course_id} の画像取得ができませんでした。")
+    # 3カメラを並列同時処理（待ち時間1/3）
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [
+            executor.submit(process_camera, course_id, info, target_dir, date_str, hour_str, args.force)
+            for course_id, info in CAMERAS.items()
+        ]
+        for future in as_completed(futures):
+            course_id, success, rel_path = future.result()
+            if success and rel_path:
+                history_data["records"][date_str][hour_str][course_id] = rel_path
 
     history_data["updatedAt"] = datetime.now(JST).isoformat()
     with open(history_file, "w", encoding="utf-8") as f:

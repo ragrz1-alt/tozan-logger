@@ -20,12 +20,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: Install yt-dlp & ffmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          pip install yt-dlp
+      - name: Set up FFmpeg (超高速バイナリ設置・aptダウンロード全廃)
+        uses: jwlawson/actions-setup-ffmpeg@v2
+
+      - name: Install yt-dlp
+        run: pip install -U yt-dlp
 
       - name: Run live camera capture script
         run: |
