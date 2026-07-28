@@ -46,12 +46,106 @@ def get_project_root():
     # scripts ディレクトリの親をプロジェクトルートとする
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def capture_with_pipe(video_url, output_path):
+def capture_with_stream_url_hls(video_url, output_path):
     """
-    yt-dlp でライブ映像をストリーム受信し、標準出力をパイプ経由で ffmpeg に送ってリアルタイム1フレームを抜き出す
+    HLS(.m3u8)のストリームURLを取得し ffmpeg からキャプチャする（30fpsや通常のHLS配信で最も高速）
     """
     try:
-        # 60fps(鴛泊)や30fps(沓形・仙法志)などすべてのライブで必ず存在する最適な単一ビデオストリームを取得
+        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        res = subprocess.run(
+            ["yt-dlp", "-f", "best[protocol=m3u8]/96/95/94/93/best", "-g", video_url],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=30
+        )
+        if res.returncode != 0 or not res.stdout.strip():
+            return False
+        
+        stream_url = res.stdout.strip().splitlines()[0]
+        headers = (
+            f"User-Agent: {user_agent}\r\n"
+            "Referer: https://www.youtube.com/\r\n"
+            "Origin: https://www.youtube.com\r\n"
+        )
+        cmd = [
+            "ffmpeg", "-y",
+            "-rw_timeout", "15000000",
+            "-user_agent", user_agent,
+            "-headers", headers,
+            "-i", stream_url,
+            "-vframes", "1",
+            "-vf", "scale=800:-1",
+            "-q:v", "3",
+            output_path
+        ]
+        ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=35)
+        return ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+    except Exception as e:
+        print(f"[WARN] HLS URLキャプチャ失敗: {e}")
+        return False
+
+def capture_with_ytdlp_download(video_url, output_path):
+    """
+    60fpsやDASH配信など URL 直接再生が困難な場合、数秒間をローカル一時ファイルに保存し、ディスク上のファイルから確実にフレームを切り出す
+    """
+    temp_file = output_path + ".temp.ts"
+    try:
+        if os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
+            except Exception:
+                pass
+
+        ytdlp_cmd = [
+            "yt-dlp",
+            "-f", "bestvideo[height<=1080]/best[height<=1080]/best",
+            "--no-part",
+            "--referer", "https://www.youtube.com/",
+            "-o", temp_file,
+            video_url
+        ]
+        p = subprocess.Popen(ytdlp_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            p.communicate(timeout=6)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            p.communicate()
+
+        if not os.path.exists(temp_file) or os.path.getsize(temp_file) < 1000:
+            return False
+
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-i", temp_file,
+            "-vframes", "1",
+            "-vf", "scale=800:-1",
+            "-q:v", "3",
+            output_path
+        ]
+        ffmpeg_res = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+        
+        try:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+        except Exception:
+            pass
+
+        return ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+    except Exception as e:
+        print(f"[WARN] yt-dlp一時ファイルダウンロードキャプチャ失敗: {e}")
+        try:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+        except Exception:
+            pass
+        return False
+
+def capture_with_pipe(video_url, output_path):
+    """
+    標準出力をパイプ経由で ffmpeg に送るバックアップ方式
+    """
+    try:
         ytdlp_cmd = [
             "yt-dlp",
             "-f", "bestvideo[height<=1080]/bestvideo/best",
@@ -72,8 +166,7 @@ def capture_with_pipe(video_url, output_path):
         
         p_ytdlp = subprocess.Popen(ytdlp_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p_ffmpeg = subprocess.Popen(ffmpeg_cmd, stdin=p_ytdlp.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        
-        ffmpeg_out, ffmpeg_err = p_ffmpeg.communicate(timeout=35)
+        p_ffmpeg.communicate(timeout=35)
         
         try:
             p_ytdlp.terminate()
@@ -81,72 +174,25 @@ def capture_with_pipe(video_url, output_path):
         except Exception:
             p_ytdlp.kill()
 
-        if p_ffmpeg.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-            return True
-        else:
-            err_msg = ffmpeg_err.decode('utf-8', errors='ignore') if ffmpeg_err else "Unknown error"
-            print(f"[DEBUG] パイプ方式失敗詳細: {err_msg[:200]}")
-            return False
+        return p_ffmpeg.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
     except Exception as e:
-        print(f"[WARN] パイプ方式キャプチャ失敗: {e}")
-        return False
-
-def capture_with_stream_url(video_url, output_path):
-    """
-    yt-dlp -g でURLを取得し、User-Agent・Referer・Origin付きで ffmpeg からキャプチャする（403エラー完全防止）
-    """
-    try:
-        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
-        res = subprocess.run(
-            ["yt-dlp", "-f", "bestvideo[height<=1080]/bestvideo/best", "-g", video_url],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=30
-        )
-        if res.returncode != 0 or not res.stdout.strip():
-            print(f"[DEBUG] yt-dlp -g 失敗詳細: {res.stderr.strip()[:200]}")
-            return False
-        
-        stream_url = res.stdout.strip().splitlines()[0]
-        # YouTube CDN で 403 Forbidden にならないように必須 HTTP ヘッダーをすべて付与する
-        headers = (
-            f"User-Agent: {user_agent}\r\n"
-            "Referer: https://www.youtube.com/\r\n"
-            "Origin: https://www.youtube.com\r\n"
-        )
-        cmd = [
-            "ffmpeg", "-y",
-            "-rw_timeout", "15000000",
-            "-user_agent", user_agent,
-            "-headers", headers,
-            "-i", stream_url,
-            "-vframes", "1",
-            "-vf", "scale=800:-1",
-            "-q:v", "3",
-            output_path
-        ]
-        ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=40)
-        if ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-            return True
-        else:
-            err_msg = ffmpeg_res.stderr.decode('utf-8', errors='ignore') if ffmpeg_res.stderr else "Unknown error"
-            print(f"[DEBUG] ストリームURL方式失敗詳細: {err_msg[:200]}")
-            return False
-    except Exception as e:
-        print(f"[WARN] ストリームURL方式キャプチャ失敗: {e}")
+        print(f"[WARN] パイプキャプチャ失敗: {e}")
         return False
 
 def capture_stream_frame_with_ytdlp(video_url, output_path):
     """
     yt-dlp と ffmpeg を使用してリアルタイムのライブストリームから直接1フレームをキャプチャする
     """
-    # 方式1: yt-dlp -> ffmpeg パイプ直接ストリームキャプチャ
-    if capture_with_pipe(video_url, output_path):
+    # 方式1: 30fps・HLSプレイリスト対応（沓形・仙法志など）
+    if capture_with_stream_url_hls(video_url, output_path):
         return True
     
-    # 方式2: yt-dlp -g + ffmpeg User-Agent/Referer指定ストリームキャプチャ
-    if capture_with_stream_url(video_url, output_path):
+    # 方式2: 60fps・DASH・高画質対応ローカル一時保存方式（鴛泊など）
+    if capture_with_ytdlp_download(video_url, output_path):
+        return True
+        
+    # 方式3: パイプストリームキャプチャ
+    if capture_with_pipe(video_url, output_path):
         return True
         
     return False
