@@ -136,11 +136,10 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
           </span>
         </div>
         <div style={{
-          display: 'flex',
-          gap: '0.35rem',
-          overflowX: 'auto',
-          paddingBottom: '0.55rem',
-          scrollbarWidth: 'thin'
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(66px, 1fr))',
+          gap: '0.45rem',
+          paddingBottom: '0.4rem'
         }}>
           {HOURS.map(hr => {
             const hasRec = hasRecordForHour(hr);
@@ -150,30 +149,31 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                 key={hr}
                 onClick={() => setSelectedHour(hr)}
                 style={{
-                  padding: '0.4rem 0.65rem',
+                  padding: '0.45rem 0.2rem',
                   border: isSelected ? '2px solid #3b82f6' : '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'var(--bg-primary)',
+                  backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.14)' : 'var(--bg-primary)',
                   color: isSelected ? '#3b82f6' : 'var(--text-primary)',
-                  fontWeight: isSelected ? 700 : 500,
-                  fontSize: '0.85rem',
+                  fontWeight: isSelected ? 700 : 600,
+                  fontSize: '0.86rem',
                   cursor: 'pointer',
-                  whiteSpace: 'nowrap',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.3rem',
-                  boxShadow: isSelected ? '0 2px 6px rgba(59, 130, 246, 0.25)' : 'none',
+                  justifyContent: 'center',
+                  gap: '0.25rem',
+                  boxShadow: isSelected ? '0 2px 8px rgba(59, 130, 246, 0.28)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
-                <span>{hr}時台</span>
+                <span>{hr}:00</span>
                 {hasRec && (
                   <span style={{
                     width: '6px',
                     height: '6px',
                     borderRadius: '50%',
                     backgroundColor: '#10b981',
-                    display: 'inline-block'
+                    display: 'inline-block',
+                    flexShrink: 0
                   }} />
                 )}
               </button>
