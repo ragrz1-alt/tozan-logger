@@ -14,9 +14,9 @@ interface HourlyCamModalProps {
 const CAMERAS = [
   {
     id: 'oshidomari',
-    name: '鴛泊コース（鴛泊）',
-    videoId: '8BwfUCuPcVE',
-    url: 'https://www.youtube.com/watch?v=8BwfUCuPcVE',
+    name: '鴛泊コース（富士岬）',
+    videoId: 'bAWueJBFcT0',
+    url: 'https://www.youtube.com/watch?v=bAWueJBFcT0',
     color: '#3b82f6',
     badge: '鴛泊コース'
   },
@@ -31,8 +31,8 @@ const CAMERAS = [
   {
     id: 'senposhi',
     name: '仙法志（御崎）',
-    videoId: 'Mn9EszbHh4Y',
-    url: 'https://www.youtube.com/watch?v=Mn9EszbHh4Y',
+    videoId: '5BG3KJVFRVM',
+    url: 'https://www.youtube.com/watch?v=5BG3KJVFRVM',
     color: '#f59e0b',
     badge: '仙法志'
   }
