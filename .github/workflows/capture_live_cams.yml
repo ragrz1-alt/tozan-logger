@@ -21,10 +21,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Set up FFmpeg (超高速バイナリ設置・aptダウンロード全廃)
-        uses: FedericoCarboni/setup-ffmpeg@v3
-        with:
-          ffmpeg-version: release
+      - name: Set up FFmpeg (安定版 BtbN/FFmpeg-Builds 導入)
+        uses: AnimMouse/setup-ffmpeg@v1
 
       - name: Install yt-dlp
         run: pip install -U yt-dlp
