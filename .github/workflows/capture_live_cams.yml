@@ -2,8 +2,8 @@ name: Capture Rishiri Live Cameras
 
 on:
   schedule:
-    # 毎時0分（日中帯 05:00 - 19:00 JST = 20:00 - 10:00 UTC を含む毎時）
-    - cron: '0 * * * *'
+    # 毎時05分（GitHubの00分混雑ピークを回避し、遅延なく確実に撮影する推奨時間）
+    - cron: '5 * * * *'
   workflow_dispatch: # GitHub Actions画面からの手動実行にも対応
 
 permissions:
