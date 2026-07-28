@@ -51,9 +51,11 @@ def capture_with_pipe(video_url, output_path):
     yt-dlp でライブ映像をストリーム受信し、標準出力をパイプ経由で ffmpeg に送ってリアルタイム1フレームを抜き出す
     """
     try:
+        # 96(1080p HLS), 95(720p HLS), 94(480p HLS), 93(360p HLS), または best(単一ストリーム最高画質) を指定
+        # ※ --output - は合成フォーマットでエラーとなるため HLS 単一ストリームを優先指定する
         ytdlp_cmd = [
             "yt-dlp",
-            "-f", "best[ext=mp4]/bestvideo/best",
+            "-f", "96/95/94/93/best",
             "--no-part",
             "-o", "-",
             video_url
@@ -78,7 +80,12 @@ def capture_with_pipe(video_url, output_path):
         except Exception:
             p_ytdlp.kill()
 
-        return p_ffmpeg.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+        if p_ffmpeg.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            return True
+        else:
+            err_msg = ffmpeg_err.decode('utf-8', errors='ignore') if ffmpeg_err else "Unknown error"
+            print(f"[DEBUG] パイプ方式失敗詳細: {err_msg[:200]}")
+            return False
     except Exception as e:
         print(f"[WARN] パイプ方式キャプチャ失敗: {e}")
         return False
@@ -90,13 +97,14 @@ def capture_with_stream_url(video_url, output_path):
     try:
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
         res = subprocess.run(
-            ["yt-dlp", "-f", "best[ext=mp4]/bestvideo/best", "-g", video_url],
+            ["yt-dlp", "-f", "96/95/94/93/best", "-g", video_url],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             timeout=30
         )
         if res.returncode != 0 or not res.stdout.strip():
+            print(f"[DEBUG] yt-dlp -g 失敗詳細: {res.stderr.strip()[:200]}")
             return False
         
         stream_url = res.stdout.strip().splitlines()[0]
@@ -111,7 +119,12 @@ def capture_with_stream_url(video_url, output_path):
             output_path
         ]
         ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=40)
-        return ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000
+        if ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            return True
+        else:
+            err_msg = ffmpeg_res.stderr.decode('utf-8', errors='ignore') if ffmpeg_res.stderr else "Unknown error"
+            print(f"[DEBUG] ストリームURL方式失敗詳細: {err_msg[:200]}")
+            return False
     except Exception as e:
         print(f"[WARN] ストリームURL方式キャプチャ失敗: {e}")
         return False
