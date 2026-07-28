@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, X, Thermometer, Wind, Droplets, Mountain, Eye } from 'lucide-react';
+import { X, ExternalLink, Thermometer, Wind, Droplets, Mountain } from 'lucide-react';
 import type { HourlyWeatherData } from '../utils/weatherApi';
 
 interface HourlyCamModalProps {
@@ -164,8 +164,6 @@ export const HourlyCamModal: React.FC<HourlyCamModalProps> = ({
           >
             {CAMERAS.map(cam => {
               const imgPath = historyRecords?.[cam.id];
-              const fallbackThumbUrl = `https://i.ytimg.com/vi/${cam.videoId}/hqdefault.jpg`;
-              const displayUrl = imgPath ? `/${imgPath}` : fallbackThumbUrl;
 
               return (
                 <div
@@ -227,43 +225,43 @@ export const HourlyCamModal: React.FC<HourlyCamModalProps> = ({
                       position: 'relative',
                       width: '100%',
                       paddingTop: '56.25%',
-                      backgroundColor: '#000',
+                      backgroundColor: imgPath ? '#000' : 'var(--bg-secondary)',
                       overflow: 'hidden'
                     }}
                   >
-                    <img
-                      src={displayUrl}
-                      alt={`${cam.name} ${hour}時`}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                      }}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = fallbackThumbUrl;
-                      }}
-                    />
-                    {!imgPath && (
+                    {imgPath ? (
+                      <img
+                        src={`/${imgPath}`}
+                        alt={`${cam.name} ${hour}時`}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+                    ) : (
                       <div
                         style={{
                           position: 'absolute',
-                          bottom: 0,
+                          top: 0,
                           left: 0,
-                          right: 0,
-                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                          color: '#fff',
-                          fontSize: '0.75rem',
-                          padding: '0.35rem 0.75rem',
+                          width: '100%',
+                          height: '100%',
                           display: 'flex',
+                          flexDirection: 'column',
                           alignItems: 'center',
-                          justifyContent: 'space-between'
+                          justifyContent: 'center',
+                          color: 'var(--text-secondary)',
+                          gap: '0.6rem',
+                          padding: '1rem',
+                          textAlign: 'center'
                         }}
                       >
-                        <span>定時スクショ未記録（公式最新サムネイル表示中）</span>
-                        <Eye size={14} />
+                        <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>この時間のカメラ画像はありません</div>
+                        <div style={{ fontSize: '0.78rem', opacity: 0.75 }}>未撮影（またはアーカイブ対象外の時間）</div>
                       </div>
                     )}
                   </div>
@@ -285,7 +283,7 @@ export const HourlyCamModal: React.FC<HourlyCamModalProps> = ({
                         fontWeight: imgPath ? 600 : 400
                       }}
                     >
-                      {imgPath ? '● アーカイブ記録済' : '○ 補完表示'}
+                      {imgPath ? '● アーカイブ記録済' : '○ 記録なし'}
                     </span>
                   </div>
                 </div>

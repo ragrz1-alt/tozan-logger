@@ -136,9 +136,6 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
         </div>
       </div>
 
-      {/* 利尻山 ライブカメラ コンディション対比（鴛泊・沓形） */}
-      <LiveCamViewer dateStr={details.dateStr} hourlyWeather={hourlyWeather} />
-
       {/* Hourly Chart for the specific day */}
       <h4 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem', marginTop: '1.5rem' }}>時間帯別 通行グラフ (00:00〜23:00) ＆ 天気要因分析</h4>
       <div className="chart-container" style={{ height: '300px', marginBottom: '1.5rem' }}>
@@ -160,7 +157,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
       {activeHours.length === 0 ? (
         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '1rem' }}>この日の通行記録はありません。</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', marginBottom: '2rem' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.95rem' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border-color)', color: 'var(--text-secondary)' }}>
@@ -193,27 +190,27 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                     <td style={{ padding: '0.6rem', color: 'var(--exit-color)' }}>{h.exit} 人</td>
                     <td style={{ padding: '0.6rem', fontWeight: 700 }}>{h.enter + h.exit} 人</td>
                     <td style={{ padding: '0.6rem', textAlign: 'center' }}>
-                      <button
-                        onClick={() => setSelectedModalHour(hrStr)}
-                        style={{
-                          padding: '0.35rem 0.75rem',
-                          backgroundColor: hasCamRecord ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-secondary)',
-                          color: hasCamRecord ? '#10b981' : 'var(--text-secondary)',
-                          border: `1px solid ${hasCamRecord ? '#10b981' : 'var(--border-color)'}`,
-                          borderRadius: '9999px',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          transition: 'all 0.15s ease'
-                        }}
-                        title={`${h.hour}時台の鴛泊・沓形カメラ状況を確認`}
-                      >
-                        <Camera size={14} />
-                        <span>状況を見る</span>
-                        {hasCamRecord && (
+                      {hasCamRecord ? (
+                        <button
+                          onClick={() => setSelectedModalHour(hrStr)}
+                          style={{
+                            padding: '0.35rem 0.75rem',
+                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                            color: '#10b981',
+                            border: '1px solid #10b981',
+                            borderRadius: '9999px',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title={`${h.hour}時台の鴛泊・沓形カメラ状況を確認`}
+                        >
+                          <Camera size={14} />
+                          <span>状況を見る</span>
                           <span
                             style={{
                               width: '6px',
@@ -223,8 +220,10 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                               display: 'inline-block'
                             }}
                           />
-                        )}
-                      </button>
+                        </button>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>-</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -233,6 +232,9 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
           </table>
         </div>
       )}
+
+      {/* 利尻山 ライブカメラ コンディション対比（鴛泊・沓形）を最下部に配置 */}
+      <LiveCamViewer dateStr={details.dateStr} hourlyWeather={hourlyWeather} />
 
       {/* 時間帯別カメラ状況ポップアップ (案1のワンクリックモーダル) */}
       {selectedModalHour && (

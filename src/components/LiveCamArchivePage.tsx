@@ -59,6 +59,18 @@ export const LiveCamArchivePage: React.FC = () => {
   const selectedDateRecords = (history?.records && selectedDate && history.records[selectedDate]) || {};
   const recordedHours = Object.keys(selectedDateRecords).sort();
 
+  // 年月ごとにグループ化（数年分溜まった時のためのセレクトボックス用）
+  const groupedDates = React.useMemo(() => {
+    const groups: Record<string, string[]> = {};
+    availableDates.forEach(dStr => {
+      const [year, month] = dStr.split('-');
+      const key = `${year}年 ${parseInt(month, 10)}月`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(dStr);
+    });
+    return groups;
+  }, [availableDates]);
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 0.5rem' }}>
       {/* 1. ページヘッダー ＆ アーカイブ選択パネル */}
@@ -89,72 +101,97 @@ export const LiveCamArchivePage: React.FC = () => {
           </button>
         </div>
 
-        {/* 2. 記録済み日付のクイックセレクター */}
+        {/* 2. 記録済み日付のセレクター（クイック選択 ＋ 全アーカイブセレクトボックス） */}
         <div style={{ backgroundColor: 'var(--bg-primary)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.85rem' }}>
             <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <CalendarIcon size={16} /> 記録が存在する日付を選んで状況を確認:
             </span>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>日付を直接指定:</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
-                style={{
-                  padding: '0.4rem 0.6rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
-                  fontWeight: 600
-                }}
-              />
-            </div>
+            {/* 数年分溜まった時のための「記録済み全日程一覧」セレクトボックス */}
+            {availableDates.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label htmlFor="archive-date-select" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  過去アーカイブ検索:
+                </label>
+                <select
+                  id="archive-date-select"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  style={{
+                    padding: '0.4rem 0.8rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {Object.entries(groupedDates).map(([groupLabel, dates]) => (
+                    <optgroup key={groupLabel} label={groupLabel}>
+                      {dates.map(dStr => {
+                        const hourCount = Object.keys(history?.records?.[dStr] || {}).length;
+                        return (
+                          <option key={dStr} value={dStr}>
+                            {dStr} ({hourCount}時間分)
+                          </option>
+                        );
+                      })}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {availableDates.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {availableDates.map(dStr => {
-                const hourCount = Object.keys(history?.records?.[dStr] || {}).length;
-                const isSelected = selectedDate === dStr;
-                return (
-                  <button
-                    key={dStr}
-                    onClick={() => setSelectedDate(dStr)}
-                    style={{
-                      padding: '0.45rem 0.9rem',
-                      borderRadius: '9999px',
-                      border: `1px solid ${isSelected ? '#10b981' : 'var(--border-color)'}`,
-                      backgroundColor: isSelected ? '#10b981' : 'var(--bg-secondary)',
-                      color: isSelected ? '#fff' : 'var(--text-primary)',
-                      fontWeight: isSelected ? 700 : 600,
-                      fontSize: '0.85rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      boxShadow: isSelected ? '0 2px 6px rgba(16, 185, 129, 0.35)' : 'none',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <span>{dStr}</span>
-                    <span
+            <div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                直近の撮影日クィック選択:
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {availableDates.slice(0, 14).map(dStr => {
+                  const hourCount = Object.keys(history?.records?.[dStr] || {}).length;
+                  const isSelected = selectedDate === dStr;
+                  return (
+                    <button
+                      key={dStr}
+                      onClick={() => setSelectedDate(dStr)}
                       style={{
-                        backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : 'rgba(16,185,129,0.12)',
-                        color: isSelected ? '#fff' : '#10b981',
-                        fontSize: '0.75rem',
-                        padding: '0.1rem 0.45rem',
+                        padding: '0.45rem 0.9rem',
                         borderRadius: '9999px',
-                        fontWeight: 700
+                        border: `1px solid ${isSelected ? '#10b981' : 'var(--border-color)'}`,
+                        backgroundColor: isSelected ? '#10b981' : 'var(--bg-secondary)',
+                        color: isSelected ? '#fff' : 'var(--text-primary)',
+                        fontWeight: isSelected ? 700 : 600,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        boxShadow: isSelected ? '0 2px 6px rgba(16, 185, 129, 0.35)' : 'none',
+                        transition: 'all 0.15s ease'
                       }}
                     >
-                      {hourCount}時間分
-                    </span>
-                  </button>
-                );
-              })}
+                      <span>{dStr}</span>
+                      <span
+                        style={{
+                          backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : 'rgba(16,185,129,0.12)',
+                          color: isSelected ? '#fff' : '#10b981',
+                          fontSize: '0.75rem',
+                          padding: '0.1rem 0.45rem',
+                          borderRadius: '9999px',
+                          fontWeight: 700
+                        }}
+                      >
+                        {hourCount}時間分
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -274,24 +311,36 @@ export const LiveCamArchivePage: React.FC = () => {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', backgroundColor: 'var(--border-color)' }}>
                       {/* 鴛泊側ミニ画像 */}
-                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: '#000', overflow: 'hidden' }}>
-                        <img
-                          src={oshidomariPath ? `/${oshidomariPath}` : 'https://i.ytimg.com/vi/bAWueJBFcT0/hqdefault.jpg'}
-                          alt={`鴛泊側 ${hr}:00`}
-                          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
+                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: oshidomariPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
+                        {oshidomariPath ? (
+                          <img
+                            src={`/${oshidomariPath}`}
+                            alt={`鴛泊側 ${hr}:00`}
+                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                            記録なし
+                          </div>
+                        )}
                         <span style={{ position: 'absolute', bottom: '4px', left: '4px', backgroundColor: 'rgba(59, 130, 246, 0.85)', color: '#fff', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px' }}>
                           鴛泊側
                         </span>
                       </div>
 
                       {/* 沓形側ミニ画像 */}
-                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: '#000', overflow: 'hidden' }}>
-                        <img
-                          src={kutsugataPath ? `/${kutsugataPath}` : 'https://i.ytimg.com/vi/P9stiZVACSg/hqdefault.jpg'}
-                          alt={`沓形側 ${hr}:00`}
-                          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
+                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: kutsugataPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
+                        {kutsugataPath ? (
+                          <img
+                            src={`/${kutsugataPath}`}
+                            alt={`沓形側 ${hr}:00`}
+                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                            記録なし
+                          </div>
+                        )}
                         <span style={{ position: 'absolute', bottom: '4px', left: '4px', backgroundColor: 'rgba(16, 185, 129, 0.85)', color: '#fff', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px' }}>
                           沓形側
                         </span>

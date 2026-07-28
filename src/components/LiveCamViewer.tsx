@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Video, Clock, ExternalLink, Maximize2, X, Thermometer, Wind, Droplets, Eye, Mountain, Play } from 'lucide-react';
+import { ExternalLink, Maximize2, X, Thermometer, Wind, Droplets, Mountain, VideoOff } from 'lucide-react';
 import type { HourlyWeatherData } from '../utils/weatherApi';
 
 interface LiveCamViewerProps {
@@ -37,7 +37,6 @@ const HOURS = [
 ];
 
 export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWeather }) => {
-  const [activeTab, setActiveTab] = useState<'archive' | 'live'>('archive');
   const [selectedHour, setSelectedHour] = useState<string>('11');
   const [history, setHistory] = useState<CamHistory | null>(null);
   const [modalImage, setModalImage] = useState<{ url: string; title: string } | null>(null);
@@ -48,14 +47,11 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
       try {
         const res = await fetch('/cams/history.json?t=' + Date.now());
         if (res.ok) {
-          const data = await res.json();
+          const data: CamHistory = await res.json();
           setHistory(data);
-        } else {
-          setHistory(null);
         }
       } catch (err) {
-        console.warn('history.json のロード失敗 (まだ未記録の可能性があります):', err);
-        setHistory(null);
+        console.warn('history.json のロードに失敗しました:', err);
       }
     };
     fetchHistory();
@@ -86,7 +82,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
       borderRadius: 'var(--radius-lg)',
       boxShadow: 'var(--shadow-md)'
     }}>
-      {/* ヘッダー＆モード切り替え */}
+      {/* ヘッダー */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -118,219 +114,175 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
             </p>
           </div>
         </div>
+      </div>
 
-        {/* タブスイッチ */}
+      {/* 時間セレクター */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            時刻を選択 ({selectedHour}:00 台の定時記録)
+          </span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            ●マークは定時撮影ログが存在する時間帯です
+          </span>
+        </div>
         <div style={{
-          display: 'inline-flex',
-          backgroundColor: 'var(--bg-primary)',
-          padding: '0.25rem',
-          borderRadius: '0.5rem',
-          border: '1px solid var(--border-color)'
+          display: 'flex',
+          gap: '0.4rem',
+          overflowX: 'auto',
+          paddingBottom: '0.5rem'
         }}>
-          <button
-            onClick={() => setActiveTab('archive')}
-            style={{
-              padding: '0.45rem 0.9rem',
-              border: 'none',
-              borderRadius: '0.35rem',
-              backgroundColor: activeTab === 'archive' ? 'var(--accent-primary)' : 'transparent',
-              color: activeTab === 'archive' ? '#fff' : 'var(--text-secondary)',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Clock size={16} /> 時間別アーカイブ比較
-          </button>
-          <button
-            onClick={() => setActiveTab('live')}
-            style={{
-              padding: '0.45rem 0.9rem',
-              border: 'none',
-              borderRadius: '0.35rem',
-              backgroundColor: activeTab === 'live' ? '#ef4444' : 'transparent',
-              color: activeTab === 'live' ? '#fff' : 'var(--text-secondary)',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <Video size={16} /> 現在のLIVE映像を見る
-          </button>
+          {HOURS.map(hr => {
+            const hasRec = hasRecordForHour(hr);
+            const isSelected = selectedHour === hr;
+            return (
+              <button
+                key={hr}
+                onClick={() => setSelectedHour(hr)}
+                style={{
+                  padding: '0.45rem 0.8rem',
+                  border: isSelected ? '2px solid #3b82f6' : '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'var(--bg-primary)',
+                  color: isSelected ? '#3b82f6' : 'var(--text-primary)',
+                  fontWeight: isSelected ? 700 : 500,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  boxShadow: isSelected ? '0 2px 6px rgba(59, 130, 246, 0.25)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>{hr}:00</span>
+                {hasRec && (
+                  <span style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: '#10b981',
+                    display: 'inline-block'
+                  }} />
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {activeTab === 'archive' ? (
-        <div>
-          {/* 時間セレクター */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                時刻を選択 ({selectedHour}:00 台の定時記録)
-              </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                ●マークは定時撮影ログが存在する時間帯です
-              </span>
-            </div>
-            <div style={{
-              display: 'flex',
-              gap: '0.4rem',
-              overflowX: 'auto',
-              paddingBottom: '0.5rem',
-              scrollbarWidth: 'thin'
-            }}>
-              {HOURS.map(hr => {
-                const recorded = hasRecordForHour(hr);
-                const isSelected = selectedHour === hr;
-                return (
-                  <button
-                    key={hr}
-                    onClick={() => setSelectedHour(hr)}
-                    style={{
-                      padding: '0.5rem 0.75rem',
-                      border: isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)',
-                      borderRadius: '0.45rem',
-                      backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-primary)',
-                      color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)',
-                      fontWeight: isSelected ? 700 : 500,
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      minWidth: '54px',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <span>{hr}:00</span>
-                    <span style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      backgroundColor: recorded ? '#10b981' : 'var(--border-color)',
-                      marginTop: '4px',
-                      display: 'inline-block'
-                    }} />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+      {/* 気象データ連携バナー */}
+      {currentHourWeather && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          padding: '0.75rem 1.25rem',
+          backgroundColor: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+          borderRadius: 'var(--radius-md)',
+          marginBottom: '1.25rem',
+          fontSize: '0.9rem'
+        }}>
+          <span style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
+            {selectedHour}時台の気象情報:
+          </span>
+          <span>{currentHourWeather.weatherEmoji} <strong>{currentHourWeather.weatherText}</strong></span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Thermometer size={16} /> 気温 <strong>{currentHourWeather.temp}℃</strong>
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Wind size={16} /> 風速 <strong>{currentHourWeather.windSpeed}m/s</strong>
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Droplets size={16} /> 降水量 <strong>{currentHourWeather.precipitation}mm</strong>
+          </span>
+        </div>
+      )}
 
-          {/* 気象データ連携バナー */}
-          {currentHourWeather && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '1rem',
-              padding: '0.75rem 1.25rem',
-              backgroundColor: 'rgba(59, 130, 246, 0.08)',
-              border: '1px solid rgba(59, 130, 246, 0.2)',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '1.25rem',
-              fontSize: '0.9rem'
-            }}>
-              <span style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
-                {selectedHour}時台の気象情報:
-              </span>
-              <span>{currentHourWeather.weatherEmoji} <strong>{currentHourWeather.weatherText}</strong></span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <Thermometer size={16} /> 気温 <strong>{currentHourWeather.temp}℃</strong>
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <Wind size={16} /> 風速 <strong>{currentHourWeather.windSpeed}m/s</strong>
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <Droplets size={16} /> 降水量 <strong>{currentHourWeather.precipitation}mm</strong>
-              </span>
-            </div>
-          )}
+      {/* 画像カード（鴛泊・沓形 2カラム構成） */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gap: '1.25rem'
+      }}>
+        {CAMERAS.map(cam => {
+          const imgPath = dateRecords[selectedHour]?.[cam.id];
+          const displayUrl = imgPath ? `/${imgPath}` : null;
 
-          {/* 画像カード（鴛泊・沓形 2カラム構成） */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '1.25rem'
-          }}>
-            {CAMERAS.map(cam => {
-              const imgPath = dateRecords[selectedHour]?.[cam.id];
-              const fallbackThumbUrl = `https://i.ytimg.com/vi/${cam.videoId}/hqdefault.jpg`;
-              const displayUrl = imgPath ? `/${imgPath}` : fallbackThumbUrl;
-
-              return (
-                <div
-                  key={cam.id}
-                  style={{
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-md)',
-                    overflow: 'hidden',
-                    backgroundColor: 'var(--bg-primary)',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}
-                >
-                  {/* カードヘッダー */}
-                  <div style={{
-                    padding: '0.75rem 1rem',
-                    backgroundColor: 'var(--bg-secondary)',
-                    borderBottom: '1px solid var(--border-color)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
+          return (
+            <div
+              key={cam.id}
+              style={{
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                overflow: 'hidden',
+                backgroundColor: 'var(--bg-primary)',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              {/* カードヘッダー */}
+              <div style={{
+                padding: '0.75rem 1rem',
+                backgroundColor: 'var(--bg-secondary)',
+                borderBottom: '1px solid var(--border-color)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <span style={{
+                    backgroundColor: cam.color,
+                    color: '#fff',
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: '0.25rem',
+                    marginRight: '0.5rem'
                   }}>
-                    <div>
-                      <span style={{
-                        backgroundColor: cam.color,
-                        color: '#fff',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        padding: '0.2rem 0.5rem',
-                        borderRadius: '0.25rem',
-                        marginRight: '0.5rem'
-                      }}>
-                        {cam.badge}
-                      </span>
-                      <strong style={{ fontSize: '0.95rem' }}>{cam.name}</strong>
-                    </div>
-                    <a
-                      href={cam.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: 'var(--text-secondary)',
-                        textDecoration: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        fontSize: '0.8rem'
-                      }}
-                      title="YouTubeで開く"
-                    >
-                      <ExternalLink size={14} /> YouTube
-                    </a>
-                  </div>
+                    {cam.badge}
+                  </span>
+                  <strong style={{ fontSize: '0.95rem' }}>{cam.name}</strong>
+                </div>
+                <a
+                  href={cam.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: 'var(--text-secondary)',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    fontSize: '0.8rem'
+                  }}
+                  title="YouTubeで開く"
+                >
+                  <ExternalLink size={14} /> YouTube
+                </a>
+              </div>
 
-                  {/* 画像エリア */}
-                  <div
-                    style={{
-                      position: 'relative',
-                      width: '100%',
-                      paddingTop: '56.25%', // 16:9 アスペクト比
-                      backgroundColor: '#000',
-                      cursor: 'pointer',
-                      overflow: 'hidden'
-                    }}
-                    onClick={() => setModalImage({ url: displayUrl, title: `${cam.name} - ${dateStr} ${selectedHour}:00` })}
-                  >
+              {/* 画像エリアまたは未記録プレースホルダー */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  paddingTop: '56.25%', // 16:9 アスペクト比
+                  backgroundColor: displayUrl ? '#000' : 'var(--bg-secondary)',
+                  cursor: displayUrl ? 'pointer' : 'default',
+                  overflow: 'hidden'
+                }}
+                onClick={() => {
+                  if (displayUrl) {
+                    setModalImage({ url: displayUrl, title: `${cam.name} - ${dateStr} ${selectedHour}:00` });
+                  }
+                }}
+              >
+                {displayUrl ? (
+                  <>
                     <img
                       src={displayUrl}
                       alt={`${cam.name} ${selectedHour}時`}
@@ -343,28 +295,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                         objectFit: 'cover',
                         transition: 'transform 0.3s ease'
                       }}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = fallbackThumbUrl;
-                      }}
                     />
-                    {!imgPath && (
-                      <div style={{
-                        position: 'absolute',
-                        bottom: '0',
-                        left: '0',
-                        right: '0',
-                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                        color: '#fff',
-                        fontSize: '0.75rem',
-                        padding: '0.35rem 0.75rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}>
-                        <span>定時スクショ未記録（公式最新サムネイルを表示中）</span>
-                        <Eye size={14} />
-                      </div>
-                    )}
                     <div style={{
                       position: 'absolute',
                       top: '0.5rem',
@@ -377,126 +308,48 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                     }}>
                       <Maximize2 size={14} />
                     </div>
-                  </div>
-
-                  {/* カードフッター */}
+                  </>
+                ) : (
                   <div style={{
-                    padding: '0.6rem 1rem',
-                    fontSize: '0.8rem',
-                    color: 'var(--text-secondary)',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
                     display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--text-secondary)',
+                    gap: '0.6rem',
+                    padding: '1rem',
+                    textAlign: 'center'
                   }}>
-                    <span>撮影予定日: {dateStr} {selectedHour}:00 JST</span>
-                    <span style={{ color: imgPath ? '#10b981' : 'var(--text-secondary)', fontWeight: imgPath ? 600 : 400 }}>
-                      {imgPath ? '● アーカイブ保存済' : '○ サムネイル補完'}
-                    </span>
+                    <VideoOff size={34} style={{ opacity: 0.4 }} />
+                    <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>この時間のカメラ画像はありません</div>
+                    <div style={{ fontSize: '0.78rem', opacity: 0.75 }}>未撮影（またはアーカイブ対象外の時間）</div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        /* LIVEモード（現在のストリーミング映像） */
-        <div>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.65rem 1rem',
-            backgroundColor: 'rgba(239, 68, 68, 0.08)',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-            borderRadius: 'var(--radius-md)',
-            marginBottom: '1.25rem',
-            color: '#ef4444',
-            fontSize: '0.85rem',
-            fontWeight: 600
-          }}>
-            <Play size={16} /> 現在配信中のYouTube Live（リアルタイムの雲の様子や風・天気の状況）を表示しています。
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '1.5rem'
-          }}>
-            {CAMERAS.map(cam => (
-              <div
-                key={cam.id}
-                style={{
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-md)',
-                  overflow: 'hidden',
-                  backgroundColor: 'var(--bg-primary)'
-                }}
-              >
-                <div style={{
-                  padding: '0.75rem 1rem',
-                  backgroundColor: 'var(--bg-secondary)',
-                  borderBottom: '1px solid var(--border-color)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div>
-                    <span style={{
-                      backgroundColor: cam.color,
-                      color: '#fff',
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '0.25rem',
-                      marginRight: '0.5rem'
-                    }}>
-                      {cam.badge}
-                    </span>
-                    <strong style={{ fontSize: '0.95rem' }}>{cam.name}</strong>
-                  </div>
-                  <a
-                    href={cam.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: 'var(--text-secondary)',
-                      textDecoration: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                      fontSize: '0.8rem'
-                    }}
-                  >
-                    <ExternalLink size={14} /> YouTube
-                  </a>
-                </div>
-
-                <div style={{
-                  position: 'relative',
-                  width: '100%',
-                  paddingTop: '56.25%',
-                  backgroundColor: '#000'
-                }}>
-                  <iframe
-                    src={`https://www.youtube.com/embed/${cam.videoId}?autoplay=0&mute=1`}
-                    title={`${cam.name} LIVE`}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      border: 0
-                    }}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+
+              {/* カードフッター */}
+              <div style={{
+                padding: '0.6rem 1rem',
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span>対象日時: {dateStr} {selectedHour}:00 台</span>
+                <span style={{ color: displayUrl ? '#10b981' : 'var(--text-secondary)', fontWeight: displayUrl ? 600 : 400 }}>
+                  {displayUrl ? '● アーカイブ保存済' : '○ 記録なし'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* モーダルライトボックス (拡大表示) */}
       {modalImage && (
