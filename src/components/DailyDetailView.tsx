@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { DailyDetails } from '../utils/logParser';
 import { getWeatherDescription, getWindDirection, type WeatherData, type HourlyWeatherData } from '../utils/weatherApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Calendar, Users, ArrowUpRight, ArrowDownRight, X, Wind, Droplets, Thermometer, Timer } from 'lucide-react';
+import { Calendar, Users, ArrowUpRight, ArrowDownRight, X, Wind, Droplets, Thermometer, Timer, Camera } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { LiveCamViewer } from './LiveCamViewer';
+import { HourlyCamModal } from './HourlyCamModal';
 
 interface DailyDetailViewProps {
   details: DailyDetails;
@@ -15,6 +16,16 @@ interface DailyDetailViewProps {
 }
 
 export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weather, hourlyWeather, onClose }) => {
+  const [selectedModalHour, setSelectedModalHour] = useState<string | null>(null);
+  const [camHistory, setCamHistory] = useState<any | null>(null);
+
+  useEffect(() => {
+    fetch('/cams/history.json?t=' + Date.now())
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setCamHistory(data))
+      .catch(() => setCamHistory(null));
+  }, [details.dateStr]);
+
   const displayDate = format(parseISO(details.dateStr), 'yyyy年MM月dd日 (E)', { locale: ja });
   const wDesc = weather && weather.weatherCode !== undefined
     ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration)
@@ -159,11 +170,16 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                 <th style={{ padding: '0.6rem', color: 'var(--enter-color)' }}>入山者数</th>
                 <th style={{ padding: '0.6rem', color: 'var(--exit-color)' }}>下山者数</th>
                 <th style={{ padding: '0.6rem' }}>合計</th>
+                <th style={{ padding: '0.6rem', textAlign: 'center' }}>山の状況 (カメラ)</th>
               </tr>
             </thead>
             <tbody>
               {activeHours.map((h, i) => {
                 const hw = hourlyWeather && hourlyWeather[h.hour];
+                const hrStr = h.hour.toString().padStart(2, '0');
+                const hrRecords = camHistory?.records?.[details.dateStr]?.[hrStr];
+                const hasCamRecord = !!hrRecords && Object.keys(hrRecords).length > 0;
+
                 return (
                   <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: i % 2 === 0 ? 'var(--bg-primary)' : 'transparent' }}>
                     <td style={{ padding: '0.6rem', fontWeight: 600 }}>{h.hour}</td>
@@ -176,12 +192,57 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                     <td style={{ padding: '0.6rem', fontWeight: 600, color: 'var(--enter-color)' }}>{h.enter} 人</td>
                     <td style={{ padding: '0.6rem', color: 'var(--exit-color)' }}>{h.exit} 人</td>
                     <td style={{ padding: '0.6rem', fontWeight: 700 }}>{h.enter + h.exit} 人</td>
+                    <td style={{ padding: '0.6rem', textAlign: 'center' }}>
+                      <button
+                        onClick={() => setSelectedModalHour(hrStr)}
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          backgroundColor: hasCamRecord ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-secondary)',
+                          color: hasCamRecord ? '#10b981' : 'var(--text-secondary)',
+                          border: `1px solid ${hasCamRecord ? '#10b981' : 'var(--border-color)'}`,
+                          borderRadius: '9999px',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title={`${h.hour}時台の鴛泊・沓形カメラ状況を確認`}
+                      >
+                        <Camera size={14} />
+                        <span>状況を見る</span>
+                        {hasCamRecord && (
+                          <span
+                            style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              backgroundColor: '#10b981',
+                              display: 'inline-block'
+                            }}
+                          />
+                        )}
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* 時間帯別カメラ状況ポップアップ (案1のワンクリックモーダル) */}
+      {selectedModalHour && (
+        <HourlyCamModal
+          dateStr={details.dateStr}
+          hour={selectedModalHour}
+          hourlyWeather={hourlyWeather?.[selectedModalHour] || hourlyWeather?.[parseInt(selectedModalHour, 10).toString()]}
+          historyRecords={camHistory?.records?.[details.dateStr]?.[selectedModalHour]}
+          onClose={() => setSelectedModalHour(null)}
+        />
       )}
     </div>
   );
