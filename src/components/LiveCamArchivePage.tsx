@@ -275,6 +275,7 @@ export const LiveCamArchivePage: React.FC = () => {
               {recordedHours.map(hr => {
                 const oshidomariPath = selectedDateRecords[hr]?.oshidomari;
                 const kutsugataPath = selectedDateRecords[hr]?.kutsugata;
+                const senposhiPath = selectedDateRecords[hr]?.senposhi;
                 const hw = hourlyWeather[hr] || hourlyWeather[parseInt(hr, 10).toString()];
 
                 return (
@@ -309,13 +310,13 @@ export const LiveCamArchivePage: React.FC = () => {
                       )}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', backgroundColor: 'var(--border-color)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px', backgroundColor: 'var(--border-color)' }}>
                       {/* 鴛泊側ミニ画像 */}
                       <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: oshidomariPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
                         {oshidomariPath ? (
                           <img
                             src={`/${oshidomariPath}`}
-                            alt={`鴛泊側 ${hr}:00`}
+                            alt={`鴛泊 ${hr}:00`}
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                           />
                         ) : (
@@ -324,7 +325,7 @@ export const LiveCamArchivePage: React.FC = () => {
                           </div>
                         )}
                         <span style={{ position: 'absolute', bottom: '4px', left: '4px', backgroundColor: 'rgba(59, 130, 246, 0.85)', color: '#fff', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px' }}>
-                          鴛泊側
+                          鴛泊
                         </span>
                       </div>
 
@@ -333,7 +334,7 @@ export const LiveCamArchivePage: React.FC = () => {
                         {kutsugataPath ? (
                           <img
                             src={`/${kutsugataPath}`}
-                            alt={`沓形側 ${hr}:00`}
+                            alt={`沓形 ${hr}:00`}
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                           />
                         ) : (
@@ -342,14 +343,32 @@ export const LiveCamArchivePage: React.FC = () => {
                           </div>
                         )}
                         <span style={{ position: 'absolute', bottom: '4px', left: '4px', backgroundColor: 'rgba(16, 185, 129, 0.85)', color: '#fff', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px' }}>
-                          沓形側
+                          沓形
+                        </span>
+                      </div>
+
+                      {/* 仙法志側ミニ画像 */}
+                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: senposhiPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
+                        {senposhiPath ? (
+                          <img
+                            src={`/${senposhiPath}`}
+                            alt={`仙法志 ${hr}:00`}
+                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                            記録なし
+                          </div>
+                        )}
+                        <span style={{ position: 'absolute', bottom: '4px', left: '4px', backgroundColor: 'rgba(245, 158, 11, 0.85)', color: '#fff', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px' }}>
+                          仙法志
                         </span>
                       </div>
                     </div>
 
                     <div style={{ padding: '0.5rem 0.75rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                       <span>アーカイブ記録済み</span>
-                      <span>北側 & 西/南側 コース</span>
+                      <span>鴛泊 / 沓形 / 仙法志</span>
                     </div>
                   </div>
                 );

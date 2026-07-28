@@ -207,7 +207,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                             gap: '0.35rem',
                             transition: 'all 0.15s ease'
                           }}
-                          title={`${h.hour}時台の鴛泊・沓形カメラ状況を確認`}
+                          title={`${h.hour}時台の鴛泊・沓形・仙法志カメラ状況を確認`}
                         >
                           <Camera size={14} />
                           <span>状況を見る</span>

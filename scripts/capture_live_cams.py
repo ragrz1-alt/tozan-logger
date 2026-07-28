@@ -26,14 +26,19 @@ JST = timezone(timedelta(hours=9))
 # カメラ定義
 CAMERAS = {
     "oshidomari": {
-        "name": "鴛泊コース側（北側・港側）",
-        "videoId": "bAWueJBFcT0",
-        "url": "https://www.youtube.com/watch?v=bAWueJBFcT0"
+        "name": "鴛泊コース（鴛泊）",
+        "videoId": "8BwfUCuPcVE",
+        "url": "https://www.youtube.com/watch?v=8BwfUCuPcVE"
     },
     "kutsugata": {
-        "name": "沓形コース側（西・南側）",
+        "name": "沓形コース（栄浜）",
         "videoId": "P9stiZVACSg",
         "url": "https://www.youtube.com/watch?v=P9stiZVACSg"
+    },
+    "senposhi": {
+        "name": "仙法志（御崎）",
+        "videoId": "Mn9EszbHh4Y",
+        "url": "https://www.youtube.com/watch?v=Mn9EszbHh4Y"
     }
 }
 
