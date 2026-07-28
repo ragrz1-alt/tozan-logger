@@ -286,7 +286,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                 }}
                 onClick={() => {
                   if (displayUrl) {
-                    setModalImage({ url: displayUrl, title: `${cam.name} - ${dateStr} ${selectedHour}:00` });
+                    setModalImage({ url: displayUrl, title: `${cam.name} - ${dateStr} ${selectedHour}時台` });
                   }
                 }}
               >
