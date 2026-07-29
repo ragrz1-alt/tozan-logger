@@ -27,8 +27,8 @@ jobs:
       - name: Set up FFmpeg (安定版 BtbN/FFmpeg-Builds 導入)
         uses: AnimMouse/setup-ffmpeg@v1
 
-      - name: Install yt-dlp
-        run: pip install -U yt-dlp
+      - name: Install yt-dlp and streamlink
+        run: pip install -U yt-dlp streamlink
 
       - name: Run live camera capture script
         run: |

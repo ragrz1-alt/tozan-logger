@@ -79,10 +79,10 @@ def ensure_compressed_image(image_path):
     except Exception as e:
         print(f"[WARN] 画像圧縮処理例外: {e}")
 
-def capture_with_ytdlp_url(video_url, output_path, format_selector="best[height<=1080]/best"):
+def capture_with_ytdlp_url(video_url, output_path, format_selector="best[protocol^=m3u8]/301/300/96/95/94/93/best"):
     """
-    11時台の正常動作実績と同様に、スマートかつ最も安定している yt-dlp -g でストリームURLを取得し、
-    ffmpeg で配信映像から実フレームを1枚直接キャプチャする（〜50KB程度）
+    昨日の「oshidomari」解決実績と同様に、スマートかつ最も安定している HLSプロトコル優先フォーマットで
+    ストリームURLを取得し、ffmpeg で配信映像から実フレームを1枚直接キャプチャする（〜50KB程度）
     """
     try:
         if os.path.exists(output_path):
@@ -90,7 +90,7 @@ def capture_with_ytdlp_url(video_url, output_path, format_selector="best[height<
                 os.remove(output_path)
             except Exception:
                 pass
-        # 1. yt-dlp でストリームURLを取得（余計なクライアント偽装やextractor-argsを除外）
+        # 1. yt-dlp でストリームURLを取得
         res = subprocess.run(
             ["yt-dlp", "-f", format_selector, "-g", video_url],
             stdout=subprocess.PIPE,
@@ -123,6 +123,79 @@ def capture_with_ytdlp_url(video_url, output_path, format_selector="best[height<
         return False
     except Exception as e:
         print(f"[WARN] yt-dlp/ffmpeg 撮影失敗: {e}")
+        return False
+
+def capture_with_ytdlp_client_args(video_url, output_path, format_selector="best[protocol^=m3u8]/best"):
+    """
+    昨日のクラウドIPからのDASH 403ブロック回避実績である --extractor-args を付与したストリーム取得方式
+    """
+    try:
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
+        res = subprocess.run(
+            ["yt-dlp", "-f", format_selector, "--extractor-args", "youtube:player_client=ios,android,web", "-g", video_url],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=30
+        )
+        if res.returncode != 0 or not res.stdout.strip():
+            return False
+        stream_url = res.stdout.strip().splitlines()[0]
+        if not stream_url:
+            return False
+        cmd = [
+            "ffmpeg", "-y",
+            "-rw_timeout", "15000000",
+            "-i", stream_url,
+            "-vframes", "1",
+            "-vf", "scale=800:-1",
+            "-q:v", "3",
+            output_path
+        ]
+        ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=35)
+        if ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            print(" -> [STREAM_SCREENSHOT] yt-dlp(--extractor-args)/ffmpeg エンジンで撮影成功")
+            return True
+        return False
+    except Exception as e:
+        return False
+
+def capture_with_streamlink(video_url, output_path):
+    """
+    昨日のライブ配信専門ツール streamlink 実績による直接HLSストリームURL取得＆キャプチャ
+    """
+    try:
+        res = subprocess.run(
+            ["streamlink", "--stream-url", video_url, "best,720p,480p,360p,worst"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=25
+        )
+        if res.returncode != 0 or not res.stdout.strip():
+            return False
+        stream_url = res.stdout.strip().splitlines()[0]
+        if not stream_url:
+            return False
+        cmd = [
+            "ffmpeg", "-y",
+            "-rw_timeout", "15000000",
+            "-i", stream_url,
+            "-vframes", "1",
+            "-vf", "scale=800:-1",
+            "-q:v", "3",
+            output_path
+        ]
+        ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=35)
+        if ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+            print(" -> [STREAM_SCREENSHOT] streamlink/ffmpeg エンジンでリアルタイム撮影成功")
+            return True
+        return False
+    except Exception as e:
         return False
 
 def capture_with_ytdlp_pipe(video_url, output_path):
@@ -166,20 +239,19 @@ def capture_with_ytdlp_pipe(video_url, output_path):
 
 def capture_stream_frame(video_url, output_path):
     """
-    スマートかつ安定した yt-dlp / ffmpeg のみを使用したリアルタイムフレーム取得
+    昨日の「oshidomari」解決実績（HLS優先・extractor-args・streamlink）を統合した最強リアルタイムフレーム取得
     """
-    # 方式1: 1080p以下のベストストリームを直接取得してキャプチャ（最も高速で50KB程度の高品質）
-    if capture_with_ytdlp_url(video_url, output_path, "best[height<=1080]/best"):
+    # 方式1: 昨日の実績「HLSプロトコル最優先フォーマット (m3u8 / 301 / 300 / 96 / 95)」
+    if capture_with_ytdlp_url(video_url, output_path, "best[protocol^=m3u8]/301/300/96/95/94/93/best"):
         return True
         
-    # 方式2: フォーマット指定なし（デフォルト設定）でのURL直接取得
-    if capture_with_ytdlp_url(video_url, output_path, "bestvideo/best"):
+    # 方式2: 昨日のクラウドIP 403ブロック回避実績 (--extractor-args "youtube:player_client=ios,android,web")
+    if capture_with_ytdlp_client_args(video_url, output_path, "best[protocol^=m3u8]/best"):
         return True
 
-    # 方式3: YouTube固有のライブストリームフォーマットID（一部カメラではこれが必要）
-    for fmt in ["96", "95", "94", "93", "91"]:
-        if capture_with_ytdlp_url(video_url, output_path, fmt):
-            return True
+    # 方式3: ライブ配信専門ツール streamlink による直接HLS抽出
+    if capture_with_streamlink(video_url, output_path):
+        return True
         
     # 方式4: パイプストリームキャプチャ
     if capture_with_ytdlp_pipe(video_url, output_path):
@@ -189,24 +261,16 @@ def capture_stream_frame(video_url, output_path):
 
 def capture_fallback_thumbnail(video_id, output_path):
     """
-    yt-dlp/ffmpeg がない場合やライブ配信の一時不調時は、
-    YouTube公式のライブ配信リアルタイムサムネイルを保存するフォールバック機能
-    _live.jpg はYouTubeが配信中に定期更新するリアルタイムサムネイル（推奨）
-    _live なしの URL は配信開始時に設定された固定サムネイル（古い画像の可能性あり）
+    yt-dlp/streamlink/ffmpeg でストリームから実フレームを取れない場合でも、
+    YouTube側が配信中に定期更新している「リアルタイムサムネイル (_live.jpg)」のみを保存する。
+    ※ 2021年の静止画サムネイル (maxresdefault.jpg 等) は絶対に保存しない（古いサムネ混入・上書きを完全排除！）
     """
-    # 第1優先: リアルタイムサムネイル (_live.jpg) — 配信中に定期更新される
     live_thumb_urls = [
         f"https://i.ytimg.com/vi/{video_id}/maxresdefault_live.jpg",
         f"https://i.ytimg.com/vi/{video_id}/sddefault_live.jpg",
         f"https://i.ytimg.com/vi/{video_id}/hqdefault_live.jpg",
         f"https://i.ytimg.com/vi/{video_id}/mqdefault_live.jpg",
     ]
-    # 第2優先: 固定サムネイル（リアルタイム版が全滅した場合の最終手段、古い画像の可能性あり）
-    static_thumb_urls = [
-        f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg",
-        f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
-    ]
-    
     for url in live_thumb_urls:
         try:
             req = urllib.request.Request(
@@ -218,29 +282,12 @@ def capture_fallback_thumbnail(video_id, output_path):
                 if len(data) > 1000: # 正常な画像バイナリサイズか確認
                     with open(output_path, "wb") as f:
                         f.write(data)
-                    print(f" -> フォールバック成功 [リアルタイムサムネイル] URL: {url} ({len(data)} bytes)")
+                    print(f" -> [REALTIME_THUMBNAIL] リアルタイムサムネイル保存成功: {url} ({len(data)} bytes)")
                     return True
         except Exception as e:
             continue
 
-    print(f" -> [WARN] リアルタイムサムネイル (_live.jpg) 取得不可。固定サムネイルへフォールバック...")
-    for url in static_thumb_urls:
-        try:
-            req = urllib.request.Request(
-                url,
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-            )
-            with urllib.request.urlopen(req, timeout=15) as res:
-                data = res.read()
-                if len(data) > 1000:
-                    with open(output_path, "wb") as f:
-                        f.write(data)
-                    print(f" -> フォールバック成功 [固定サムネイル ※古い画像の可能性あり] URL: {url} ({len(data)} bytes)")
-                    return True
-        except Exception as e:
-            continue
-
-    print(f" -> フォールバック全滅 (videoId={video_id})")
+    print(f" -> [ERROR] ストリーム及びリアルタイムサムネイル (_live.jpg) の取得に失敗。(videoId={video_id}) ※古い固定サムネイルの保存は厳密に禁止されました。")
     return False
 
 def process_camera(course_id, info, target_dir, date_str, hour_str, force=False):
