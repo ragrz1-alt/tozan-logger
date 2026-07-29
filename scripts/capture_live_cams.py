@@ -175,8 +175,13 @@ def capture_stream_frame(video_url, output_path):
     # 方式2: フォーマット指定なし（デフォルト設定）でのURL直接取得
     if capture_with_ytdlp_url(video_url, output_path, "bestvideo/best"):
         return True
+
+    # 方式3: YouTube固有のライブストリームフォーマットID（一部カメラではこれが必要）
+    for fmt in ["96", "95", "94", "93", "91"]:
+        if capture_with_ytdlp_url(video_url, output_path, fmt):
+            return True
         
-    # 方式3: パイプストリームキャプチャ
+    # 方式4: パイプストリームキャプチャ
     if capture_with_ytdlp_pipe(video_url, output_path):
         return True
         
@@ -186,16 +191,23 @@ def capture_fallback_thumbnail(video_id, output_path):
     """
     yt-dlp/ffmpeg がない場合やライブ配信の一時不調時は、
     YouTube公式のライブ配信リアルタイムサムネイルを保存するフォールバック機能
+    _live.jpg はYouTubeが配信中に定期更新するリアルタイムサムネイル（推奨）
+    _live なしの URL は配信開始時に設定された固定サムネイル（古い画像の可能性あり）
     """
-    thumb_urls = [
+    # 第1優先: リアルタイムサムネイル (_live.jpg) — 配信中に定期更新される
+    live_thumb_urls = [
         f"https://i.ytimg.com/vi/{video_id}/maxresdefault_live.jpg",
         f"https://i.ytimg.com/vi/{video_id}/sddefault_live.jpg",
         f"https://i.ytimg.com/vi/{video_id}/hqdefault_live.jpg",
         f"https://i.ytimg.com/vi/{video_id}/mqdefault_live.jpg",
+    ]
+    # 第2優先: 固定サムネイル（リアルタイム版が全滅した場合の最終手段、古い画像の可能性あり）
+    static_thumb_urls = [
         f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg",
         f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
     ]
-    for url in thumb_urls:
+    
+    for url in live_thumb_urls:
         try:
             req = urllib.request.Request(
                 url,
@@ -206,10 +218,28 @@ def capture_fallback_thumbnail(video_id, output_path):
                 if len(data) > 1000: # 正常な画像バイナリサイズか確認
                     with open(output_path, "wb") as f:
                         f.write(data)
-                    print(f" -> フォールバック成功 URL: {url} ({len(data)} bytes)")
+                    print(f" -> フォールバック成功 [リアルタイムサムネイル] URL: {url} ({len(data)} bytes)")
                     return True
         except Exception as e:
             continue
+
+    print(f" -> [WARN] リアルタイムサムネイル (_live.jpg) 取得不可。固定サムネイルへフォールバック...")
+    for url in static_thumb_urls:
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            )
+            with urllib.request.urlopen(req, timeout=15) as res:
+                data = res.read()
+                if len(data) > 1000:
+                    with open(output_path, "wb") as f:
+                        f.write(data)
+                    print(f" -> フォールバック成功 [固定サムネイル ※古い画像の可能性あり] URL: {url} ({len(data)} bytes)")
+                    return True
+        except Exception as e:
+            continue
+
     print(f" -> フォールバック全滅 (videoId={video_id})")
     return False
 
