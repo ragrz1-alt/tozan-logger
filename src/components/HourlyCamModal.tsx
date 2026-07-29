@@ -35,6 +35,14 @@ const CAMERAS = [
     url: 'https://www.youtube.com/watch?v=5BG3KJVFRVM',
     color: '#f59e0b',
     badge: '仙法志'
+  },
+  {
+    id: 'oniwaki',
+    name: '鬼脇（オタドマリ）',
+    videoId: 'enBReBFAk7U',
+    url: 'https://www.youtube.com/watch?v=enBReBFAk7U',
+    color: '#8b5cf6',
+    badge: '鬼脇'
   }
 ];
 

@@ -41,6 +41,11 @@ CAMERAS = {
         "name": "仙法志（御崎）",
         "videoId": "5BG3KJVFRVM",
         "url": "https://www.youtube.com/watch?v=5BG3KJVFRVM"
+    },
+    "oniwaki": {
+        "name": "鬼脇（オタドマリ）",
+        "videoId": "enBReBFAk7U",
+        "url": "https://www.youtube.com/watch?v=enBReBFAk7U"
     }
 }
 
@@ -272,7 +277,7 @@ def main():
     print(f"=== 利尻山ライブカメラ 定時撮影処理開始 ({date_str} {hour_str}:00) ===")
 
     # 3カメラを並列同時処理（待ち時間1/3）
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         futures = [
             executor.submit(process_camera, course_id, info, target_dir, date_str, hour_str, args.force)
             for course_id, info in CAMERAS.items()
