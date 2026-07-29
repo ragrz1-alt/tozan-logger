@@ -280,7 +280,6 @@ export const LiveCamArchivePage: React.FC = () => {
                 const oshidomariPath = selectedDateRecords[hr]?.oshidomari;
                 const kutsugataPath = selectedDateRecords[hr]?.kutsugata;
                 const senposhiPath = selectedDateRecords[hr]?.senposhi;
-                const oniwakiPath = selectedDateRecords[hr]?.oniwaki;
 
                 return (
                   <div
@@ -307,7 +306,7 @@ export const LiveCamArchivePage: React.FC = () => {
                       <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{hr}時台</strong>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '2px', backgroundColor: 'var(--border-color)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px', backgroundColor: 'var(--border-color)' }}>
                       {/* 鴛泊側ミニ画像 */}
                       <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: oshidomariPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
                         {oshidomariPath ? (
@@ -359,24 +358,6 @@ export const LiveCamArchivePage: React.FC = () => {
                         )}
                         <span style={{ position: 'absolute', bottom: '4px', left: '4px', backgroundColor: 'rgba(245, 158, 11, 0.85)', color: '#fff', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px' }}>
                           仙法志
-                        </span>
-                      </div>
-
-                      {/* 鬼脇側ミニ画像 */}
-                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: oniwakiPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
-                        {oniwakiPath ? (
-                          <img
-                            src={getCamImageUrl(oniwakiPath)}
-                            alt={`鬼脇 ${hr}:00`}
-                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        ) : (
-                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                            記録なし
-                          </div>
-                        )}
-                        <span style={{ position: 'absolute', bottom: '4px', left: '4px', backgroundColor: 'rgba(139, 92, 246, 0.85)', color: '#fff', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px' }}>
-                          鬼脇
                         </span>
                       </div>
                     </div>
