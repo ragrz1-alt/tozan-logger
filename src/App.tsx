@@ -6,9 +6,10 @@ import { LiveCamArchivePage } from './components/LiveCamArchivePage';
 import { parseLogFile, aggregateData, getDailyDetails, type LogEntry, type CourseId } from './utils/logParser';
 import { fetchWeatherData, fetchHourlyWeatherData, type WeatherData, type HourlyWeatherData } from './utils/weatherApi';
 import { saveLogsToDB, loadLogsFromDB, clearLogsFromDB } from './utils/storage';
-import { Trash2, Calendar as CalendarIcon, Cloud, CloudDownload, CloudUpload, Key, Database, Mountain, Compass, Layers, PlusCircle, X, Lock, Unlock, Eye, RefreshCw, Video } from 'lucide-react';
+import { Trash2, Calendar as CalendarIcon, Cloud, CloudDownload, CloudUpload, Key, Database, Mountain, Compass, Layers, PlusCircle, X, Lock, Unlock, Eye, RefreshCw, Video, Info } from 'lucide-react';
 import { FirebaseModal } from './components/FirebaseModal';
 import { AdminModal } from './components/AdminModal';
+import { SystemInfoModal } from './components/SystemInfoModal';
 import { saveLogsToFirestore, loadLogsFromFirestore, checkCloudMetadata } from './utils/firebaseStorage';
 import { isFirebaseConfigured } from './config/firebaseConfig';
 
@@ -22,6 +23,9 @@ function App() {
   const [hourlyWeather, setHourlyWeather] = useState<Record<string, HourlyWeatherData>>({});
   
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
+
+  // System Info & Weather Source Modal
+  const [isSystemInfoOpen, setIsSystemInfoOpen] = useState(false);
 
   // Admin / Public Viewer Mode
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
@@ -438,6 +442,28 @@ function App() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          {/* 気象データの情報源・システム解析仕様について（解説モーダル表示ボタン） */}
+          <button
+            onClick={() => setIsSystemInfoOpen(true)}
+            className="button button-secondary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              padding: '0.55rem 0.95rem',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.08)',
+              color: '#10b981',
+              cursor: 'pointer'
+            }}
+            title="気象データの情報源(ソース)・システム解析仕様について確認します"
+          >
+            <Info size={16} />
+            <span>ℹ️ 解析仕様 ＆ データ出典</span>
+          </button>
+
           {/* 閲覧者・管理者共通: いつでも誰でもクラウドの最新データを同期・確認できるスマート更新ボタン */}
           {entries.length > 0 && (
             <button
@@ -539,6 +565,11 @@ function App() {
           isAdmin={isAdmin}
           onUnlock={handleAdminUnlock}
           onLock={handleAdminLock}
+        />
+
+        <SystemInfoModal
+          isOpen={isSystemInfoOpen}
+          onClose={() => setIsSystemInfoOpen(false)}
         />
 
         {isLoadingLogs ? (
