@@ -441,27 +441,29 @@ function App() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {/* 気象データの情報源・システム解析仕様について（解説モーダル表示ボタン） */}
           <button
             onClick={() => setIsSystemInfoOpen(true)}
             className="button button-secondary"
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.55rem 0.95rem',
-              fontSize: '0.85rem',
+              gap: '0.35rem',
+              padding: '0.4rem 0.8rem',
+              fontSize: '0.81rem',
               fontWeight: 700,
-              borderColor: '#10b981',
+              borderRadius: '999px',
+              borderColor: 'rgba(16, 185, 129, 0.4)',
               backgroundColor: 'rgba(16, 185, 129, 0.08)',
               color: '#10b981',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
             }}
             title="気象データの情報源(ソース)・システム解析仕様について確認します"
           >
-            <Info size={16} />
-            <span>ℹ️ 解析仕様 ＆ データ出典</span>
+            <Info size={14} />
+            <span>ℹ️ 解析仕様＆データ出典</span>
           </button>
 
           {/* 閲覧者・管理者共通: いつでも誰でもクラウドの最新データを同期・確認できるスマート更新ボタン */}
@@ -471,21 +473,23 @@ function App() {
               disabled={isSyncing}
               className="button button-secondary"
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.55rem 0.95rem',
-                fontSize: '0.85rem',
+                gap: '0.35rem',
+                padding: '0.4rem 0.8rem',
+                fontSize: '0.81rem',
                 fontWeight: 700,
-                borderColor: '#3b82f6',
+                borderRadius: '999px',
+                borderColor: 'rgba(59, 130, 246, 0.4)',
                 backgroundColor: 'rgba(59, 130, 246, 0.08)',
                 color: '#3b82f6',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
               title="クラウド上の最新解析データを再読込して同期します"
             >
-              <RefreshCw size={15} className={isSyncing ? 'spin' : ''} />
-              <span>{isSyncing ? '最新データ同期中...' : '☁️ クラウド同期'}</span>
+              <RefreshCw size={14} className={isSyncing ? 'spin' : ''} />
+              <span>{isSyncing ? 'データ同期中...' : '☁️ クラウド同期'}</span>
             </button>
           )}
 
@@ -494,18 +498,21 @@ function App() {
             onClick={() => setIsAdminModalOpen(true)}
             className="button button-secondary"
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.45rem',
-              padding: '0.55rem 0.95rem',
-              fontSize: '0.85rem',
+              gap: '0.35rem',
+              padding: '0.4rem 0.8rem',
+              fontSize: '0.81rem',
               fontWeight: 700,
-              borderColor: isAdmin ? '#10b981' : 'var(--border-color)',
+              borderRadius: '999px',
+              borderColor: isAdmin ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-color)',
               backgroundColor: isAdmin ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-secondary)',
-              color: isAdmin ? '#10b981' : 'var(--text-secondary)'
+              color: isAdmin ? '#10b981' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
             }}
           >
-            {isAdmin ? <Unlock size={16} /> : <Lock size={16} />}
+            {isAdmin ? <Unlock size={14} /> : <Lock size={14} />}
             <span>{isAdmin ? '🔓 管理者モード' : '🔒 閲覧専用モード'}</span>
           </button>
 
