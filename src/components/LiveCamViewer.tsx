@@ -221,12 +221,8 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
         gap: '1.25rem'
       }}>
         {CAMERAS.map(cam => {
-          const todayStr = new Date().toISOString().substring(0, 10);
-          const isToday = dateStr === todayStr;
           const imgPath = dateRecords[selectedHour]?.[cam.id];
-          const displayUrl = imgPath
-            ? getCamImageUrl(imgPath)
-            : (isToday && !cam.videoId ? `${cam.url}?t=${Date.now()}` : null);
+          const displayUrl = imgPath ? getCamImageUrl(imgPath) : null;
 
           return (
             <div

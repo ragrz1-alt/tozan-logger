@@ -326,10 +326,10 @@ export const LiveCamArchivePage: React.FC = () => {
                       </div>
 
                       {/* 沓形側ミニ画像 */}
-                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: (kutsugataPath || selectedDate === new Date().toISOString().substring(0, 10)) ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
-                        {(kutsugataPath || selectedDate === new Date().toISOString().substring(0, 10)) ? (
+                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: kutsugataPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
+                        {kutsugataPath ? (
                           <img
-                            src={kutsugataPath ? getCamImageUrl(kutsugataPath) : `https://rishiri-town.jp/wp-content/themes/rishiri/images/MtRishiri/mt-rishiri.jpg?t=${Date.now()}`}
+                            src={getCamImageUrl(kutsugataPath)}
                             alt={`沓形 ${hr}:00`}
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                           />

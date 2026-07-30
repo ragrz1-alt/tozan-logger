@@ -235,13 +235,13 @@ export const HourlyCamModal: React.FC<HourlyCamModalProps> = ({
                       position: 'relative',
                       width: '100%',
                       paddingTop: '56.25%',
-                      backgroundColor: (imgPath || (!cam.videoId && dateStr === new Date().toISOString().substring(0, 10))) ? '#000' : 'var(--bg-secondary)',
+                      backgroundColor: imgPath ? '#000' : 'var(--bg-secondary)',
                       overflow: 'hidden'
                     }}
                   >
-                    {(imgPath || (!cam.videoId && dateStr === new Date().toISOString().substring(0, 10))) ? (
+                    {imgPath ? (
                       <img
-                        src={imgPath ? getCamImageUrl(imgPath) : `${cam.url}?t=${Date.now()}`}
+                        src={getCamImageUrl(imgPath)}
                         alt={`${cam.name} ${hour}時`}
                         style={{
                           position: 'absolute',
