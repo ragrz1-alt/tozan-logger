@@ -273,14 +273,52 @@ input:checked + .slider:before {
   padding-bottom: 0.4rem;
 }
 
+/* モバイル・スマート UI レスポンシブ最適化 (スマホ通常モードの見やすさを劇的改善) */
 @media (max-width: 768px) {
+  .app-container {
+    padding: 0.8rem !important;
+  }
+
+  .header {
+    margin-bottom: 1.2rem !important;
+  }
+
+  .header h1 {
+    font-size: 1.45rem !important;
+  }
+
+  .header p {
+    font-size: 0.85rem !important;
+  }
+
+  .card {
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+    border-radius: var(--radius-md) !important;
+  }
+
   .hours-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 0.35rem !important;
+  }
+
+  /* テーブル・データグリッドの一覧性と引き締め */
+  table {
+    font-size: 0.82rem !important;
+  }
+
+  th, td {
+    padding: 0.45rem 0.5rem !important;
   }
 }
 
 @media (max-width: 480px) {
+  .app-container {
+    padding: 0.6rem !important;
+  }
+
+  /* 480px以下でも時間帯グリッドを6列維持し視認性を確保（4列による過度な縦伸びを排除） */
   .hours-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
   }
 }
