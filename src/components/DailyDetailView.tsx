@@ -311,6 +311,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                 <th style={{ padding: '0.6rem' }}>時間帯</th>
                 <th style={{ padding: '0.6rem' }}>天気 (1h)</th>
                 <th style={{ padding: '0.6rem' }}>気温 / 降水</th>
+                <th style={{ padding: '0.6rem' }}>風向 / 風速</th>
                 <th style={{ padding: '0.6rem', color: 'var(--enter-color)' }}>入山者数</th>
                 <th style={{ padding: '0.6rem', color: 'var(--exit-color)' }}>下山者数</th>
                 <th style={{ padding: '0.6rem' }}>合計</th>
@@ -333,6 +334,19 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                     </td>
                     <td style={{ padding: '0.55rem 0.6rem', color: 'var(--text-secondary)' }}>
                       {hw ? `${hw.temp}℃ / ${hw.precipitation}mm` : '-'}
+                    </td>
+                    <td style={{
+                      padding: '0.55rem 0.6rem',
+                      color: hw && hw.windSpeed >= 15 ? '#ef4444' : hw && hw.windSpeed >= 10 ? '#f97316' : 'var(--text-secondary)',
+                      fontWeight: hw && hw.windSpeed >= 10 ? 700 : 400
+                    }}>
+                      {hw ? (
+                        <span>
+                          {hw.windSpeed >= 15 && '⚠️ '}
+                          {hw.windSpeed >= 10 && hw.windSpeed < 15 && '💨 '}
+                          {hw.windDirectionText || '-'} {hw.windSpeed}m/s
+                        </span>
+                      ) : '-'}
                     </td>
                     <td style={{ padding: '0.55rem 0.6rem', fontWeight: 600, color: 'var(--enter-color)' }}>{h.enter} 人</td>
                     <td style={{ padding: '0.55rem 0.6rem', color: 'var(--exit-color)' }}>{h.exit} 人</td>

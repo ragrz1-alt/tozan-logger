@@ -67,7 +67,14 @@ const fetchSingleLocationWeather = async (
 };
 
 const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v3';
-const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v3';
+const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v4';
+
+export const getWindDirectionText = (deg?: number): string => {
+  if (deg === undefined || deg === null || isNaN(deg)) return '-';
+  const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+  const index = Math.round((deg % 360) / 22.5) % 16;
+  return directions[index];
+};
 
 const getDailyWeatherCache = (): Record<string, WeatherData> => {
   try {
@@ -274,6 +281,8 @@ export interface HourlyWeatherData {
   weatherText: string;
   weatherEmoji: string;
   windSpeed: number; // e.g. 4.2
+  windDirection?: number; // e.g. 270 (度)
+  windDirectionText?: string; // e.g. "北西", "WNW", etc.
 }
 
 const fetchSingleLocationHourlyWeather = async (
@@ -286,10 +295,10 @@ const fetchSingleLocationHourlyWeather = async (
     const isPast = dateStr < todayStr;
 
     // 1. 過去日(dateStr < today)の場合は、実測データの確実な archive API を最優先で試行します
-    const archiveJma = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-    const archiveFallback = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-    const forecastJma = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-    const forecastFallback = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const archiveJma = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const archiveFallback = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const forecastJma = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const forecastFallback = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
 
     const urlsToTry = isPast
       ? [archiveJma, archiveFallback, forecastJma, forecastFallback]
@@ -329,6 +338,8 @@ const fetchSingleLocationHourlyWeather = async (
       // 1.0mm未満の微小なモデル推計値（0.3mmや0.6mm）は気象庁アメダス実測値(0mm)に合わせて0.0mmにクリーニング
       const precip = rawPrecip < 1.0 ? 0 : Math.round(rawPrecip * 10) / 10;
       const desc = getWeatherDescription(code, precip);
+      const windSpeed = Math.round((data.hourly.wind_speed_10m[i] ?? 0) * 10) / 10;
+      const windDeg = data.hourly.wind_direction_10m ? data.hourly.wind_direction_10m[i] : undefined;
       
       result[hourPart] = {
         hour: hourPart,
@@ -337,7 +348,9 @@ const fetchSingleLocationHourlyWeather = async (
         weatherCode: code,
         weatherText: desc.text,
         weatherEmoji: desc.emoji,
-        windSpeed: data.hourly.wind_speed_10m[i] ?? 0,
+        windSpeed: windSpeed,
+        windDirection: windDeg,
+        windDirectionText: getWindDirectionText(windDeg),
       };
     }
     return result;
@@ -393,6 +406,7 @@ export const fetchHourlyWeatherData = async (
       const precip = Math.max(k.precipitation, m.precipitation);
       const code = precip > 2 ? 65 : (k.weatherCode > m.weatherCode ? k.weatherCode : m.weatherCode);
       const desc = getWeatherDescription(code, precip);
+      const strongerWindCam = k.windSpeed >= m.windSpeed ? k : m;
       combined[hour] = {
         hour,
         temp: Math.round(((k.temp + m.temp) / 2) * 10) / 10,
@@ -400,7 +414,9 @@ export const fetchHourlyWeatherData = async (
         weatherCode: code,
         weatherText: desc.text,
         weatherEmoji: desc.emoji,
-        windSpeed: Math.max(k.windSpeed, m.windSpeed)
+        windSpeed: Math.max(k.windSpeed, m.windSpeed),
+        windDirection: strongerWindCam.windDirection,
+        windDirectionText: strongerWindCam.windDirectionText
       };
     } else {
       combined[hour] = k || m;
