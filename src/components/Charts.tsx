@@ -48,7 +48,7 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
           <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>{label}</p>
           {data.precipitation && data.precipitation >= 20 && (
             <p style={{ color: '#ef4444', fontWeight: 'bold', margin: '4px 0', fontSize: '0.85rem' }}>
-              ⚠️ 極端な大雨・荒天アラート日 (降水 {data.precipitation} mm)
+              ⚠️ 大雨・荒天アラート日 (降水 {data.precipitation} mm)
             </p>
           )}
           {data.weatherText && (
@@ -78,10 +78,53 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
   return (
     <div>
       <div className="card">
-        <h2 className="card-title">日別入山者数 ＆ 天候</h2>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-          💡 グラフのバーをクリックすると、その日の時間帯別グラフと内訳データが表示されます。
+        <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span>📊 日別入山者数 ＆ 天候</span>
+        </h2>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          💡 グラフの棒（バー）をクリックすると、その日の「詳細な時間帯別グラフと気象データ内訳」が表示されます。
         </p>
+
+        {/* 棒グラフの色に対応する天候凡例バー (カラーバッジ) */}
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          padding: '0.85rem 1.25rem',
+          backgroundColor: 'var(--bg-primary)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-md)',
+          marginBottom: '1.25rem',
+          boxShadow: 'var(--shadow-sm)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+            <span>🎨 棒グラフ天候カラー凡例:</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.1rem', fontSize: '0.83rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#fbbf24', display: 'inline-block', boxShadow: '0 0 4px rgba(251, 191, 36, 0.4)' }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>晴れ</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#94a3b8', display: 'inline-block', boxShadow: '0 0 4px rgba(148, 163, 184, 0.4)' }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>曇り</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#3b82f6', display: 'inline-block', boxShadow: '0 0 4px rgba(59, 130, 246, 0.4)' }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>雨・雪</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#ef4444', display: 'inline-block', boxShadow: '0 0 4px rgba(239, 68, 68, 0.4)' }} />
+              <span style={{ fontWeight: 600, color: '#ef4444' }}>⚠️ 大雨・荒天 (20mm以上)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#10b981', display: 'inline-block', boxShadow: '0 0 4px rgba(16, 185, 129, 0.4)' }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>気象未取得・標準</span>
+            </div>
+          </div>
+        </div>
 
         <div className="chart-container">
           <ResponsiveContainer width="100%" height="100%">
@@ -90,7 +133,7 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
               <XAxis dataKey="displayDate" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)' }} />
               <YAxis yAxisId="left" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)' }} />
               <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ paddingTop: '20px' }} />
+              <Legend wrapperStyle={{ paddingTop: '15px', fontWeight: 600 }} />
               <Bar 
                 yAxisId="left" 
                 dataKey="enter" 
@@ -120,7 +163,7 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
             borderRadius: '8px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, color: '#ef4444', marginBottom: '0.6rem', fontSize: '0.95rem' }}>
-              <span>⚠️ 極端な大雨・荒天による入山者減少アラート日 (日降水量 20mm以上)</span>
+              <span>⚠️ 大雨・荒天による入山者減少アラート日 (日降水量 20mm以上)</span>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
               {heavyRainDays.map(d => (
@@ -145,7 +188,7 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
               ))}
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.55rem 0 0 0' }}>
-              ※ 極端に人数が少ない日は、豪雨や強風・荒天により入山が困難であったケースが一目で分かります（該当の棒グラフも赤色で警告ハイライトされています）。
+              ※ 人数が少ない日は、大雨や強風・荒天により入山が困難であったケースが一目で分かります（該当の棒グラフも赤色でハイライトされています）。
             </p>
           </div>
         )}

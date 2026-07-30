@@ -33,9 +33,9 @@ CAMERAS = {
         "url": "https://www.youtube.com/watch?v=bAWueJBFcT0"
     },
     "kutsugata": {
-        "name": "沓形（栄浜）",
-        "videoId": "P9stiZVACSg",
-        "url": "https://www.youtube.com/watch?v=P9stiZVACSg"
+        "name": "沓形（沓形）",
+        "videoId": "",
+        "url": "https://rishiri-town.jp/wp-content/themes/rishiri/images/MtRishiri/mt-rishiri.jpg"
     },
     "senposhi": {
         "name": "仙法志（御崎）",
@@ -285,6 +285,33 @@ def capture_fallback_thumbnail(video_id, output_path):
     print(f" -> [ERROR] ストリーム及びリアルタイムサムネイル (_live.jpg) の取得に失敗。(videoId={video_id}) ※古い固定サムネイルの保存は厳密に禁止されました。")
     return False
 
+def capture_static_image(image_url, output_path):
+    """
+    利尻町公式カメラ等、静止画URL (JPG) を直接配信しているカメラから最新画像をダウンロードして保存する
+    """
+    try:
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
+        # キャッシュバスターで最新画像を取得
+        target_url = f"{image_url}?t={int(datetime.now(JST).timestamp())}"
+        req = urllib.request.Request(
+            target_url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as res:
+            data = res.read()
+            if len(data) > 1000:
+                with open(output_path, "wb") as f:
+                    f.write(data)
+                print(f" -> [STATIC_IMAGE] 公式静止画カメラ保存成功 ({len(data)} bytes)")
+                return True
+    except Exception as e:
+        print(f"[WARN] 静止画ダウンロード失敗 ({image_url}): {e}")
+    return False
+
 def process_camera(course_id, info, target_dir, date_str, hour_str, force=False):
     img_name = f"{hour_str}_{course_id}.jpg"
     img_path = os.path.join(target_dir, img_name)
@@ -292,10 +319,14 @@ def process_camera(course_id, info, target_dir, date_str, hour_str, force=False)
 
     print(f"[{course_id}] ({info['name']}) リアルタイム撮影試行中...")
 
-    success = capture_stream_frame(info["url"], img_path)
-    if not success:
-        print(f"[{course_id}] 全方式でのリアルタイム取得が困難なため公式サムネイルでフォールバック中...")
-        success = capture_fallback_thumbnail(info["videoId"], img_path)
+    # urlが静止画(.jpg等)やvideoIdが空の場合、静止画直接ダウンロードを実行
+    if not info.get("videoId") or info.get("url", "").lower().endswith(".jpg"):
+        success = capture_static_image(info["url"], img_path)
+    else:
+        success = capture_stream_frame(info["url"], img_path)
+        if not success:
+            print(f"[{course_id}] 全方式でのリアルタイム取得が困難なため公式サムネイルでフォールバック中...")
+            success = capture_fallback_thumbnail(info["videoId"], img_path)
 
     if success:
         ensure_compressed_image(img_path)

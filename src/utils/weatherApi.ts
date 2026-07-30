@@ -66,8 +66,8 @@ const fetchSingleLocationWeather = async (
   }
 };
 
-const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v2';
-const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v2';
+const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v3';
+const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v3';
 
 const getDailyWeatherCache = (): Record<string, WeatherData> => {
   try {
@@ -184,22 +184,35 @@ export const getWeatherDescription = (
     }
   }
 
-  // 2. WMO weather code による標準判定
+  // 2. WMO weather code による網羅的標準判定 (0〜99全領域対応)
   if (code === 0) return { text: '快晴', emoji: '☀️' };
   if (code === 1 || code === 2) return { text: '晴れ/一部曇り', emoji: '⛅' };
   if (code === 3) return { text: '曇り', emoji: '☁️' };
-  if (code >= 45 && code <= 48) return { text: '霧', emoji: '🌫️' };
-  if (code >= 51 && code <= 55) {
+  if ((code >= 4 && code <= 19) || (code >= 40 && code <= 49)) {
+    return (code >= 45 && code <= 48)
+      ? { text: '霧', emoji: '🌫️' }
+      : { text: '曇り/もや', emoji: '☁️' };
+  }
+  if (code >= 50 && code <= 59) {
     return (!precipitation || precipitation < 1.0)
       ? { text: '曇り (一時弱い霧雨)', emoji: '☁️' }
       : { text: '霧雨', emoji: '🌧️' };
   }
-  if (code >= 61 && code <= 65) return { text: '雨', emoji: '☔' };
-  if (code >= 71 && code <= 77) return { text: '雪', emoji: '❄️' };
-  if (code >= 80 && code <= 82) return { text: 'にわか雨', emoji: '🌦️' };
-  if (code >= 85 && code <= 86) return { text: '雪・吹雪', emoji: '🌨️' };
+  if (code >= 60 && code <= 69) {
+    return (code === 66 || code === 67)
+      ? { text: '氷雨・冷雨', emoji: '🌧️' }
+      : { text: '雨', emoji: '☔' };
+  }
+  if (code >= 70 && code <= 79) return { text: '雪', emoji: '❄️' };
+  if (code >= 80 && code <= 84) return { text: 'にわか雨', emoji: '🌦️' };
+  if (code >= 85 && code <= 94) return { text: '雪・吹雪', emoji: '🌨️' };
   if (code >= 95) return { text: '雷雨', emoji: '⛈️' };
-  return { text: '不明', emoji: '❓' };
+
+  // 3. 規定外コードが返った場合も実測降水量によりフォールバック（不明にしない）
+  if (precipitation && precipitation >= 1.0) {
+    return { text: '雨', emoji: '☔' };
+  }
+  return { text: '曇り', emoji: '☁️' };
 };
 
 // Convert wind direction degrees (0-360) to 16 compass points
@@ -269,48 +282,63 @@ const fetchSingleLocationHourlyWeather = async (
   dateStr: string
 ): Promise<Record<string, HourlyWeatherData>> => {
   try {
-    // 1. まず今日や最近の日付（および直近の過去日）に対応する forecast API を試行
-    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-    let response = await fetch(forecastUrl);
-    if (!response.ok) {
-      const forecastFallback = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-      response = await fetch(forecastFallback);
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const isPast = dateStr < todayStr;
+
+    // 1. 過去日(dateStr < today)の場合は、実測データの確実な archive API を最優先で試行します
+    const archiveJma = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const archiveFallback = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const forecastJma = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const forecastFallback = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+
+    const urlsToTry = isPast
+      ? [archiveJma, archiveFallback, forecastJma, forecastFallback]
+      : [forecastJma, forecastFallback, archiveJma, archiveFallback];
+
+    let data: any = null;
+    for (const url of urlsToTry) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const json = await response.json();
+          // HTTP 200でも中身が [null, null, ...] の全データ欠損状態でないか検証
+          if (
+            json.hourly &&
+            Array.isArray(json.hourly.temperature_2m) &&
+            json.hourly.temperature_2m.some((v: any) => v !== null && v !== undefined)
+          ) {
+            data = json;
+            break; // 有効な気象データ配列を取得完了
+          }
+        }
+      } catch (e) {
+        // 次のURLへフォールバック
+      }
     }
 
-    // 2. 古い日付等で forecast API から取得できない場合は archive API へフォールバック
-    if (!response.ok) {
-      const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-      response = await fetch(archiveUrl);
-      if (!response.ok) {
-        const archiveFallback = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-        response = await fetch(archiveFallback);
-        if (!response.ok) return {};
-      }
+    if (!data || !data.hourly || !data.hourly.time) {
+      return {};
     }
     
-    const data = await response.json();
     const result: Record<string, HourlyWeatherData> = {};
-    
-    if (data.hourly && data.hourly.time) {
-      for (let i = 0; i < data.hourly.time.length; i++) {
-        const timeStr = data.hourly.time[i]; // e.g. "2026-06-25T06:00"
-        const hourPart = timeStr.split('T')[1] || `${i.toString().padStart(2, '0')}:00`;
-        const code = data.hourly.weather_code[i];
-        const rawPrecip = data.hourly.precipitation[i] || 0;
-        // 1.0mm未満の微小なモデル推計値（0.3mmや0.6mm）は気象庁アメダス実測値(0mm)に合わせて0.0mmにクリーニング
-        const precip = rawPrecip < 1.0 ? 0 : Math.round(rawPrecip * 10) / 10;
-        const desc = getWeatherDescription(code, precip);
-        
-        result[hourPart] = {
-          hour: hourPart,
-          temp: data.hourly.temperature_2m[i],
-          precipitation: precip,
-          weatherCode: code,
-          weatherText: desc.text,
-          weatherEmoji: desc.emoji,
-          windSpeed: data.hourly.wind_speed_10m[i],
-        };
-      }
+    for (let i = 0; i < data.hourly.time.length; i++) {
+      const timeStr = data.hourly.time[i]; // e.g. "2026-06-25T06:00"
+      const hourPart = timeStr.split('T')[1] || `${i.toString().padStart(2, '0')}:00`;
+      const code = data.hourly.weather_code[i] ?? 3;
+      const rawPrecip = data.hourly.precipitation[i] ?? 0;
+      // 1.0mm未満の微小なモデル推計値（0.3mmや0.6mm）は気象庁アメダス実測値(0mm)に合わせて0.0mmにクリーニング
+      const precip = rawPrecip < 1.0 ? 0 : Math.round(rawPrecip * 10) / 10;
+      const desc = getWeatherDescription(code, precip);
+      
+      result[hourPart] = {
+        hour: hourPart,
+        temp: data.hourly.temperature_2m[i] ?? 0,
+        precipitation: precip,
+        weatherCode: code,
+        weatherText: desc.text,
+        weatherEmoji: desc.emoji,
+        windSpeed: data.hourly.wind_speed_10m[i] ?? 0,
+      };
     }
     return result;
   } catch (error) {

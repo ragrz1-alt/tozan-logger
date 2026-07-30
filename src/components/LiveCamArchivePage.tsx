@@ -272,7 +272,7 @@ export const LiveCamArchivePage: React.FC = () => {
           {recordedHours.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-secondary)' }}>
               <p style={{ fontSize: '1rem', margin: '0 0 0.5rem 0' }}>この日付（{selectedDate}）の自動撮影履歴はまだありません。</p>
-              <p style={{ fontSize: '0.85rem', margin: 0 }}>「時間帯別 コンディション対比」タブの「🔴 現在のLIVE映像を見る」より、YouTubeのリアルタイム配信をご覧いただけます。</p>
+              <p style={{ fontSize: '0.85rem', margin: 0 }}>「時間帯別 コンディション対比」タブより、YouTubeおよび利尻町公式ライブカメラをご覧いただけます。</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
@@ -326,10 +326,10 @@ export const LiveCamArchivePage: React.FC = () => {
                       </div>
 
                       {/* 沓形側ミニ画像 */}
-                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: kutsugataPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
-                        {kutsugataPath ? (
+                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: (kutsugataPath || selectedDate === new Date().toISOString().substring(0, 10)) ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
+                        {(kutsugataPath || selectedDate === new Date().toISOString().substring(0, 10)) ? (
                           <img
-                            src={getCamImageUrl(kutsugataPath)}
+                            src={kutsugataPath ? getCamImageUrl(kutsugataPath) : `https://rishiri-town.jp/wp-content/themes/rishiri/images/MtRishiri/mt-rishiri.jpg?t=${Date.now()}`}
                             alt={`沓形 ${hr}:00`}
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                           />

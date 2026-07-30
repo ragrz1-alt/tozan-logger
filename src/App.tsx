@@ -330,6 +330,39 @@ function App() {
     return getDailyDetails(activeEntries, selectedDate, activeDirection, false);
   }, [activeEntries, selectedDate, activeDirection]);
 
+  // 期間フィルター（月選択等）に縛られず、登録されている全ログの日付リストを算出
+  const allAvailableDates = useMemo(() => {
+    const set = new Set<string>();
+    activeEntries.forEach(e => set.add(e.dateStr));
+    return Array.from(set).sort();
+  }, [activeEntries]);
+
+  const { prevDate, nextDate } = useMemo(() => {
+    if (!selectedDate || allAvailableDates.length === 0) return { prevDate: undefined, nextDate: undefined };
+    const idx = allAvailableDates.indexOf(selectedDate);
+    if (idx === -1) return { prevDate: undefined, nextDate: undefined };
+    return {
+      prevDate: idx > 0 ? allAvailableDates[idx - 1] : undefined,
+      nextDate: idx < allAvailableDates.length - 1 ? allAvailableDates[idx + 1] : undefined,
+    };
+  }, [selectedDate, allAvailableDates]);
+
+  const handleSelectDate = (d: string) => {
+    setSelectedDate(d);
+    if (d && filterStartDate && filterEndDate) {
+      // 選択した日付が現在の期間フィルター（月など）を外れている場合、移動先日付の月に自動で切り替え
+      if (d < filterStartDate || d > filterEndDate) {
+        const yyyyMM = d.substring(0, 7);
+        const [yStr, mStr] = yyyyMM.split('-');
+        const y = parseInt(yStr, 10);
+        const m = parseInt(mStr, 10);
+        const lastDay = new Date(y, m, 0).getDate();
+        setFilterStartDate(`${yStr}-${mStr}-01`);
+        setFilterEndDate(`${yStr}-${mStr}-${lastDay.toString().padStart(2, '0')}`);
+      }
+    }
+  };
+
   useEffect(() => {
     if (selectedDate && detailViewRef.current) {
       detailViewRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1099,6 +1132,9 @@ function App() {
                   weather={selectedDate ? weatherData[selectedDate] : undefined}
                   hourlyWeather={hourlyWeather}
                   onClose={() => setSelectedDate(null)}
+                  onSelectDate={handleSelectDate}
+                  prevDate={prevDate}
+                  nextDate={nextDate}
                 />
               )}
             </div>

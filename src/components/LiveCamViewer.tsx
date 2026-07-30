@@ -25,9 +25,9 @@ const CAMERAS = [
   },
   {
     id: 'kutsugata',
-    name: '沓形（栄浜）',
-    videoId: 'P9stiZVACSg',
-    url: 'https://www.youtube.com/watch?v=P9stiZVACSg',
+    name: '沓形（沓形）',
+    videoId: '',
+    url: 'https://rishiri-town.jp/wp-content/themes/rishiri/images/MtRishiri/mt-rishiri.jpg',
     color: '#10b981',
     badge: '沓形'
   },
@@ -47,7 +47,7 @@ const HOURS = [
 ];
 
 export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWeather }) => {
-  const [selectedHour, setSelectedHour] = useState<string>('11');
+  const [selectedHour, setSelectedHour] = useState<string>('12');
   const [history, setHistory] = useState<CamHistory | null>(null);
   const [modalImage, setModalImage] = useState<{ url: string; title: string } | null>(null);
 
@@ -78,11 +78,17 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
 
   const currentHourWeather = hourlyWeather?.[selectedHour] || hourlyWeather?.[parseInt(selectedHour, 10).toString()];
 
-  // 時間選択のデフォルト調整 (該当日に記録がある最初の時間を優先、なければ11時)
+  // 時間選択のデフォルト調整 (該当日の12時をデフォルト優先。なければ日中12時に近い記録ある時間を優先、それもなければ12時)
   useEffect(() => {
-    const avail = HOURS.find(hr => hasRecordForHour(hr));
+    const preferredHours = [
+      '12', '11', '13', '10', '14', '09', '15', '08', '16', '07', '17',
+      '06', '18', '05', '19', '04', '20', '03', '21', '02', '22', '01', '23', '00'
+    ];
+    const avail = preferredHours.find(hr => hasRecordForHour(hr));
     if (avail) {
       setSelectedHour(avail);
+    } else {
+      setSelectedHour('12');
     }
   }, [dateStr, history]);
 
@@ -215,8 +221,12 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
         gap: '1.25rem'
       }}>
         {CAMERAS.map(cam => {
+          const todayStr = new Date().toISOString().substring(0, 10);
+          const isToday = dateStr === todayStr;
           const imgPath = dateRecords[selectedHour]?.[cam.id];
-          const displayUrl = imgPath ? getCamImageUrl(imgPath) : null;
+          const displayUrl = imgPath
+            ? getCamImageUrl(imgPath)
+            : (isToday && !cam.videoId ? `${cam.url}?t=${Date.now()}` : null);
 
           return (
             <div
@@ -265,9 +275,9 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                     gap: '0.25rem',
                     fontSize: '0.8rem'
                   }}
-                  title="YouTubeで開く"
+                  title={cam.url.includes('youtube') ? 'YouTubeで開く' : '利尻町公式カメラを開く'}
                 >
-                  <ExternalLink size={14} /> YouTube
+                  <ExternalLink size={14} /> {cam.url.includes('youtube') ? 'YouTube' : '公式カメラ'}
                 </a>
               </div>
 

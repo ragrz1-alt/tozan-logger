@@ -22,9 +22,9 @@ const CAMERAS = [
   },
   {
     id: 'kutsugata',
-    name: '沓形（栄浜）',
-    videoId: 'P9stiZVACSg',
-    url: 'https://www.youtube.com/watch?v=P9stiZVACSg',
+    name: '沓形（沓形）',
+    videoId: '',
+    url: 'https://rishiri-town.jp/wp-content/themes/rishiri/images/MtRishiri/mt-rishiri.jpg',
     color: '#10b981',
     badge: '沓形'
   },
@@ -224,8 +224,9 @@ export const HourlyCamModal: React.FC<HourlyCamModalProps> = ({
                         gap: '0.25rem',
                         fontSize: '0.8rem'
                       }}
+                      title={cam.url.includes('youtube') ? 'YouTubeで開く' : '利尻町公式カメラを開く'}
                     >
-                      <ExternalLink size={14} /> YouTube
+                      <ExternalLink size={14} /> {cam.url.includes('youtube') ? 'YouTube' : '公式カメラ'}
                     </a>
                   </div>
 
@@ -234,13 +235,13 @@ export const HourlyCamModal: React.FC<HourlyCamModalProps> = ({
                       position: 'relative',
                       width: '100%',
                       paddingTop: '56.25%',
-                      backgroundColor: imgPath ? '#000' : 'var(--bg-secondary)',
+                      backgroundColor: (imgPath || (!cam.videoId && dateStr === new Date().toISOString().substring(0, 10))) ? '#000' : 'var(--bg-secondary)',
                       overflow: 'hidden'
                     }}
                   >
-                    {imgPath ? (
+                    {(imgPath || (!cam.videoId && dateStr === new Date().toISOString().substring(0, 10))) ? (
                       <img
-                        src={getCamImageUrl(imgPath)}
+                        src={imgPath ? getCamImageUrl(imgPath) : `${cam.url}?t=${Date.now()}`}
                         alt={`${cam.name} ${hour}時`}
                         style={{
                           position: 'absolute',
