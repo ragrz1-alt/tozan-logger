@@ -17,9 +17,9 @@ interface CamHistory {
 const CAMERAS = [
   {
     id: 'oshidomari',
-    name: '鴛泊（鴛泊）',
-    videoId: '8BwfUCuPcVE',
-    url: 'https://www.youtube.com/watch?v=8BwfUCuPcVE',
+    name: '鴛泊（本泊）',
+    videoId: 'bAWueJBFcT0',
+    url: 'https://www.youtube.com/watch?v=bAWueJBFcT0',
     color: '#3b82f6',
     badge: '鴛泊'
   },
