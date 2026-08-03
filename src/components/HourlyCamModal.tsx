@@ -14,9 +14,9 @@ interface HourlyCamModalProps {
 const CAMERAS = [
   {
     id: 'oshidomari',
-    name: '鴛泊（富士岬）',
-    videoId: 'bAWueJBFcT0',
-    url: 'https://www.youtube.com/watch?v=bAWueJBFcT0',
+    name: '鴛泊（鴛泊）',
+    videoId: '8BwfUCuPcVE',
+    url: 'https://www.youtube.com/watch?v=8BwfUCuPcVE',
     color: '#3b82f6',
     badge: '鴛泊'
   },

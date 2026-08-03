@@ -1,12 +1,14 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { FileUploader } from './components/FileUploader';
 import { Charts } from './components/Charts';
 import { DailyDetailView } from './components/DailyDetailView';
 import { LiveCamArchivePage } from './components/LiveCamArchivePage';
+import { LiveCamPoCPanel } from './components/LiveCamPoCPanel';
+import { StakeholderAnalytics } from './components/StakeholderAnalytics';
 import { parseLogFile, aggregateData, getDailyDetails, type LogEntry, type CourseId } from './utils/logParser';
 import { fetchWeatherData, fetchHourlyWeatherData, type WeatherData, type HourlyWeatherData } from './utils/weatherApi';
 import { saveLogsToDB, loadLogsFromDB, clearLogsFromDB } from './utils/storage';
-import { Trash2, Calendar as CalendarIcon, Cloud, CloudDownload, CloudUpload, Key, Database, Mountain, Compass, Layers, PlusCircle, X, Lock, Unlock, Eye, RefreshCw, Video, Info } from 'lucide-react';
+import { Trash2, Calendar as CalendarIcon, Cloud, CloudDownload, CloudUpload, Key, Database, Mountain, Compass, Layers, PlusCircle, X, Lock, Unlock, Eye, RefreshCw, Video, Info, BarChart3, Terminal } from 'lucide-react';
 import { FirebaseModal } from './components/FirebaseModal';
 import { AdminModal } from './components/AdminModal';
 import { SystemInfoModal } from './components/SystemInfoModal';
@@ -16,7 +18,7 @@ import { isFirebaseConfigured } from './config/firebaseConfig';
 function App() {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
-  const [selectedCourse, setSelectedCourse] = useState<CourseId | 'all' | 'cameras'>('oshidomari');
+  const [selectedCourse, setSelectedCourse] = useState<CourseId | 'all' | 'cameras' | 'analytics' | 'poc'>('oshidomari');
   const [showAddUploader, setShowAddUploader] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [weatherData, setWeatherData] = useState<Record<string, WeatherData>>({});
@@ -45,6 +47,9 @@ function App() {
     localStorage.removeItem('tozan_admin_unlocked');
     setIsAdmin(false);
     setShowDataManagement(false);
+    if (selectedCourse === ('poc' as any)) {
+      setSelectedCourse('oshidomari');
+    }
   };
 
   // Date filtering
@@ -53,7 +58,6 @@ function App() {
 
   // Selected date for detailed view
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const detailViewRef = useRef<HTMLDivElement>(null);
 
   // Firebase integration state
   const [isFirebaseOpen, setIsFirebaseOpen] = useState(false);
@@ -367,26 +371,20 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    if (selectedDate && detailViewRef.current) {
-      detailViewRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [selectedDate]);
-
-  const dailyStartDate = daily.length > 0 ? daily[0].date : '';
-  const dailyEndDate = daily.length > 0 ? daily[daily.length - 1].date : '';
+  const allStartDate = allAvailableDates.length > 0 ? allAvailableDates[0] : '';
+  const allEndDate = allAvailableDates.length > 0 ? allAvailableDates[allAvailableDates.length - 1] : '';
 
   useEffect(() => {
-    if (dailyStartDate && dailyEndDate) {
+    if (allStartDate && allEndDate) {
       const fetchWeather = async () => {
         setIsLoadingWeather(true);
-        const data = await fetchWeatherData(0, 0, dailyStartDate, dailyEndDate);
+        const data = await fetchWeatherData(0, 0, allStartDate, allEndDate);
         setWeatherData(data);
         setIsLoadingWeather(false);
       };
       fetchWeather();
     }
-  }, [dailyStartDate, dailyEndDate, activeEntries.length]); // 新ログ読込時・期間・年月の変更時に自動でクロス気象データを取得・即時反映
+  }, [allStartDate, allEndDate, activeEntries.length]); // 全期間のログ日付範囲の気象データを自動取得・キャッシュして各年対応
 
   useEffect(() => {
     if (selectedDate) {
@@ -749,6 +747,58 @@ function App() {
                   <Video size={18} />
                   <span>ライブカメラ状況確認</span>
                 </button>
+
+                <button
+                  onClick={() => {
+                    setSelectedCourse('analytics');
+                    setSelectedDate(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.65rem 1.45rem',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    borderRadius: '10px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: selectedCourse === 'analytics' ? '#3b82f6' : 'transparent',
+                    color: selectedCourse === 'analytics' ? '#ffffff' : 'var(--text-primary)',
+                    boxShadow: selectedCourse === 'analytics' ? '0 2px 8px rgba(59, 130, 246, 0.35)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <BarChart3 size={18} />
+                  <span>利用解析</span>
+                </button>
+
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setSelectedCourse('poc' as any);
+                      setSelectedDate(null);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.65rem 1.45rem',
+                      fontWeight: 700,
+                      fontSize: '0.95rem',
+                      borderRadius: '10px',
+                      border: '1px dashed #8b5cf6',
+                      cursor: 'pointer',
+                      backgroundColor: selectedCourse === ('poc' as any) ? '#8b5cf6' : 'rgba(139, 92, 246, 0.08)',
+                      color: selectedCourse === ('poc' as any) ? '#ffffff' : '#8b5cf6',
+                      boxShadow: selectedCourse === ('poc' as any) ? '0 2px 8px rgba(139, 92, 246, 0.35)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Terminal size={18} />
+                    <span>🧪 PoC 実証実験室 [管理者専用]</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1016,6 +1066,17 @@ function App() {
 
             {selectedCourse === 'cameras' ? (
               <LiveCamArchivePage />
+            ) : selectedCourse === ('poc' as any) && isAdmin ? (
+              <LiveCamPoCPanel />
+            ) : selectedCourse === 'analytics' ? (
+              <StakeholderAnalytics
+                entries={entries}
+                weatherData={weatherData}
+                availableYears={availableYears}
+                onSelectDate={(date) => {
+                  handleSelectDate(date);
+                }}
+              />
             ) : (
               <>
                 {/* 4. 年・月 ワンクリック絞り込み ＆ 特定日の詳細分析を一つにまとめた統合フィルターカード */}
@@ -1164,21 +1225,6 @@ function App() {
 
             {isLoadingWeather && <p style={{ textAlign: 'center', marginBottom: '1rem', color: 'var(--text-secondary)' }}>気象データを読込中...</p>}
 
-            {/* 6. 特定日が選択されている場合の詳細ビュー (スムーズスクロール対応) */}
-            <div ref={detailViewRef}>
-              {selectedDayDetails && (
-                <DailyDetailView
-                  details={selectedDayDetails}
-                  weather={selectedDate ? weatherData[selectedDate] : undefined}
-                  hourlyWeather={hourlyWeather}
-                  onClose={() => setSelectedDate(null)}
-                  onSelectDate={handleSelectDate}
-                  prevDate={prevDate}
-                  nextDate={nextDate}
-                />
-              )}
-            </div>
-
             {/* 7. 厳選されたメイン・アナリティクス・チャート群 */}
             <Charts 
               dailyData={daily} 
@@ -1189,6 +1235,19 @@ function App() {
               </>
             )}
           </>
+        )}
+
+        {/* どのタブ・どの画面からでも共通で開く 日付詳細アナリティクス（オーバーレイ・モーダル） */}
+        {selectedDayDetails && (
+          <DailyDetailView
+            details={selectedDayDetails}
+            weather={selectedDate ? weatherData[selectedDate] : undefined}
+            hourlyWeather={hourlyWeather}
+            onClose={() => setSelectedDate(null)}
+            onSelectDate={handleSelectDate}
+            prevDate={prevDate}
+            nextDate={nextDate}
+          />
         )}
       </main>
     </div>

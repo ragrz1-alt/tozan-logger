@@ -49,40 +49,89 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
               <p>降水: {hw.precipitation}mm | 風速: {hw.windSpeed}m/s</p>
             </div>
           )}
-          {payload.map((entry: any, index: number) => (
-            <p key={index} style={{ color: entry.color, margin: '4px 0', fontWeight: 'bold' }}>
-              {entry.name}: {entry.value} 人
-            </p>
-          ))}
+          {payload
+            .slice()
+            .sort((a: any) => (a.dataKey === 'enter' ? -1 : 1))
+            .map((entry: any, index: number) => (
+              <p key={index} style={{ color: entry.color, margin: '4px 0', fontWeight: 'bold' }}>
+                {entry.name}: {entry.value} 人
+              </p>
+            ))}
         </div>
       );
     }
     return null;
   };
 
-  return (
-    <div className="card" style={{ border: '2px solid var(--accent-primary)', position: 'relative', marginTop: '1.5rem', backgroundColor: 'var(--bg-secondary)' }}>
-      <button 
-        onClick={onClose}
-        style={{
-          position: 'absolute',
-          top: '1rem',
-          right: '1rem',
-          background: 'transparent',
-          border: 'none',
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-          padding: '0.25rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-        title="閉じる"
-      >
-        <X size={24} />
-      </button>
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+        backdropFilter: 'blur(5px)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1.5rem',
+        overflowY: 'auto'
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="card"
+        style={{
+          border: '2px solid var(--accent-primary)',
+          position: 'relative',
+          margin: 'auto',
+          backgroundColor: 'var(--bg-secondary)',
+          width: '100%',
+          maxWidth: '960px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          borderRadius: '16px',
+          padding: '2rem'
+        }}
+      >
+        <button 
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '1.25rem',
+            right: '1.25rem',
+            background: 'var(--bg-primary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '50%',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+            padding: '0.4rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: 'var(--shadow-sm)',
+            transition: 'all 0.15s ease'
+          }}
+          title="閉じる (Esc)"
+        >
+          <X size={22} />
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         <Calendar className="dropzone-icon" style={{ width: 28, height: 28 }} />
         <div>
           <h3 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>{displayDate} の詳細アナリティクス</h3>
@@ -408,6 +457,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
           onClose={() => setSelectedModalHour(null)}
         />
       )}
+      </div>
     </div>
   );
 };

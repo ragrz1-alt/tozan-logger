@@ -207,7 +207,7 @@ export const LiveCamArchivePage: React.FC = () => {
 
       {/* 3. 表示モード切替タグ (コンディション比較 / 1日ギャラリー一覧) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
           <button
             onClick={() => setActiveViewMode('compare')}
             style={{
