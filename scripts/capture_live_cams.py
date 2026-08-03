@@ -50,27 +50,31 @@ def get_project_root():
 
 def ensure_compressed_image(image_path):
     """
-    保存された画像ファイルサイズを確認し、不要に大きい場合（100KB超過の公式サムネイル等）は
-    必ず幅800px・高画質JPEGに最適化して容量圧迫を防ぐ（通常のストリームキャプチャ〜50KB程度はそのまま保存）
+    保存された画像ファイルサイズを確認し、50KB (50,000 bytes) を超える場合は
+    品質・解像度を調整して必ず 50KB 以下に軽量最適化する
     """
     try:
         if not os.path.exists(image_path):
             return
         size = os.path.getsize(image_path)
-        # 100KBを超える場合のみ最適化を行う（〜50KB程度の通常キャプチャはそのまま保存）
-        if size > 100000:
-            tmp_path = image_path + ".tmp.jpg"
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", image_path,
-                "-vf", "scale=800:-1",
-                "-q:v", "3",
-                tmp_path
-            ]
-            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)
-            if res.returncode == 0 and os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1000:
-                os.replace(tmp_path, image_path)
-                print(f" -> [容量最適化] {size} bytes => {os.path.getsize(image_path)} bytes に軽量化")
+        if size > 50000:
+            for q in range(4, 10):
+                tmp_path = image_path + ".tmp.jpg"
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", image_path,
+                    "-vf", "scale=800:-1",
+                    "-q:v", str(q),
+                    tmp_path
+                ]
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)
+                if res.returncode == 0 and os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1000:
+                    tmp_size = os.path.getsize(tmp_path)
+                    os.replace(tmp_path, image_path)
+                    print(f" -> [容量最適化 q={q}] {size} bytes => {tmp_size} bytes に軽量化")
+                    if tmp_size <= 50000:
+                        break
+                    size = tmp_size
     except Exception as e:
         print(f"[WARN] 画像圧縮処理例外: {e}")
 
