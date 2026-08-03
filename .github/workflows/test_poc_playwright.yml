@@ -1,0 +1,45 @@
+name: 🧪 Test PoC Playwright Capture (カスタムサムネイル検証)
+
+on:
+  workflow_dispatch: # 手動でいつでも実験実行可能
+
+permissions:
+  contents: write
+
+jobs:
+  test_playwright_capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies & Playwright Chromium
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright Live Capture Experiment
+        run: |
+          node scripts/poc_playwright_capture.mjs
+
+      - name: Commit and Push PoC results
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add public/cams/test_poc_archive/
+          if git diff --staged --quiet; then
+            echo "No changes to PoC archive."
+          else
+            git commit -m "🧪 [PoC Experiment] Playwright 生ストリーム撮影実験結果の更新"
+            git pull --rebase origin main
+            git push origin main
+          fi
