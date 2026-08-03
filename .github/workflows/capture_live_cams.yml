@@ -44,7 +44,15 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git pull --rebase origin main || true
             git commit -m "🤖 [Auto-Capture] 利尻山ライブカメラ スクショ記録 ($(TZ='Asia/Tokyo' date +'%Y-%m-%d %H:%M JST'))"
-            git push
+            for i in {1..3}; do
+              if git pull --rebase origin main && git push origin main; then
+                echo "Successfully pushed changes."
+                exit 0
+              fi
+              echo "Push failed (transient network/502 error or conflict), retrying in 5s... ($i/3)"
+              sleep 5
+            done
+            echo "Failed to push after 3 retries."
+            exit 1
           fi
