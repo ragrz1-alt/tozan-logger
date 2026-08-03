@@ -1,0 +1,26 @@
+{
+  "updatedAt": "2026-08-03T09:50:02.879Z",
+  "results": {
+    "oshidomari": {
+      "success": true,
+      "path": "/cams/test_poc_archive/oshidomari_latest.jpg",
+      "sizeKB": 33.3,
+      "capturedAt": "2026-08-03T09:50:02.879Z",
+      "mode": "REAL_LIVE_STREAM"
+    },
+    "himenuma": {
+      "success": true,
+      "path": "/cams/test_poc_archive/himenuma_latest.jpg",
+      "sizeKB": 45.4,
+      "capturedAt": "2026-08-03T09:50:02.879Z",
+      "mode": "REAL_LIVE_STREAM"
+    },
+    "otadomari": {
+      "success": true,
+      "path": "/cams/test_poc_archive/otadomari_latest.jpg",
+      "sizeKB": 32.8,
+      "capturedAt": "2026-08-03T09:50:02.879Z",
+      "mode": "REAL_LIVE_STREAM"
+    }
+  }
+}

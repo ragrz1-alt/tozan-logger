@@ -58,7 +58,7 @@ def ensure_compressed_image(image_path):
             return
         size = os.path.getsize(image_path)
         if size > 50000:
-            for q in range(4, 10):
+            for q in range(4, 15, 2):
                 tmp_path = image_path + ".tmp.jpg"
                 cmd = [
                     "ffmpeg", "-y",
@@ -75,6 +75,24 @@ def ensure_compressed_image(image_path):
                     if tmp_size <= 50000:
                         break
                     size = tmp_size
+            if size > 50000:
+                for w in [640, 500, 400]:
+                    tmp_path = image_path + ".tmp.jpg"
+                    cmd = [
+                        "ffmpeg", "-y",
+                        "-i", image_path,
+                        "-vf", f"scale={w}:-1",
+                        "-q:v", "6",
+                        tmp_path
+                    ]
+                    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)
+                    if res.returncode == 0 and os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1000:
+                        tmp_size = os.path.getsize(tmp_path)
+                        os.replace(tmp_path, image_path)
+                        print(f" -> [容量解像度最適化 w={w}] {size} bytes => {tmp_size} bytes に軽量化")
+                        if tmp_size <= 50000:
+                            break
+                        size = tmp_size
     except Exception as e:
         print(f"[WARN] 画像圧縮処理例外: {e}")
 
