@@ -1,26 +1,27 @@
 {
-  "updatedAt": "2026-08-03T09:50:02.879Z",
+  "updatedAt": "2026-08-03T10:10:55.777Z",
+  "engine": "PLAYWRIGHT_HEADLESS_BROWSER",
   "results": {
     "oshidomari": {
       "success": true,
       "path": "/cams/test_poc_archive/oshidomari_latest.jpg",
-      "sizeKB": 33.3,
-      "capturedAt": "2026-08-03T09:50:02.879Z",
-      "mode": "REAL_LIVE_STREAM"
+      "sizeKB": 15.7,
+      "capturedAt": "2026-08-03T10:10:55.777Z",
+      "mode": "PLAYWRIGHT_REAL_STREAM"
     },
     "himenuma": {
       "success": true,
       "path": "/cams/test_poc_archive/himenuma_latest.jpg",
-      "sizeKB": 45.4,
-      "capturedAt": "2026-08-03T09:50:02.879Z",
-      "mode": "REAL_LIVE_STREAM"
+      "sizeKB": 15.7,
+      "capturedAt": "2026-08-03T10:10:55.777Z",
+      "mode": "PLAYWRIGHT_REAL_STREAM"
     },
     "otadomari": {
       "success": true,
       "path": "/cams/test_poc_archive/otadomari_latest.jpg",
-      "sizeKB": 32.8,
-      "capturedAt": "2026-08-03T09:50:02.879Z",
-      "mode": "REAL_LIVE_STREAM"
+      "sizeKB": 15.7,
+      "capturedAt": "2026-08-03T10:10:55.777Z",
+      "mode": "PLAYWRIGHT_REAL_STREAM"
     }
   }
 }
