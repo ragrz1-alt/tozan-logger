@@ -52,13 +52,13 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
             </p>
           )}
           {data.weatherText && (
-            <div style={{ marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              <p>天候: {data.weatherText}</p>
-              {data.sunshineDuration !== undefined && data.sunshineDuration !== null && (
-                <p>日照時間: {data.sunshineDuration} h</p>
-              )}
-              <p>降水量: {data.precipitation} mm</p>
-              <p>風: {data.windDirection} {data.windSpeedMax} m/s</p>
+            <div style={{ marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <p style={{ margin: '2px 0', color: 'var(--text-primary)', fontWeight: 600 }}>天候: {data.weatherText}</p>
+              <p style={{ margin: '2px 0' }}>
+                ☀️ 日照時間: {data.sunshineDuration !== undefined && data.sunshineDuration !== null ? `${data.sunshineDuration} 時間` : '-'}
+              </p>
+              <p style={{ margin: '2px 0' }}>☔ 降水量: {data.precipitation} mm</p>
+              <p style={{ margin: '2px 0' }}>💨 風: {data.windDirection} {data.windSpeedMax} m/s</p>
             </div>
           )}
           {payload.map((entry: any, index: number) => {

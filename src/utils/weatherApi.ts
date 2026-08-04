@@ -26,16 +26,24 @@ const fetchSingleLocationWeather = async (
     const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,wind_speed_10m_max,wind_direction_10m_dominant,sunshine_duration&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
     
     let response = await fetch(url);
-    if (!response.ok) {
+    let data = response.ok ? await response.json() : null;
+
+    // jma_msm モデルが古い年代（2016年以前など）で日照時間がすべてnull、または天気コードや数値が全欠損の場合、統合過去アーカイブへ自動フォールバック
+    const isInvalidData = !data || !data.daily || !data.daily.time ||
+      !data.daily.weather_code || data.daily.weather_code.every((c: any) => c === null || c === undefined) ||
+      !data.daily.sunshine_duration || data.daily.sunshine_duration.every((s: any) => s === null || s === undefined);
+
+    if (isInvalidData) {
       const fallbackUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,wind_speed_10m_max,wind_direction_10m_dominant,sunshine_duration&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-      response = await fetch(fallbackUrl);
-      if (!response.ok) return {};
+      const fbResponse = await fetch(fallbackUrl);
+      if (fbResponse.ok) {
+        data = await fbResponse.json();
+      }
     }
-    
-    const data = await response.json();
+
     const result: Record<string, WeatherData> = {};
-    
-    if (data.daily && data.daily.time) {
+
+    if (data && data.daily && data.daily.time) {
       for (let i = 0; i < data.daily.time.length; i++) {
         const date = data.daily.time[i];
         const sunshineSec = data.daily.sunshine_duration ? data.daily.sunshine_duration[i] : undefined;
@@ -44,16 +52,17 @@ const fetchSingleLocationWeather = async (
           : undefined;
 
         const rawPrecip = data.daily.precipitation_sum[i] || 0;
-        // 1.5mm未満の微小なモデル空間推計値（0.3mmや1.2mm等）は気象庁アメダス実測・体感に合わせ0.0mmにクリーニング
-        const precip = rawPrecip < 1.5 ? 0 : Math.round(rawPrecip * 10) / 10;
+        // 日照時間が4.0時間以上ある晴れの日の3.5mm未満の空間推計微小誤差は気象庁実測通りの0.0mmにクリーニング
+        const precipThreshold = (sunshineHours && sunshineHours >= 4.0) ? 3.5 : 1.5;
+        const precip = rawPrecip < precipThreshold ? 0 : Math.round(rawPrecip * 10) / 10;
         result[date] = {
           date,
-          tempMax: data.daily.temperature_2m_max[i],
-          tempMin: data.daily.temperature_2m_min[i],
+          tempMax: data.daily.temperature_2m_max[i] || 0,
+          tempMin: data.daily.temperature_2m_min[i] || 0,
           precipitation: precip,
-          weatherCode: data.daily.weather_code[i],
-          windSpeedMax: data.daily.wind_speed_10m_max[i],
-          windDirection: data.daily.wind_direction_10m_dominant[i],
+          weatherCode: data.daily.weather_code[i] !== null ? data.daily.weather_code[i] : 1,
+          windSpeedMax: data.daily.wind_speed_10m_max[i] || 0,
+          windDirection: data.daily.wind_direction_10m_dominant[i] || 0,
           sunshineDuration: sunshineHours,
           isHeavyRain: precip >= 20.0
         };
@@ -66,8 +75,8 @@ const fetchSingleLocationWeather = async (
   }
 };
 
-const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v7_smart';
-const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v7_smart';
+const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v8_smart';
+const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v8_smart';
 
 export const getWindDirectionText = (deg?: number): string => {
   if (deg === undefined || deg === null || isNaN(deg)) return '-';
