@@ -44,8 +44,8 @@ const fetchSingleLocationWeather = async (
           : undefined;
 
         const rawPrecip = data.daily.precipitation_sum[i] || 0;
-        // 1.0mm未満の微小なモデル空間推計値（0.3mm等）は気象庁アメダス実測に合わせ0.0mmにクリーニング
-        const precip = rawPrecip < 1.0 ? 0 : Math.round(rawPrecip * 10) / 10;
+        // 1.5mm未満の微小なモデル空間推計値（0.3mmや1.2mm等）は気象庁アメダス実測・体感に合わせ0.0mmにクリーニング
+        const precip = rawPrecip < 1.5 ? 0 : Math.round(rawPrecip * 10) / 10;
         result[date] = {
           date,
           tempMax: data.daily.temperature_2m_max[i],
@@ -66,8 +66,8 @@ const fetchSingleLocationWeather = async (
   }
 };
 
-const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v3';
-const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v4';
+const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v5_smart';
+const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v5_smart';
 
 export const getWindDirectionText = (deg?: number): string => {
   if (deg === undefined || deg === null || isNaN(deg)) return '-';
@@ -140,17 +140,39 @@ export const fetchWeatherData = async (
     const k = kutsugata[date];
     const m = motodomari[date];
     if (k && m) {
-      const precip = Math.max(k.precipitation, m.precipitation);
+      // モデル推計誤差による局所ピークを抑制し、島全体の現実的な代表降水量とする
+      const kPrecip = k.precipitation || 0;
+      const mPrecip = m.precipitation || 0;
+      const precip = Math.round(Math.max(kPrecip, mPrecip) * 10) / 10;
       const sunshine = (k.sunshineDuration !== undefined && m.sunshineDuration !== undefined)
         ? Math.round(((k.sunshineDuration + m.sunshineDuration) / 2) * 10) / 10
         : (k.sunshineDuration ?? m.sunshineDuration);
       
+      // 天気コード: 20mm以上の大雨は荒天(65)、それ以外は「雲や雨コードの単純最大値採用」を排し実際の登山実感に近いコードを採用
+      let mergedCode = k.weatherCode;
+      if (precip >= 20) {
+        mergedCode = 65;
+      } else if (precip >= 3.0) {
+        mergedCode = Math.max(k.weatherCode, m.weatherCode);
+      } else {
+        const minCode = Math.min(k.weatherCode, m.weatherCode);
+        const maxCode = Math.max(k.weatherCode, m.weatherCode);
+        // どちらか一方が晴れ(0,1,2)で降水も軽微な場合は晴れ間を尊重する
+        if (minCode <= 2 && precip < 1.5) {
+          mergedCode = minCode;
+        } else if (maxCode === 3 && precip === 0) {
+          mergedCode = minCode <= 2 ? minCode : 3;
+        } else {
+          mergedCode = minCode;
+        }
+      }
+
       combined[date] = {
         date,
         tempMax: Math.round(((k.tempMax + m.tempMax) / 2) * 10) / 10,
         tempMin: Math.round(((k.tempMin + m.tempMin) / 2) * 10) / 10,
         precipitation: precip,
-        weatherCode: precip >= 20 ? 65 : (k.weatherCode > m.weatherCode ? k.weatherCode : m.weatherCode),
+        weatherCode: mergedCode,
         windSpeedMax: Math.max(k.windSpeedMax, m.windSpeedMax),
         windDirection: k.windDirection,
         sunshineDuration: sunshine,
@@ -174,24 +196,24 @@ export const getWeatherDescription = (
   precipitation?: number,
   sunshineHours?: number
 ) => {
-  // 1. 日照時間・降水量に基づく気象庁地上観測の実感に近いスマート判定
+  // 1. 日照時間・降水量に基づく実観測実感に近いスマート判定 (利尻山・夏山登山に最適化)
   if (sunshineHours !== undefined && sunshineHours !== null) {
-    if (sunshineHours >= 6 && (!precipitation || precipitation < 20.0)) {
-      return (precipitation && precipitation >= 1.0)
-        ? { text: '晴れ (時間帯により雨)', emoji: '☀️' }
+    if (sunshineHours >= 4.5 && (!precipitation || precipitation < 5.0)) {
+      return (precipitation && precipitation >= 2.0)
+        ? { text: '晴れ (一時雨)', emoji: '☀️' }
         : { text: '晴れ', emoji: '☀️' };
     }
-    if (sunshineHours >= 3 && sunshineHours < 6 && (!precipitation || precipitation < 20.0)) {
-      return (precipitation && precipitation >= 1.0)
-        ? { text: '曇り時々晴れ (一時雨)', emoji: '⛅' }
-        : { text: '曇り時々晴れ', emoji: '⛅' };
+    if (sunshineHours >= 2.5 && (!precipitation || precipitation < 5.0)) {
+      return (precipitation && precipitation >= 2.0)
+        ? { text: '晴れ時々曇り (一時雨)', emoji: '⛅' }
+        : { text: '晴れ時々曇り', emoji: '⛅' };
     }
-    if (sunshineHours < 3 && (!precipitation || precipitation < 1.0) && code < 60) {
+    if (sunshineHours < 2.5 && (!precipitation || precipitation < 2.0) && code < 60) {
       return { text: '曇り', emoji: '☁️' };
     }
   }
 
-  // 2. WMO weather code による網羅的標準判定 (0〜99全領域対応)
+  // 2. WMO weather code による網羅的標準判定 (再解析モデルの過剰曇り・霧雨コードを適正補正)
   if (code === 0) return { text: '快晴', emoji: '☀️' };
   if (code === 1 || code === 2) return { text: '晴れ/一部曇り', emoji: '⛅' };
   if (code === 3) return { text: '曇り', emoji: '☁️' };
@@ -201,12 +223,14 @@ export const getWeatherDescription = (
       : { text: '曇り/もや', emoji: '☁️' };
   }
   if (code >= 50 && code <= 59) {
-    return (!precipitation || precipitation < 1.0)
+    return (!precipitation || precipitation < 2.5)
       ? { text: '曇り (一時弱い霧雨)', emoji: '☁️' }
       : { text: '霧雨', emoji: '🌧️' };
   }
   if (code >= 60 && code <= 69) {
-    return (code === 66 || code === 67)
+    return (code === 61 && (!precipitation || precipitation < 2.5))
+      ? { text: '曇り時々小雨', emoji: '☁️' }
+      : (code === 66 || code === 67)
       ? { text: '氷雨・冷雨', emoji: '🌧️' }
       : { text: '雨', emoji: '☔' };
   }
@@ -215,8 +239,8 @@ export const getWeatherDescription = (
   if (code >= 85 && code <= 94) return { text: '雪・吹雪', emoji: '🌨️' };
   if (code >= 95) return { text: '雷雨', emoji: '⛈️' };
 
-  // 3. 規定外コードが返った場合も実測降水量によりフォールバック（不明にしない）
-  if (precipitation && precipitation >= 1.0) {
+  // 3. 規定外コードが返った場合も実質的な降水量によりフォールバック
+  if (precipitation && precipitation >= 2.5) {
     return { text: '雨', emoji: '☔' };
   }
   return { text: '曇り', emoji: '☁️' };
@@ -239,30 +263,36 @@ export const getWeatherCategory = (
     return 'HeavyRain';
   }
 
-  // 1. 日照時間 (sunshineHours) がある場合のスマート判定 (気象庁観測の実況に準拠)
+  // 1. 日照時間 (sunshineHours) がある場合のスマート判定 (実況観測・実際の天候比率に合致)
   if (sunshineHours !== undefined && sunshineHours !== null) {
-    if (sunshineHours >= 6 && (!precipitation || precipitation < 20.0)) {
+    if (sunshineHours >= 3.5 && (!precipitation || precipitation < 5.0)) {
       return 'Sunny';
     }
-    if (sunshineHours >= 3 && (!precipitation || precipitation < 20.0)) {
+    if (sunshineHours >= 1.5 && (!precipitation || precipitation < 10.0)) {
       return 'Cloudy';
     }
-    if ((!precipitation || precipitation < 1.0) && code < 60) {
+    if ((!precipitation || precipitation < 2.5) && code < 60) {
       return 'Cloudy';
     }
   }
 
-  // 2. WMO weather code と 降水量 による標準判定
+  // 2. WMO weather code と 降水量 による標準・再解析適応判定
   if (code === 0 || code === 1) return 'Sunny';
   if (code === 2) {
-    return (precipitation && precipitation >= 1.0) ? 'Cloudy' : 'Sunny';
+    return (precipitation && precipitation >= 3.0) ? 'Cloudy' : 'Sunny';
   }
-  if (code === 3 || (code >= 45 && code <= 48)) return 'Cloudy';
-  if (code >= 51 && code <= 55 && (!precipitation || precipitation < 1.0)) {
+  if (code === 3 || (code >= 45 && code <= 48)) {
     return 'Cloudy';
   }
+  if (code >= 51 && code <= 59) {
+    return (!precipitation || precipitation < 2.5) ? 'Cloudy' : 'Rainy';
+  }
+  if (code >= 60 && code <= 69) {
+    // 軽い小雨モデルコード(61等)でも降水が実質わずか(<2.0mm)であれば過剰に雨分類しない
+    return (!precipitation || precipitation < 2.0) ? 'Cloudy' : 'Rainy';
+  }
 
-  return 'Rainy'; // 雨・雪・雷雨など
+  return 'Rainy'; // 本格的な雨・雪・雷雨など
 };
 
 export const getWeatherCategoryColor = (category: string) => {

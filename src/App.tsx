@@ -14,6 +14,7 @@ import { AdminModal } from './components/AdminModal';
 import { SystemInfoModal } from './components/SystemInfoModal';
 import { saveLogsToFirestore, loadLogsFromFirestore, checkCloudMetadata } from './utils/firebaseStorage';
 import { isFirebaseConfigured } from './config/firebaseConfig';
+import { YearlySummaryBanner } from './components/YearlySummaryBanner';
 
 function App() {
   const [entries, setEntries] = useState<LogEntry[]>([]);
@@ -373,6 +374,26 @@ function App() {
 
   const allStartDate = allAvailableDates.length > 0 ? allAvailableDates[0] : '';
   const allEndDate = allAvailableDates.length > 0 ? allAvailableDates[allAvailableDates.length - 1] : '';
+
+  // 選択中の期間が「その年全体(1〜12月等)」かどうか判定 (年間総入山者数のプレミアムKPIバナー表示条件)
+  const isYearAllView = useMemo(() => {
+    if (!filterStartDate || !filterEndDate) return false;
+    const year = selectedYear || (availableYears[availableYears.length - 1] || '2026');
+    // 1. "YYYY-01-01" 〜 "YYYY-12-31" など年全体が指定されている場合
+    if (filterStartDate === `${year}-01-01` && filterEndDate === `${year}-12-31`) {
+      return true;
+    }
+    // 2. または対象年内の全ログが含まれる日付範囲になっている場合
+    const yearEntries = activeEntries.filter(e => e.dateStr.startsWith(year));
+    if (yearEntries.length > 0) {
+      const firstDate = yearEntries[0].dateStr;
+      const lastDate = yearEntries[yearEntries.length - 1].dateStr;
+      if (filterStartDate <= firstDate && filterEndDate >= lastDate) {
+        return true;
+      }
+    }
+    return false;
+  }, [filterStartDate, filterEndDate, selectedYear, availableYears, activeEntries]);
 
   useEffect(() => {
     if (allStartDate && allEndDate) {
@@ -1224,6 +1245,16 @@ function App() {
             </div>
 
             {isLoadingWeather && <p style={{ textAlign: 'center', marginBottom: '1rem', color: 'var(--text-secondary)' }}>気象データを読込中...</p>}
+
+            {/* 6. その年全体を表示している時は、年間 総入山者数を分かりやすくリッチにバナー表示 (UIプロ設計) */}
+            {isYearAllView && (
+              <YearlySummaryBanner
+                year={selectedYear || (availableYears[availableYears.length - 1] || '2026')}
+                entries={daily}
+                weatherData={weatherData}
+                selectedCourse={selectedCourse}
+              />
+            )}
 
             {/* 7. 厳選されたメイン・アナリティクス・チャート群 */}
             <Charts 
