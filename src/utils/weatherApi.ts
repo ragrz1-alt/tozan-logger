@@ -136,9 +136,39 @@ const getDatesInRange = (start: string, end: string): string[] => {
   return dates;
 };
 
+// サーバー側/ビルド時に同梱された静的JSON（weather-daily.json）を即時に読むインメモリキャッシュ（提案1＆2）
+let staticDailyWeatherCache: Record<string, WeatherData> | null = null;
+let isLoadingStaticDailyCache = false;
+
+const loadStaticDailyWeatherCache = async (): Promise<Record<string, WeatherData>> => {
+  if (staticDailyWeatherCache) {
+    return staticDailyWeatherCache;
+  }
+  if (isLoadingStaticDailyCache) {
+    while (isLoadingStaticDailyCache) {
+      await new Promise(r => setTimeout(r, 50));
+    }
+    return staticDailyWeatherCache || {};
+  }
+  isLoadingStaticDailyCache = true;
+  try {
+    const res = await fetch('/data/weather-daily.json');
+    if (res.ok) {
+      staticDailyWeatherCache = await res.json();
+    } else {
+      staticDailyWeatherCache = {};
+    }
+  } catch {
+    staticDailyWeatherCache = {};
+  } finally {
+    isLoadingStaticDailyCache = false;
+  }
+  return staticDailyWeatherCache || {};
+};
+
 /**
  * 気象庁「沓形」と「本泊」のデータを掛け合わせてクロス分析した総合気象データを返します。
- * （過去の気象データはローカルストレージへ自動キャッシュ・保存し、2回目以降は通信0秒で即時読み込みます）
+ * （過去の気象データはサーバー/ビルド同梱の静的JSONから通信0秒で即時読み込みます）
  */
 export const fetchWeatherData = async (
   _lat: number,
@@ -146,10 +176,12 @@ export const fetchWeatherData = async (
   startDate: string,
   endDate: string
 ): Promise<Record<string, WeatherData>> => {
-  const cache = getDailyWeatherCache();
+  const localCache = getDailyWeatherCache();
+  const staticCache = await loadStaticDailyWeatherCache();
+  const cache = { ...staticCache, ...localCache };
   const dates = getDatesInRange(startDate, endDate);
 
-  // 1. 全ての日付が既にキャッシュにある場合、API通信を行わず0秒でキャッシュデータを返却
+  // 1. 全ての日付が静的ファイル（weather-daily.json）またはlocalStorageにある場合、API通信を一切行わず0秒で即時返却！
   const isAllCached = dates.length > 0 && dates.every(d => !!cache[d]);
   if (isAllCached) {
     const cachedResult: Record<string, WeatherData> = {};
@@ -159,10 +191,14 @@ export const fetchWeatherData = async (
     return cachedResult;
   }
 
-  // 2. 未取得の日付がある場合は気象庁「沓形 × 本泊」実況データを同時フェッチ
+  // 2. 未取得の日付がある場合は、未取得の日付範囲のみを最小フェッチ（ブロック防止）
+  const missingDates = dates.filter(d => !cache[d]);
+  const minMissingDate = missingDates[0] || startDate;
+  const maxMissingDate = missingDates[missingDates.length - 1] || endDate;
+
   const [kutsugata, motodomari] = await Promise.all([
-    fetchSingleLocationWeather(KUTSUGATA_LAT, KUTSUGATA_LON, startDate, endDate),
-    fetchSingleLocationWeather(MOTODOMARI_LAT, MOTODOMARI_LON, startDate, endDate)
+    fetchSingleLocationWeather(KUTSUGATA_LAT, KUTSUGATA_LON, minMissingDate, maxMissingDate),
+    fetchSingleLocationWeather(MOTODOMARI_LAT, MOTODOMARI_LON, minMissingDate, maxMissingDate)
   ]);
 
   const allDates = new Set([...Object.keys(kutsugata), ...Object.keys(motodomari)]);
@@ -206,11 +242,20 @@ export const fetchWeatherData = async (
     }
   });
 
-  // 3. 取得した新しい気象データをキャッシュにマージして保存
-  const newCache = { ...cache, ...combined };
-  saveDailyWeatherCache(newCache);
+  // 3. 取得した新しい気象データをlocalStorageへマージして保存
+  const newLocalCache = { ...localCache, ...combined };
+  saveDailyWeatherCache(newLocalCache);
 
-  return combined;
+  // 4. 静的JSONキャッシュと取得した新規データをマージしてリクエスト全範囲のデータを即時返却
+  const finalResult: Record<string, WeatherData> = {};
+  dates.forEach(d => {
+    if (combined[d]) {
+      finalResult[d] = combined[d];
+    } else if (cache[d]) {
+      finalResult[d] = cache[d];
+    }
+  });
+  return finalResult;
 };
 
 // 1. 現代年(2017年以降)向け：WMO気象コード実況忠実分類 (v16)

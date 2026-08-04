@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "generate:weather": "node scripts/generate_weather_cache.mjs",
+    "build": "npm run generate:weather && tsc -b && vite build",
+    "build:fast": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
