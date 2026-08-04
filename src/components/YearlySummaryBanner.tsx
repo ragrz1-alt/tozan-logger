@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, Users, TrendingUp, Calendar, Sun } from 'lucide-react';
+import { Award, Users, TrendingUp, Calendar, Sun, AlertTriangle, Info } from 'lucide-react';
 import { getWeatherCategory } from '../utils/weatherApi';
 
 interface YearlySummaryBannerProps {
@@ -28,7 +28,6 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
   if (yearEntries.length === 0) return null;
 
   const totalEnter = yearEntries.reduce((sum, e) => sum + (e.enter || 0), 0);
-  const totalExit = yearEntries.reduce((sum, e) => sum + (e.exit || 0), 0);
   const daysCount = yearEntries.length;
   const avgEnter = daysCount > 0 ? Math.round(totalEnter / daysCount) : 0;
 
@@ -54,6 +53,77 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
   });
   const sunnyRate = daysCount > 0 ? Math.round((sunnyDays / daysCount) * 100) : 0;
 
+  // -------------------------------------------------------------------------
+  // 欠測期間（シーズン: 6月〜9月）の自動検知アルゴリズム
+  // ※現在進行中の年 (例: 今年以降) は未来のデータ空白にアラートを出さないよう除外
+  // -------------------------------------------------------------------------
+  const currentYear = new Date().getFullYear().toString();
+  const isPastYear = parseInt(year, 10) < parseInt(currentYear, 10);
+
+  const seasonMissingDates: string[] = [];
+  const existingDateSet = new Set<string>();
+  yearEntries.forEach(e => {
+    const d = e.date || e.dateStr || '';
+    if (d) existingDateSet.add(d);
+  });
+
+  if (isPastYear) {
+    const startSeason = new Date(`${year}-06-01`);
+    const endSeason = new Date(`${year}-09-30`);
+    let curr = new Date(startSeason);
+    while (curr <= endSeason) {
+      const dateStr = curr.toISOString().substring(0, 10);
+      if (!existingDateSet.has(dateStr)) {
+        seasonMissingDates.push(dateStr);
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+  }
+
+  // 連続する欠測ブロックの抽出と最も長い欠測期間のハイライト生成
+  let missingPeriodText = '';
+  if (seasonMissingDates.length >= 3) {
+    const blocks: { start: string; end: string; count: number }[] = [];
+    let bStart = seasonMissingDates[0];
+    let bEnd = seasonMissingDates[0];
+    let count = 1;
+
+    for (let i = 1; i < seasonMissingDates.length; i++) {
+      const prevDate = new Date(bEnd);
+      prevDate.setDate(prevDate.getDate() + 1);
+      const expectedNext = prevDate.toISOString().substring(0, 10);
+      if (seasonMissingDates[i] === expectedNext) {
+        bEnd = seasonMissingDates[i];
+        count++;
+      } else {
+        blocks.push({ start: bStart, end: bEnd, count });
+        bStart = seasonMissingDates[i];
+        bEnd = seasonMissingDates[i];
+        count = 1;
+      }
+    }
+    blocks.push({ start: bStart, end: bEnd, count });
+
+    blocks.sort((a, b) => b.count - a.count);
+    const mainBlock = blocks[0];
+    const fmtDate = (s: string) => {
+      const p = s.split('-');
+      return `${parseInt(p[1], 10)}/${parseInt(p[2], 10)}`;
+    };
+
+    if (mainBlock.start === mainBlock.end) {
+      missingPeriodText = `${fmtDate(mainBlock.start)}`;
+    } else {
+      missingPeriodText = `${fmtDate(mainBlock.start)} 〜 ${fmtDate(mainBlock.end)}`;
+    }
+    if (blocks.length > 1) {
+      missingPeriodText += ` など`;
+    }
+  }
+
+  // 欠測あり判定: 過去年のシーズン(6/1〜9/30)に3日以上のデータ空白がある場合
+  const hasSeasonMissingData = isPastYear && seasonMissingDates.length >= 3;
+
   // コース名のラベル表示
   const courseLabelMap: Record<string, string> = {
     all: '利尻山 全体合算',
@@ -66,7 +136,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
 
   const formatNumber = (num: number) => num.toLocaleString('ja-JP');
 
-  const formatPeakDate = (dateStr: string) => {
+  const formatPeakDate = (dateStr?: string) => {
     if (!dateStr) return '-';
     const parts = dateStr.split('-');
     if (parts.length === 3) {
@@ -178,6 +248,32 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
         </div>
       </div>
 
+      {/* 欠測期間の美しい警告アラートバナー (シーズン 6月〜9月 で空白検知時のみ表示) */}
+      {hasSeasonMissingData && (
+        <div style={{
+          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+          border: '1px solid rgba(245, 158, 11, 0.45)',
+          borderRadius: '12px',
+          padding: '1rem 1.25rem',
+          marginBottom: '1.25rem',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '0.85rem',
+          color: 'var(--text-primary)'
+        }}>
+          <AlertTriangle size={22} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#d97706', marginBottom: '0.25rem' }}>
+              ⚠️ シーズン期間（6月〜9月）に一部データの欠測・空白期間があります
+            </div>
+            <div style={{ fontSize: '0.84rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+              この年は <strong style={{ color: 'var(--text-primary)' }}>【欠測期間: {missingPeriodText} （シーズン計 {seasonMissingDates.length} 日間未計測）】</strong> が含まれています。
+              記載の総入山者数は <strong style={{ color: '#d97706' }}>計測が稼働していた期間のみの合計数値（参考値）</strong> であり、実際の年間入山者は記載数値より多い点にご注意ください。
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* KPI 4連タイルグリッド (リッチ＆プロフェッショナル配置) */}
       <div style={{
         display: 'grid',
@@ -215,8 +311,18 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
             </span>
             <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>人</span>
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-            ※ 総下山者数: <strong>{formatNumber(totalExit)}</strong> 人
+          <div style={{ fontSize: '0.78rem', marginTop: '0.35rem', fontWeight: 600 }}>
+            {hasSeasonMissingData ? (
+              <span style={{ color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                <AlertTriangle size={13} />
+                <span>一部欠測期間あり (計測日のみ合計)</span>
+              </span>
+            ) : (
+              <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                <Info size={13} />
+                <span>シーズン主要計測データ収録</span>
+              </span>
+            )}
           </div>
         </div>
 
@@ -249,7 +355,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
             <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)' }}>人 / 日</span>
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-            シーズン中1日あたりの平均人数
+            計測日における1日あたり平均人数
           </div>
         </div>
 
@@ -277,14 +383,14 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
               color: '#f59e0b',
               lineHeight: 1.1
             }}>
-              {formatPeakDate(peakEntry?.date || peakEntry?.dateStr || '')}
+              {formatPeakDate(peakEntry?.date || peakEntry?.dateStr)}
             </span>
             <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
               ({formatNumber(peakEntry?.enter || 0)}人)
             </span>
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-            1年間で最も賑わったピークの1日
+            計測期間中で最も賑わったピークの1日
           </div>
         </div>
 
