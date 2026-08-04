@@ -16,79 +16,83 @@ const KUTSUGATA_LON = 141.1410;
 const MOTODOMARI_LAT = 45.2442;
 const MOTODOMARI_LON = 141.2339;
 
+// 共通の日別データパースヘルパー
+const parseDailyDataIntoResult = (data: any, result: Record<string, WeatherData>) => {
+  if (data && data.daily && data.daily.time) {
+    for (let i = 0; i < data.daily.time.length; i++) {
+      const date = data.daily.time[i];
+      const sunshineSec = data.daily.sunshine_duration ? data.daily.sunshine_duration[i] : undefined;
+      const sunshineHours = sunshineSec !== undefined && sunshineSec !== null
+        ? Math.round((sunshineSec / 3600) * 10) / 10
+        : undefined;
+
+      const rawPrecip = data.daily.precipitation_sum[i] || 0;
+      const precipThreshold = (sunshineHours && sunshineHours >= 4.0) ? 3.5 : 1.5;
+      const precip = rawPrecip < precipThreshold ? 0 : Math.round(rawPrecip * 10) / 10;
+      result[date] = {
+        date,
+        tempMax: data.daily.temperature_2m_max[i] || 0,
+        tempMin: data.daily.temperature_2m_min[i] || 0,
+        precipitation: precip,
+        weatherCode: data.daily.weather_code[i] !== null ? data.daily.weather_code[i] : 1,
+        windSpeedMax: data.daily.wind_speed_10m_max[i] || 0,
+        windDirection: data.daily.wind_direction_10m_dominant[i] || 0,
+        sunshineDuration: sunshineHours,
+        isHeavyRain: precip >= 20.0
+      };
+    }
+  }
+};
+
 const fetchSingleLocationWeather = async (
   lat: number,
   lon: number,
   startDate: string,
   endDate: string
 ): Promise<Record<string, WeatherData>> => {
-  try {
-    // 2017年より前の年 (例: 2016年, 2013年等) は jma_msm の日照や数値データが著しく不完全であるため、初めから統合過去アーカイブ (best_match / ERA5) を直接呼び出します
-    const startYear = parseInt(startDate.substring(0, 4), 10);
-    const useJma = startYear >= 2017;
+  const result: Record<string, WeatherData> = {};
 
-    const jmaUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,wind_speed_10m_max,wind_direction_10m_dominant,sunshine_duration&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-    const fallbackUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,wind_speed_10m_max,wind_direction_10m_dominant,sunshine_duration&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+  // 【真因解決】未来日付によるAPIエラー防止のための今日日付自動クランプ
+  const todayStr = new Date().toISOString().substring(0, 10);
+  const safeEndDate = endDate > todayStr ? todayStr : endDate;
+  const safeStartDate = startDate > todayStr ? todayStr : startDate;
 
-    let data: any = null;
+  const startYear = parseInt(safeStartDate.substring(0, 4), 10);
+  const endYear = parseInt(safeEndDate.substring(0, 4), 10);
 
-    if (useJma) {
-      // 2017年以降の現代年（例: 2025年など）は気象庁MSM(jma_msm)の精度・アメダス相関が圧倒的に高いため、絶対にERA5へすり替えず最優先で採用
-      let response = await fetch(jmaUrl);
-      if (response.ok) {
-        data = await response.json();
-      }
-      // もしAPIサーバーダウン等のネットワーク異常で全く取得できなかった場合のみ最終手段としてフォールバック
-      if (!data || !data.daily || !data.daily.time) {
-        const fbResponse = await fetch(fallbackUrl);
-        if (fbResponse.ok) {
-          data = await fbResponse.json();
-        }
-      }
-    } else {
-      // 2016年以前は直接 fallbackUrl (日照完備のベストマッチERA5) を最優先フェッチ
-      const fbResponse = await fetch(fallbackUrl);
-      if (fbResponse.ok) {
-        data = await fbResponse.json();
-      }
-    }
+  const fetchPromises: Promise<void>[] = [];
 
-    const result: Record<string, WeatherData> = {};
-
-    if (data && data.daily && data.daily.time) {
-      for (let i = 0; i < data.daily.time.length; i++) {
-        const date = data.daily.time[i];
-        const sunshineSec = data.daily.sunshine_duration ? data.daily.sunshine_duration[i] : undefined;
-        const sunshineHours = sunshineSec !== undefined && sunshineSec !== null
-          ? Math.round((sunshineSec / 3600) * 10) / 10
-          : undefined;
-
-        const rawPrecip = data.daily.precipitation_sum[i] || 0;
-        // 日照時間が4.0時間以上ある晴れの日の3.5mm未満の空間推計微小誤差は気象庁実測通りの0.0mmにクリーニング
-        const precipThreshold = (sunshineHours && sunshineHours >= 4.0) ? 3.5 : 1.5;
-        const precip = rawPrecip < precipThreshold ? 0 : Math.round(rawPrecip * 10) / 10;
-        result[date] = {
-          date,
-          tempMax: data.daily.temperature_2m_max[i] || 0,
-          tempMin: data.daily.temperature_2m_min[i] || 0,
-          precipitation: precip,
-          weatherCode: data.daily.weather_code[i] !== null ? data.daily.weather_code[i] : 1,
-          windSpeedMax: data.daily.wind_speed_10m_max[i] || 0,
-          windDirection: data.daily.wind_direction_10m_dominant[i] || 0,
-          sunshineDuration: sunshineHours,
-          isHeavyRain: precip >= 20.0
-        };
-      }
-    }
-    return result;
-  } catch (err) {
-    console.error('Error fetching weather:', err);
-    return {};
+  // 1. 現代ブロック (2017年1月1日 〜 safeEndDate): 必ず気象庁MSM(jma_msm)を一括指定
+  // ※ 1年ごと28本の同時フェッチではブラウザ/APIのレート制限・接続超過で2023年等に未取得エラーが生じるため、一括ブロックで高速取得する！
+  if (endYear >= 2017) {
+    const jmaStart = startYear >= 2017 ? safeStartDate : '2017-01-01';
+    const jmaEnd = safeEndDate;
+    const jmaUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${jmaStart}&end_date=${jmaEnd}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,wind_speed_10m_max,wind_direction_10m_dominant,sunshine_duration&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    fetchPromises.push(
+      fetch(jmaUrl).then(res => res.ok ? res.json() : null).then(data => {
+        if (data) parseDailyDataIntoResult(data, result);
+      }).catch(() => {})
+    );
   }
+
+  // 2. 過去ブロック (safeStartDate 〜 2016年12月31日): ERA5過去アーカイブモデルを一括指定
+  if (startYear <= 2016) {
+    const eraStart = safeStartDate;
+    const eraEnd = endYear <= 2016 ? safeEndDate : '2016-12-31';
+    const eraUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${eraStart}&end_date=${eraEnd}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,wind_speed_10m_max,wind_direction_10m_dominant,sunshine_duration&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    fetchPromises.push(
+      fetch(eraUrl).then(res => res.ok ? res.json() : null).then(data => {
+        if (data) parseDailyDataIntoResult(data, result);
+      }).catch(() => {})
+    );
+  }
+
+  await Promise.all(fetchPromises);
+  return result;
 };
 
-const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v20_gold_standard';
-const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v20_gold_standard';
+const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v24_two_block_fix';
+const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v24_two_block_fix';
 
 // Convert wind direction degrees (0-360) to 16 compass points
 export const getWindDirection = (degree: number) => {
