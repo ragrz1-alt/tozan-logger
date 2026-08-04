@@ -31,7 +31,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
 
   const displayDate = format(parseISO(details.dateStr), 'yyyy年MM月dd日 (E)', { locale: ja });
   const wDesc = weather && weather.weatherCode !== undefined
-    ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration)
+    ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration, details.dateStr)
     : null;
   const windDir = weather && weather.windDirection !== undefined ? getWindDirection(weather.windDirection) : '';
 

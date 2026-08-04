@@ -50,20 +50,20 @@ def get_project_root():
 
 def ensure_compressed_image(image_path):
     """
-    保存された画像ファイルサイズを確認し、50KB (50,000 bytes) を超える場合は
-    品質・解像度を調整して必ず 50KB 以下に軽量最適化する
+    保存された画像ファイルサイズを確認し、100KB (100,000 bytes) を超える場合は
+    品質・解像度を調整して必ず 100KB 以下に高精細・高品質最適化する
     """
     try:
         if not os.path.exists(image_path):
             return
         size = os.path.getsize(image_path)
-        if size > 50000:
-            for q in range(4, 15, 2):
+        if size > 100000:
+            for q in range(2, 11, 2):
                 tmp_path = image_path + ".tmp.jpg"
                 cmd = [
                     "ffmpeg", "-y",
                     "-i", image_path,
-                    "-vf", "scale=800:-1",
+                    "-vf", "scale=1280:-1",
                     "-q:v", str(q),
                     tmp_path
                 ]
@@ -71,18 +71,18 @@ def ensure_compressed_image(image_path):
                 if res.returncode == 0 and os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1000:
                     tmp_size = os.path.getsize(tmp_path)
                     os.replace(tmp_path, image_path)
-                    print(f" -> [容量最適化 q={q}] {size} bytes => {tmp_size} bytes に軽量化")
-                    if tmp_size <= 50000:
+                    print(f" -> [高精細容量最適化 q={q}] {size} bytes => {tmp_size} bytes に軽量化")
+                    if tmp_size <= 100000:
                         break
                     size = tmp_size
-            if size > 50000:
-                for w in [640, 500, 400]:
+            if size > 100000:
+                for w in [1024, 800, 640]:
                     tmp_path = image_path + ".tmp.jpg"
                     cmd = [
                         "ffmpeg", "-y",
                         "-i", image_path,
                         "-vf", f"scale={w}:-1",
-                        "-q:v", "6",
+                        "-q:v", "4",
                         tmp_path
                     ]
                     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)
@@ -90,7 +90,7 @@ def ensure_compressed_image(image_path):
                         tmp_size = os.path.getsize(tmp_path)
                         os.replace(tmp_path, image_path)
                         print(f" -> [容量解像度最適化 w={w}] {size} bytes => {tmp_size} bytes に軽量化")
-                        if tmp_size <= 50000:
+                        if tmp_size <= 100000:
                             break
                         size = tmp_size
     except Exception as e:
@@ -99,7 +99,7 @@ def ensure_compressed_image(image_path):
 def capture_with_ytdlp_url(video_url, output_path, format_selector="best[protocol^=m3u8]/301/300/96/95/94/93/best"):
     """
     昨日の「oshidomari」解決実績と同様に、スマートかつ最も安定している HLSプロトコル優先フォーマットで
-    ストリームURLを取得し、ffmpeg で配信映像から実フレームを1枚直接キャプチャする（〜50KB程度）
+    ストリームURLを取得し、ffmpeg で配信映像から実フレームを1枚直接キャプチャする（〜100KB高精細）
     """
     try:
         if os.path.exists(output_path):

@@ -94,31 +94,31 @@ async function runExperiment() {
           for (let q = 4; q <= 31; q += 4) {
             const tmpPath = outputPath + '.tmp.jpg';
             try {
-              execSync(`"${ffmpegExe}" -y -i "${outputPath}" -vf "scale=800:-1" -q:v ${q} "${tmpPath}"`, {
+              execSync(`"${ffmpegExe}" -y -i "${outputPath}" -vf "scale=1280:-1" -q:v ${q} "${tmpPath}"`, {
                 stdio: ['ignore', 'ignore', 'ignore']
               });
               if (fs.existsSync(tmpPath) && fs.statSync(tmpPath).size > 1000) {
                 const tmpSize = fs.statSync(tmpPath).size;
                 fs.renameSync(tmpPath, outputPath);
                 sizeBytes = tmpSize;
-                if (sizeBytes <= 50000) break;
+                if (sizeBytes <= 100000) break;
               }
             } catch (e) {
               break;
             }
           }
-          if (sizeBytes > 50000) {
-            for (const w of [640, 500, 400]) {
+          if (sizeBytes > 100000) {
+            for (const w of [1024, 800, 640]) {
               const tmpPath = outputPath + '.tmp.jpg';
               try {
-                execSync(`"${ffmpegExe}" -y -i "${outputPath}" -vf "scale=${w}:-1" -q:v 8 "${tmpPath}"`, {
+                execSync(`"${ffmpegExe}" -y -i "${outputPath}" -vf "scale=${w}:-1" -q:v 4 "${tmpPath}"`, {
                   stdio: ['ignore', 'ignore', 'ignore']
                 });
                 if (fs.existsSync(tmpPath) && fs.statSync(tmpPath).size > 1000) {
                   const tmpSize = fs.statSync(tmpPath).size;
                   fs.renameSync(tmpPath, outputPath);
                   sizeBytes = tmpSize;
-                  if (sizeBytes <= 50000) break;
+                  if (sizeBytes <= 100000) break;
                 }
               } catch (e) {
                 break;

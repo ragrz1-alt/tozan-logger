@@ -143,18 +143,33 @@ export const SystemInfoModal: React.FC<SystemInfoModalProps> = ({ isOpen, onClos
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
                 <ShieldCheck size={16} color="#10b981" />
-                <span>気象庁（JMA）準拠 Open-Meteo 公式データ</span>
+                <span>気象庁（JMA）準拠データ ＆ 年代別最適化モデル</span>
               </div>
-              <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
-                気象データはすべて、国際気象オープンデータプラットフォーム <strong>Open-Meteo</strong> を介した、<strong>気象庁（JMA）メソ数値予報モデル（MSM）およびアメダス実地観測解析データ (<code>models=jma_msm</code>)</strong> をリアルタイムおよびアーカイブから取得しています。
+              <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem 0', lineHeight: 1.6 }}>
+                国際気象オープンデータ <strong>Open-Meteo</strong> を介し、年代に合わせて最も正確な気象データを選定しています：
               </p>
+              <ul style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0, paddingLeft: '1.25rem', lineHeight: 1.6 }}>
+                <li><strong>2017年〜現在</strong>：<strong>気象庁（JMA）アメダス相関データ</strong>を最優先で採用</li>
+                <li><strong>2016年以前</strong>：再解析アーカイブデータを採用し、夏山の実際（晴れ5：曇り3：雨2）に合わせて自動調整</li>
+              </ul>
+              <div style={{
+                marginTop: '0.65rem',
+                padding: '0.6rem 0.8rem',
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.82rem',
+                color: 'var(--text-primary)',
+                lineHeight: 1.5
+              }}>
+                💡 <strong>日照時間について</strong>：地上アメダスの局所観測値とは異なり、利尻山一帯の上空に届く日照モデルから算出した広域値のため、地上アメダスの実測数値より大きめ（長め）に表示されます。山域全体の明るさを比べる指標として最適です。
+              </div>
             </div>
 
             <h5 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 0.6rem 0', color: 'var(--text-primary)' }}>
               🎯 「沓形 × 本泊」気象庁アメダスの複合クロス分析
             </h5>
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 0.85rem 0' }}>
-              利尻山は島の中央に位置する独立峰であり、<strong>西側（沓形）と北・東側（鴛泊/本泊）で風や雨の降り方が劇的に異なる</strong>特徴があります。片方だけのデータでは悪天候を見落とすため、本システムでは<strong>「沓形アメダス」と「本泊アメダス」の双方を同時取得し、安全側に立った複合クロス分析</strong>を自動で行っています。
+              利尻山は島の中央に位置する独立峰であり、<strong>島の西側（沓形）と北側（本泊/鴛泊側）で雨や風が異なって現れます</strong>。片側だけのデータでは反対側の悪天候を見逃すため、本システムでは<strong>「沓形」と「本泊」の気象を組み合わせた安全第一のクロス分析</strong>を行っています。
             </p>
 
             {/* 仕様解説テーブル */}
@@ -169,30 +184,30 @@ export const SystemInfoModal: React.FC<SystemInfoModalProps> = ({ isOpen, onClos
                 <thead>
                   <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-color)' }}>
                     <th style={{ padding: '0.65rem 0.85rem', textAlign: 'left', width: '28%' }}>気象項目</th>
-                    <th style={{ padding: '0.65rem 0.85rem', textAlign: 'left', width: '36%' }}>クロス分析採用ルール</th>
-                    <th style={{ padding: '0.65rem 0.85rem', textAlign: 'left' }}>仕様意図・アラート機能</th>
+                    <th style={{ padding: '0.65rem 0.85rem', textAlign: 'left', width: '36%' }}>クロス分析ルール</th>
+                    <th style={{ padding: '0.65rem 0.85rem', textAlign: 'left' }}>仕様意図・特徴</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '0.65rem 0.85rem', fontWeight: 700 }}>降水量 (日 / 時間)</td>
+                    <td style={{ padding: '0.65rem 0.85rem', fontWeight: 700 }}>降水量 (雨・雪)</td>
                     <td style={{ padding: '0.65rem 0.85rem', fontWeight: 600, color: '#3b82f6' }}>沓形と本泊の「多い方（最大値）」</td>
                     <td style={{ padding: '0.65rem 0.85rem', color: 'var(--text-secondary)' }}>
-                      島内のどちらかで強い雨/雪があれば山岳部も雨天と判断。日降水量20mm以上で「大雨・荒天アラート」判定。
+                      島内のどちらかで強い雨があれば山も悪天候と判断。日降水量20mm以上で大雨アラートを表示します。
                     </td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
-                    <td style={{ padding: '0.65rem 0.85rem', fontWeight: 700 }}>風向 / 風速 (m/s)</td>
-                    <td style={{ padding: '0.65rem 0.85rem', fontWeight: 600, color: '#f97316' }}>風速が「強い側」の風速値＆風向16方位</td>
+                    <td style={{ padding: '0.65rem 0.85rem', fontWeight: 700 }}>風向 / 風速</td>
+                    <td style={{ padding: '0.65rem 0.85rem', fontWeight: 600, color: '#f97316' }}>風が「強い側」の風速値＆風向</td>
                     <td style={{ padding: '0.65rem 0.85rem', color: 'var(--text-secondary)' }}>
-                      登山リスクとなる最強風速を評価。風速10m/s以上でオレンジ、15m/s以上で赤色警告アイコンを自動表示。
+                      登山リスクとなる強風を重視。風速10m/s以上で黄色警告、15m/s以上で赤色警告アイコンでお知らせします。
                     </td>
                   </tr>
                   <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '0.65rem 0.85rem', fontWeight: 700 }}>日照時間 / 気温</td>
                     <td style={{ padding: '0.65rem 0.85rem', fontWeight: 600 }}>沓形と本泊の「平均値」</td>
                     <td style={{ padding: '0.65rem 0.85rem', color: 'var(--text-secondary)' }}>
-                      利尻島全体の全体気候傾向および基礎気温基準として算出。
+                      利尻島全体をカバーする気温および、山域全体の明るさを分かりやすく表示します。
                     </td>
                   </tr>
                 </tbody>

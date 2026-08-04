@@ -17,10 +17,10 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
   const mergedDailyData = dailyData.map(d => {
     const weather = weatherData[d.date];
     const wDesc = weather && weather.weatherCode !== undefined
-      ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration)
+      ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration, d.date)
       : null;
     const category = weather && weather.weatherCode !== undefined
-      ? getWeatherCategory(weather.weatherCode, weather.precipitation, weather.sunshineDuration)
+      ? getWeatherCategory(weather.weatherCode, weather.precipitation, weather.sunshineDuration, d.date)
       : 'Unknown';
     return {
       ...d,

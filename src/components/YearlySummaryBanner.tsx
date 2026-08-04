@@ -45,7 +45,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
     const d = e.date || e.dateStr || '';
     const w = weatherData[d];
     if (w && w.weatherCode !== undefined) {
-      const cat = getWeatherCategory(w.weatherCode, w.precipitation, w.sunshineDuration);
+      const cat = getWeatherCategory(w.weatherCode, w.precipitation, w.sunshineDuration, d);
       if (cat === 'Sunny') {
         sunnyDays++;
       }
