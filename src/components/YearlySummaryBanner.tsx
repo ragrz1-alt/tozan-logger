@@ -152,7 +152,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
         margin: '0 0 1.75rem 0',
         padding: '1.5rem 1.75rem',
         borderRadius: '16px',
-        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%)',
+        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.03) 100%)',
         border: '1px solid rgba(16, 185, 129, 0.35)',
         boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
         backdropFilter: 'blur(10px)',
