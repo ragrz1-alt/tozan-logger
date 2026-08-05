@@ -4,6 +4,7 @@ import { Charts } from './components/Charts';
 import { DailyDetailView } from './components/DailyDetailView';
 import { LiveCamArchivePage } from './components/LiveCamArchivePage';
 import { LiveCamPoCPanel } from './components/LiveCamPoCPanel';
+import { RishiriNowPanel } from './components/RishiriNowPanel';
 import { StakeholderAnalytics } from './components/StakeholderAnalytics';
 import { parseLogFile, aggregateData, getDailyDetails, type LogEntry, type CourseId } from './utils/logParser';
 import { fetchWeatherData, fetchHourlyWeatherData, type WeatherData, type HourlyWeatherData } from './utils/weatherApi';
@@ -19,7 +20,7 @@ import { YearlySummaryBanner } from './components/YearlySummaryBanner';
 function App() {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
-  const [selectedCourse, setSelectedCourse] = useState<CourseId | 'all' | 'cameras' | 'analytics' | 'poc'>('oshidomari');
+  const [selectedCourse, setSelectedCourse] = useState<CourseId | 'all' | 'cameras' | 'analytics' | 'poc' | 'now'>('oshidomari');
   const [showAddUploader, setShowAddUploader] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
   const [weatherData, setWeatherData] = useState<Record<string, WeatherData>>({});
@@ -771,6 +772,31 @@ function App() {
 
                 <button
                   onClick={() => {
+                    setSelectedCourse('now');
+                    setSelectedDate(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.65rem 1.45rem',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    borderRadius: '10px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: selectedCourse === 'now' ? '#f59e0b' : 'transparent',
+                    color: selectedCourse === 'now' ? '#ffffff' : 'var(--text-primary)',
+                    boxShadow: selectedCourse === 'now' ? '0 2px 8px rgba(245, 158, 11, 0.35)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Cloud size={18} />
+                  <span>🌤️ 利尻Now</span>
+                </button>
+
+                <button
+                  onClick={() => {
                     setSelectedCourse('analytics');
                     setSelectedDate(null);
                   }}
@@ -1087,6 +1113,10 @@ function App() {
 
             {selectedCourse === 'cameras' ? (
               <LiveCamArchivePage />
+            ) : selectedCourse === 'poc' ? (
+              <LiveCamPoCPanel entries={entries} />
+            ) : selectedCourse === 'now' ? (
+              <RishiriNowPanel />
             ) : selectedCourse === ('poc' as any) && isAdmin ? (
               <LiveCamPoCPanel />
             ) : selectedCourse === 'analytics' ? (

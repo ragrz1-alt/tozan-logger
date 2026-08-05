@@ -78,10 +78,30 @@ const fetchSingleLocationWeather = async (lat, lon, startYear, endYear) => {
 
 async function generateWeatherCache() {
   console.log('=== 利尻山 (沓形×本泊) 気象データ自動生成スクリプト ===');
-  const startYear = 2010;
+
+  const outputDir = path.join(__dirname, '../public/data');
+  const outputPath = path.join(outputDir, 'weather-daily.json');
+
+  let existingData = {};
+  let startYear = 2010;
   const currentYear = new Date().getFullYear();
 
-  console.log(`対象期間: ${startYear}年 〜 ${currentYear}年`);
+  if (fs.existsSync(outputPath)) {
+    try {
+      existingData = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
+      const dates = Object.keys(existingData).sort();
+      if (dates.length > 0) {
+        const lastDate = dates[dates.length - 1];
+        startYear = parseInt(lastDate.substring(0, 4), 10);
+        console.log(`既存キャッシュあり。最新データ日付: ${lastDate}。${startYear}年以降のデータを差分取得します。`);
+      }
+    } catch (e) {
+      console.warn('キャッシュの読み込みに失敗したため、全件取得します。');
+    }
+  } else {
+    console.log(`対象期間: ${startYear}年 〜 ${currentYear}年`);
+  }
+
   console.log('1. 沓形 (Kutsugata) の気象データを取得中...');
   const kutsugata = await fetchSingleLocationWeather(KUTSUGATA_LAT, KUTSUGATA_LON, startYear, currentYear);
 
@@ -90,7 +110,7 @@ async function generateWeatherCache() {
 
   console.log('3. 両地点のデータをクロス分析して合算中...');
   const allDates = new Set([...Object.keys(kutsugata), ...Object.keys(motodomari)]);
-  const combined = {};
+  const combined = { ...existingData };
 
   const sortedDates = Array.from(allDates).sort();
   for (const date of sortedDates) {
@@ -133,12 +153,10 @@ async function generateWeatherCache() {
   console.log(`生成完了: 合計 ${recordCount} 日分の気象データを統合しました。`);
 
   // 出力ディレクトリ準備
-  const outputDir = path.join(__dirname, '../public/data');
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const outputPath = path.join(outputDir, 'weather-daily.json');
   fs.writeFileSync(outputPath, JSON.stringify(combined), 'utf-8');
 
   console.log(`✅ 保存完了: ${outputPath}`);

@@ -621,3 +621,46 @@ export const clearWeatherCache = () => {
   }
 };
 
+export interface CurrentWeather {
+  temp: number;
+  windSpeed: number;
+  windDirectionText: string;
+  weatherText: string;
+  weatherEmoji: string;
+}
+
+export const fetchCurrentWeather = async (): Promise<{ kutsugata: CurrentWeather | null, motodomari: CurrentWeather | null }> => {
+  const fetchNow = async (lat: number, lon: number): Promise<CurrentWeather | null> => {
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&wind_speed_unit=ms&timezone=Asia%2FTokyo`;
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const data = await response.json();
+      if (!data.current_weather) return null;
+      
+      const cw = data.current_weather;
+      const code = cw.weathercode;
+      const windSpeed = Math.round(cw.windspeed * 10) / 10;
+      const desc = getWeatherDescription(code, 0);
+
+      return {
+        temp: cw.temperature,
+        windSpeed,
+        windDirectionText: getWindDirectionText(cw.winddirection),
+        weatherText: desc.text,
+        weatherEmoji: desc.emoji
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const [kutsugata, motodomari] = await Promise.all([
+    fetchNow(KUTSUGATA_LAT, KUTSUGATA_LON),
+    fetchNow(MOTODOMARI_LAT, MOTODOMARI_LON)
+  ]);
+
+  return { kutsugata, motodomari };
+};
+
+
