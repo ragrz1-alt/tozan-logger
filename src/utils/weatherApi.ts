@@ -387,6 +387,12 @@ const getJmaWeatherCategory = (
   if (precip >= 20.0) {
     return 'HeavyRain';
   }
+
+  const isRealSunnyDay = sunshineHours !== undefined && sunshineHours !== null && sunshineHours >= 6.0;
+  if (isRealSunnyDay) {
+    return 'Sunny';
+  }
+
   if (precip >= 3.0 || code >= 62) {
     return 'Rainy';
   }
@@ -413,6 +419,12 @@ const getEra5WeatherCategory = (
   if (precip >= 20.0) {
     return 'HeavyRain';
   }
+
+  const isRealSunnyDay = sunshineHours !== undefined && sunshineHours !== null && sunshineHours >= 6.0;
+  if (isRealSunnyDay) {
+    return 'Sunny';
+  }
+
   if (precip >= 3.0 || code >= 62) {
     return 'Rainy';
   }
