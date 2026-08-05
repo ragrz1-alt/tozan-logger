@@ -287,7 +287,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
           borderRadius: '12px',
           padding: '1.1rem 1.25rem',
           border: '1px solid var(--border-color)',
-          boxShadow: 'var(--shadow-sm)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between'
@@ -332,7 +332,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
           borderRadius: '12px',
           padding: '1.1rem 1.25rem',
           border: '1px solid var(--border-color)',
-          boxShadow: 'var(--shadow-sm)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between'
@@ -365,7 +365,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
           borderRadius: '12px',
           padding: '1.1rem 1.25rem',
           border: '1px solid var(--border-color)',
-          boxShadow: 'var(--shadow-sm)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between'
@@ -400,7 +400,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
           borderRadius: '12px',
           padding: '1.1rem 1.25rem',
           border: '1px solid var(--border-color)',
-          boxShadow: 'var(--shadow-sm)',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between'

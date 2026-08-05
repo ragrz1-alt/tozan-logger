@@ -167,7 +167,10 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
               {heavyRainDays.map(d => (
-                <div key={d.date} style={{
+                <button 
+                  key={d.date} 
+                  onClick={() => onSelectDate(d.date)}
+                  style={{
                   padding: '0.35rem 0.75rem',
                   backgroundColor: '#ef4444',
                   color: '#ffffff',
@@ -177,14 +180,20 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.4rem',
-                  boxShadow: '0 2px 4px rgba(239, 68, 68, 0.25)'
-                }}>
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(239, 68, 68, 0.25)',
+                  transition: 'transform 0.1s ease, boxShadow 0.1s ease'
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 8px rgba(239, 68, 68, 0.35)'; }}
+                onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.25)'; }}
+                >
                   <span>🌧️ {d.displayDate}</span>
                   <span>|</span>
                   <span>降水 <strong>{d.precipitation} mm</strong></span>
                   <span>|</span>
                   <span>入山 <strong>{d.enter}人</strong></span>
-                </div>
+                </button>
               ))}
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.55rem 0 0 0' }}>
