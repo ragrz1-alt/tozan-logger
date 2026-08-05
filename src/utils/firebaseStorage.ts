@@ -7,7 +7,6 @@ import {
   setDoc,
   getDocs,
   deleteDoc,
-  writeBatch, 
   type Firestore
 } from 'firebase/firestore';
 import type { LogEntry } from './logParser';
@@ -70,14 +69,7 @@ export const saveLogsToFirestore = async (entries: LogEntry[]): Promise<boolean>
   }
 
   try {
-    // ① 古い日別(YYYY-MM-DD)などで細切れに増えた大量ドキュメントをクリーンアップし、クォータと容量をリセット
-    const clearSuccess = await clearLogsFromFirestore();
-    if (!clearSuccess) {
-      console.error('Failed to clear existing logs. Aborting save operation to prevent data inconsistency.');
-      return false; // クリア失敗時は安全のために書き込みを中断
-    }
-
-    // ② 年月(YYYY-MM)ごとにグループ化 (月別ドキュメント保存方式: クォータ97%削減)
+    // ① 年月(YYYY-MM)ごとにグループ化
     const groupedByMonth: Record<string, LogEntry[]> = {};
     entries.forEach(entry => {
       const monthStr = entry.dateStr.substring(0, 7); // 'YYYY-MM'
@@ -87,17 +79,59 @@ export const saveLogsToFirestore = async (entries: LogEntry[]): Promise<boolean>
       groupedByMonth[monthStr].push(entry);
     });
 
+    // ② Firestore上の現在のデータを一括取得 (メタデータ以外)
+    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    const existingDocsMap: Record<string, any> = {};
+    querySnapshot.forEach(docSnap => {
+      if (docSnap.id !== META_DOC_ID) {
+        existingDocsMap[docSnap.id] = {
+          ref: docSnap.ref,
+          data: docSnap.data()
+        };
+      }
+    });
+
+    // ③ ローカルとクラウドを比較し、差分更新 (setDoc / deleteDoc)
     const months = Object.keys(groupedByMonth);
-    // 通信パンク（リソース枯渇）を防ぐため、1ヶ月分ずつ順番に確実に書き込む (直列処理)
-    for (let i = 0; i < months.length; i++) {
-      const monthStr = months[i];
-      const docRef = doc(db, COLLECTION_NAME, monthStr);
-      await setDoc(docRef, {
-        monthStr,
-        entries: groupedByMonth[monthStr],
-        updatedAt: Date.now(),
-      });
-      console.log(`[Firestore Sync] Saved month ${i + 1} / ${months.length} (${monthStr})`);
+    let savedCount = 0;
+    
+    // 3-1: 変更がある月 (新規または更新) を保存
+    for (const monthStr of months) {
+      const localEntries = groupedByMonth[monthStr];
+      const existing = existingDocsMap[monthStr];
+      
+      let needsUpdate = true;
+      if (existing && existing.data.entries) {
+        // JSON文字列化によるシンプルな差分判定
+        const localJson = JSON.stringify(localEntries);
+        const remoteJson = JSON.stringify(existing.data.entries);
+        if (localJson === remoteJson) {
+          needsUpdate = false;
+        }
+      }
+
+      if (needsUpdate) {
+        const docRef = doc(db, COLLECTION_NAME, monthStr);
+        await setDoc(docRef, {
+          monthStr,
+          entries: localEntries,
+          updatedAt: Date.now(),
+        });
+        savedCount++;
+        console.log(`[Firestore Sync] Saved/Updated month ${monthStr}`);
+      }
+    }
+
+    // 3-2: ローカルから完全に消えた月をクラウドからも削除
+    for (const remoteMonthStr in existingDocsMap) {
+      if (!groupedByMonth[remoteMonthStr]) {
+        await deleteDoc(existingDocsMap[remoteMonthStr].ref);
+        console.log(`[Firestore Sync] Deleted month ${remoteMonthStr}`);
+      }
+    }
+
+    if (savedCount === 0) {
+      console.log('[Firestore Sync] No changes detected. All months are up-to-date.');
     }
 
     // ③ 最後にメタデータ を保存 (スマートキャッシュ判定用)
