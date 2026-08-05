@@ -274,8 +274,8 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
     });
 
     const dailyList = Object.values(dailyMap);
-    // 1. 利用集中日 (Top 10 by Total Traffic IN+OUT)
-    const topDays = [...dailyList].sort((a, b) => b.total - a.total).slice(0, 10);
+    // 1. 利用集中日 (Top 10 by Enter Traffic)
+    const topDays = [...dailyList].sort((a, b) => b.enter - a.enter).slice(0, 10);
 
     // 2. 利用が集中する時間帯
     let totalEnterClimbers = 0;
@@ -995,10 +995,10 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                 </div>
                 <div>
                   <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--accent-primary)', margin: '0.4rem 0 0.35rem 0' }}>
-                    {peakAnalytics.topDays[0]?.total || 0} <span style={{ fontSize: '1rem', fontWeight: 600 }}>人 (IN+OUT)</span>
+                    {peakAnalytics.topDays[0]?.enter || 0} <span style={{ fontSize: '1rem', fontWeight: 600 }}>人 (IN)</span>
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                    日付: {peakAnalytics.topDays[0]?.date || '---'} (IN:{peakAnalytics.topDays[0]?.enter || 0}人)
+                    日付: {peakAnalytics.topDays[0]?.date || '---'}
                   </div>
                 </div>
               </div>
@@ -1180,7 +1180,6 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                     <tr style={{ backgroundColor: 'var(--bg-primary)', borderBottom: '2px solid var(--border-color)' }}>
                       <th style={{ padding: '0.85rem 1rem' }}>順位</th>
                       <th style={{ padding: '0.85rem 1rem' }}>日付</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>総通行量 (IN+OUT)</th>
                       <th style={{ padding: '0.85rem 1rem' }}>入山者数 (IN)</th>
                       <th style={{ padding: '0.85rem 1rem' }}>下山者数 (OUT)</th>
                       <th style={{ padding: '0.85rem 1rem' }}>天候状況</th>
@@ -1218,9 +1217,6 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                                 ⚠️ 荒天負荷日
                               </span>
                             )}
-                          </td>
-                          <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                            {d.total} 人
                           </td>
                           <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#3b82f6' }}>
                             {d.enter} 人
