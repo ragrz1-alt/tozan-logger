@@ -21,6 +21,31 @@ export interface CloudMetaStatus {
   version: string;       // バージョン識別
 }
 
+/**
+ * オブジェクトのプロパティをアルファベット順にソートして文字列化する関数。
+ * プロパティの順序違いによる差分判定の誤検知を防ぐために使用。
+ */
+const stableStringify = (obj: any): string => {
+  if (obj === null || typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(stableStringify).join(',') + ']';
+  }
+  const keys = Object.keys(obj).sort();
+  let res = '{';
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const val = obj[key];
+    if (val !== undefined) {
+      if (res.length > 1) res += ',';
+      res += JSON.stringify(key) + ':' + stableStringify(val);
+    }
+  }
+  res += '}';
+  return res;
+};
+
 const getDB = (): Firestore | null => {
   if (!isFirebaseConfigured()) {
     return null;
@@ -102,9 +127,9 @@ export const saveLogsToFirestore = async (entries: LogEntry[]): Promise<boolean>
       
       let needsUpdate = true;
       if (existing && existing.data.entries) {
-        // JSON文字列化によるシンプルな差分判定
-        const localJson = JSON.stringify(localEntries);
-        const remoteJson = JSON.stringify(existing.data.entries);
+        // プロパティ順序に依存しない安定したJSON文字列化による差分判定
+        const localJson = stableStringify(localEntries);
+        const remoteJson = stableStringify(existing.data.entries);
         if (localJson === remoteJson) {
           needsUpdate = false;
         }
