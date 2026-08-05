@@ -13,7 +13,7 @@ import type { LogEntry } from './logParser';
 import { getFirebaseConfig, isFirebaseConfigured } from '../config/firebaseConfig';
 
 const COLLECTION_NAME = 'counter_logs';
-const META_DOC_ID = '__meta_status__';
+const META_DOC_ID = 'system_meta_status';
 
 export interface CloudMetaStatus {
   updatedAt: number;     // 最終更新タイムスタンプ (ミリ秒)
@@ -70,7 +70,11 @@ export const saveLogsToFirestore = async (entries: LogEntry[]): Promise<boolean>
 
   try {
     // ① 古い日別(YYYY-MM-DD)などで細切れに増えた大量ドキュメントをクリーンアップし、クォータと容量をリセット
-    await clearLogsFromFirestore();
+    const clearSuccess = await clearLogsFromFirestore();
+    if (!clearSuccess) {
+      console.error('Failed to clear existing logs. Aborting save operation to prevent data inconsistency.');
+      return false; // クリア失敗時は安全のために書き込みを中断
+    }
 
     // ② 年月(YYYY-MM)ごとにグループ化 (月別ドキュメント保存方式: クォータ97%削減)
     const groupedByMonth: Record<string, LogEntry[]> = {};
@@ -83,26 +87,19 @@ export const saveLogsToFirestore = async (entries: LogEntry[]): Promise<boolean>
     });
 
     const months = Object.keys(groupedByMonth);
-    // 1年分(12ヶ月分)でも約数千件/数MB以下なので、安心の10ヶ月分ごとに自動分割 commit
-    const batchSize = 10;
-    for (let i = 0; i < months.length; i += batchSize) {
-      const batch = writeBatch(db);
-      const chunk = months.slice(i, i + batchSize);
-      
-      chunk.forEach(monthStr => {
-        const docRef = doc(db, COLLECTION_NAME, monthStr);
-        batch.set(docRef, {
-          monthStr,
-          entries: groupedByMonth[monthStr],
-          updatedAt: Date.now(),
-        });
+    // 通信パンク（リソース枯渇）を防ぐため、1ヶ月分ずつ順番に確実に書き込む (直列処理)
+    for (let i = 0; i < months.length; i++) {
+      const monthStr = months[i];
+      const docRef = doc(db, COLLECTION_NAME, monthStr);
+      await setDoc(docRef, {
+        monthStr,
+        entries: groupedByMonth[monthStr],
+        updatedAt: Date.now(),
       });
-
-      await batch.commit();
-      console.log(`[Firestore Sync] Saved batch ${i + 1} to ${i + chunk.length} / ${months.length} months`);
+      console.log(`[Firestore Sync] Saved month ${i + 1} / ${months.length} (${monthStr})`);
     }
 
-    // ③ 最後にメタデータ (__meta_status__) を保存 (スマートキャッシュ判定用)
+    // ③ 最後にメタデータ を保存 (スマートキャッシュ判定用)
     const metaRef = doc(db, COLLECTION_NAME, META_DOC_ID);
     const updatedAt = Date.now();
     await setDoc(metaRef, {
@@ -176,7 +173,7 @@ export const clearLogsFromFirestore = async (): Promise<boolean> => {
     const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
     const docs = querySnapshot.docs;
 
-    const batchSize = 450;
+    const batchSize = 100; // Transaction too big を防ぐためサイズを縮小
     for (let i = 0; i < docs.length; i += batchSize) {
       const batch = writeBatch(db);
       const chunk = docs.slice(i, i + batchSize);
