@@ -1114,7 +1114,7 @@ function App() {
             {selectedCourse === 'cameras' ? (
               <LiveCamArchivePage />
             ) : selectedCourse === 'poc' ? (
-              <LiveCamPoCPanel entries={entries} />
+              <LiveCamPoCPanel />
             ) : selectedCourse === 'now' ? (
               <RishiriNowPanel />
             ) : selectedCourse === ('poc' as any) && isAdmin ? (
