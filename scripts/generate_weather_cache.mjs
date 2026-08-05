@@ -120,12 +120,16 @@ async function generateWeatherCache() {
       const kPrecip = k.precipitation || 0;
       const mPrecip = m.precipitation || 0;
       const precip = Math.round(Math.max(kPrecip, mPrecip) * 10) / 10;
+      // 登山適日を正しく評価するため、日照時間は両地点の「より長い方(良い方)」を採用
       const sunshine = (k.sunshineDuration !== undefined && m.sunshineDuration !== undefined)
-        ? Math.round(((k.sunshineDuration + m.sunshineDuration) / 2) * 10) / 10
+        ? Math.max(k.sunshineDuration, m.sunshineDuration)
         : (k.sunshineDuration ?? m.sunshineDuration);
 
       let mergedCode = k.weatherCode;
-      if (precip >= 20) {
+      // 現地実況優先：日照が十分（6時間以上）あり、かつ大雨(20mm以上)でなければ「晴れ」扱いとする
+      if (sunshine >= 6.0 && precip < 20.0) {
+        mergedCode = Math.min(k.weatherCode, m.weatherCode, 1);
+      } else if (precip >= 20) {
         mergedCode = 65;
       } else if (precip >= 3.0) {
         mergedCode = Math.max(k.weatherCode, m.weatherCode);
