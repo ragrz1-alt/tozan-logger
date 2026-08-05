@@ -670,6 +670,33 @@ function App() {
                 gap: '0.35rem',
                 flexWrap: 'wrap'
               }}>
+                <div className="scrollable-tabs" style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    setSelectedCourse('now');
+                    setSelectedDate(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.65rem 1.45rem',
+                    fontWeight: 800,
+                    fontSize: '1rem',
+                    borderRadius: '10px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: selectedCourse === 'now' ? '#f59e0b' : 'rgba(245, 158, 11, 0.1)',
+                    color: selectedCourse === 'now' ? '#ffffff' : '#f59e0b',
+                    boxShadow: selectedCourse === 'now' ? '0 4px 12px rgba(245, 158, 11, 0.4)' : 'none',
+                    transition: 'all 0.2s ease',
+                    marginRight: '1rem' // 独立させるためのマージン
+                  }}
+                >
+                  <Cloud size={20} />
+                  <span>🌤️ 利尻Now</span>
+                </button>
+
                 <button
                   onClick={() => {
                     setSelectedCourse('oshidomari');
@@ -768,31 +795,6 @@ function App() {
                 >
                   <Video size={18} />
                   <span>ライブカメラ状況確認</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setSelectedCourse('now');
-                    setSelectedDate(null);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.65rem 1.45rem',
-                    fontWeight: 700,
-                    fontSize: '0.95rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    backgroundColor: selectedCourse === 'now' ? '#f59e0b' : 'transparent',
-                    color: selectedCourse === 'now' ? '#ffffff' : 'var(--text-primary)',
-                    boxShadow: selectedCourse === 'now' ? '0 2px 8px rgba(245, 158, 11, 0.35)' : 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <Cloud size={18} />
-                  <span>🌤️ 利尻Now</span>
                 </button>
 
                 <button

@@ -4,7 +4,7 @@ import { Thermometer, Wind, Activity, MapPin } from 'lucide-react';
 
 const CAMERAS = [
   { name: '鴛泊', id: '8BwfUCuPcVE' },
-  { name: '沓形栄浜', id: 'P9stiZVACSg' },
+  { name: '本泊', id: 'ag_nRE1jbXk' },
   { name: '礼文島方面', id: 'aqXQI-SRigk' },
   { name: '姫沼', id: '_CTve3fF0W4' },
   { name: 'オタドマリ沼', id: 'enBReBFAk7U' },
