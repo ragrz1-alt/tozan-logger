@@ -169,7 +169,7 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
               {heavyRainDays.map(d => (
                 <button 
                   key={d.date} 
-                  onClick={() => onSelectDate(d.date)}
+                  onClick={() => onSelectDate?.(d.date)}
                   style={{
                   padding: '0.35rem 0.75rem',
                   backgroundColor: '#ef4444',
