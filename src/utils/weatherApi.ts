@@ -220,7 +220,7 @@ export const fetchWeatherData = async (
       // 天気コード: 20mm以上の大雨は荒天(65)、それ以外は実況の登山適日(晴れ間)や雨傾向を的確に表す代表コードを採用
       let mergedCode = k.weatherCode;
       // 現地実況優先：日照が十分（6時間以上）あり、かつ大雨(20mm以上)でなければ「晴れ」扱いとする
-      if (sunshine >= 6.0 && precip < 20.0) {
+      if (sunshine !== undefined && sunshine >= 6.0 && precip < 20.0) {
         mergedCode = Math.min(k.weatherCode, m.weatherCode, 1);
       } else if (precip >= 20) {
         mergedCode = 65;
