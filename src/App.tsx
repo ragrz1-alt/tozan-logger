@@ -670,7 +670,6 @@ function App() {
                 gap: '0.35rem',
                 flexWrap: 'wrap'
               }}>
-                <div className="scrollable-tabs" style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.5rem', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => {
                     setSelectedCourse('now');
