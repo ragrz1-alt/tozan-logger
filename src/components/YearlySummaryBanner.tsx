@@ -233,15 +233,18 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
         </div>
         <div style={{
           fontSize: '0.85rem',
-          color: 'var(--text-secondary)',
-          fontWeight: 600,
+          color: 'var(--text-primary)',
+          fontWeight: 700,
           backgroundColor: 'var(--bg-primary)',
-          padding: '0.4rem 0.85rem',
+          padding: '0.5rem 0.95rem',
           borderRadius: '8px',
           border: '1px solid var(--border-color)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.4rem'
+          gap: '0.5rem',
+          position: 'relative',
+          zIndex: 10
         }}>
           <Calendar size={15} style={{ color: 'var(--accent-primary)' }} />
           <span>計測期間: {year}年 (全 {daysCount} 日間)</span>
