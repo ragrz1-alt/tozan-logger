@@ -5,7 +5,8 @@ import {
   doc, 
   getDoc,
   setDoc,
-  getDocs, 
+  getDocs,
+  deleteDoc,
   writeBatch, 
   type Firestore
 } from 'firebase/firestore';
@@ -173,14 +174,9 @@ export const clearLogsFromFirestore = async (): Promise<boolean> => {
     const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
     const docs = querySnapshot.docs;
 
-    const batchSize = 100; // Transaction too big を防ぐためサイズを縮小
-    for (let i = 0; i < docs.length; i += batchSize) {
-      const batch = writeBatch(db);
-      const chunk = docs.slice(i, i + batchSize);
-      chunk.forEach(docSnap => {
-        batch.delete(docSnap.ref);
-      });
-      await batch.commit();
+    // バッチ削除でもサイズオーバー(Transaction too big)になるほどデータが大きいため、確実に1つずつ直列で削除する
+    for (let i = 0; i < docs.length; i++) {
+      await deleteDoc(docs[i].ref);
     }
     return true;
   } catch (error) {
