@@ -387,7 +387,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
               {displayHours.map((h, i) => {
                 const hw = hourlyWeather && hourlyWeather[h.hour];
                 const hwDesc = hw ? getWeatherDescription(hw.weatherCode, hw.precipitation) : null;
-                const hrStr = h.hour.toString().padStart(2, '0');
+                const hrStr = h.hour.substring(0, 2);
                 const hrRecords = camHistory?.records?.[details.dateStr]?.[hrStr];
                 const hasCamRecord = !!hrRecords && Object.keys(hrRecords).length > 0;
 
