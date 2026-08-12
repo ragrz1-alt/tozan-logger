@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, Users, TrendingUp, Calendar, Sun, AlertTriangle, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Award, Users, TrendingUp, Calendar, Sun, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getWeatherCategory } from '../utils/weatherApi';
 
 interface YearlySummaryBannerProps {
@@ -14,6 +14,12 @@ interface YearlySummaryBannerProps {
   selectedCourse?: string;
   onPrevYear?: () => void;
   onNextYear?: () => void;
+  prevYearEntries?: {
+    date?: string;
+    dateStr?: string;
+    enter: number;
+    exit: number;
+  }[];
 }
 
 export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
@@ -22,12 +28,15 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
   weatherData,
   selectedCourse = 'all',
   onPrevYear,
-  onNextYear
+  onNextYear,
+  prevYearEntries = []
 }) => {
-  // その年に該当するエントリーのみ抽出
+  // その年に該当するエントリーのうち、シーズン(6月〜10月)のみ抽出
   const yearEntries = entries.filter(e => {
     const d = e.date || e.dateStr || '';
-    return d.startsWith(year);
+    if (!d.startsWith(year)) return false;
+    const m = parseInt(d.substring(5, 7), 10);
+    return m >= 6 && m <= 10;
   });
   if (yearEntries.length === 0) return null;
 
@@ -56,6 +65,12 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
     }
   });
   const sunnyRate = daysCount > 0 ? Math.round((sunnyDays / daysCount) * 100) : 0;
+
+  // YoY (前年同期比) 計算
+  const prevTotalEnter = prevYearEntries.reduce((sum, e) => sum + (e.enter || 0), 0);
+  const diffEnter = totalEnter - prevTotalEnter;
+  const diffPercent = prevTotalEnter > 0 ? ((diffEnter / prevTotalEnter) * 100).toFixed(1) : null;
+  const isIncrease = diffEnter >= 0;
 
   // -------------------------------------------------------------------------
   // 欠測期間（シーズン: 6月〜9月）の自動検知アルゴリズム
@@ -246,7 +261,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
               letterSpacing: '-0.02em',
               lineHeight: 1.2
             }}>
-              {year}年 年間 入山者数 総合サマリー
+              {year}年 シーズン(6月〜10月) 入山者数 総合サマリー
             </h2>
           </div>
         </div>
@@ -335,7 +350,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-              年間 総入山者数
+              シーズン 総入山者数
             </span>
             <Users size={18} style={{ color: '#10b981' }} />
           </div>
@@ -352,16 +367,23 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
             </span>
             <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>人</span>
           </div>
-          <div style={{ fontSize: '0.78rem', marginTop: '0.35rem', fontWeight: 600 }}>
-            {hasSeasonMissingData ? (
-              <span style={{ color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                <AlertTriangle size={13} />
-                <span>一部欠測期間あり (計測日のみ合計)</span>
+          <div style={{ fontSize: '0.8rem', marginTop: '0.45rem', fontWeight: 600, display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+            {prevTotalEnter > 0 ? (
+              <span style={{
+                backgroundColor: isIncrease ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                color: isIncrease ? '#059669' : '#dc2626',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '6px',
+                fontSize: '0.78rem'
+              }}>
+                前年同期比 {isIncrease ? '+' : '▲'}{Math.abs(diffEnter)}人 ({isIncrease ? '+' : ''}{diffPercent}%)
               </span>
             ) : (
-              <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                <Info size={13} />
-                <span>シーズン主要計測データ収録</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>前年同期データなし</span>
+            )}
+            {hasSeasonMissingData && (
+              <span style={{ color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', marginLeft: 'auto', fontSize: '0.75rem' }}>
+                <AlertTriangle size={12} /> 一部欠測あり
               </span>
             )}
           </div>

@@ -17,6 +17,12 @@ interface MonthlySummaryBannerProps {
   onNextMonth?: () => void;
   onPrevYear?: () => void;
   onNextYear?: () => void;
+  prevYearEntries?: {
+    date?: string;
+    dateStr?: string;
+    enter: number;
+    exit: number;
+  }[];
 }
 
 export const MonthlySummaryBanner: React.FC<MonthlySummaryBannerProps> = ({
@@ -28,7 +34,8 @@ export const MonthlySummaryBanner: React.FC<MonthlySummaryBannerProps> = ({
   onPrevMonth,
   onNextMonth,
   onPrevYear,
-  onNextYear
+  onNextYear,
+  prevYearEntries = []
 }) => {
   const mStr = month.toString().padStart(2, '0');
   const monthPrefix = `${year}-${mStr}`;
@@ -66,6 +73,12 @@ export const MonthlySummaryBanner: React.FC<MonthlySummaryBannerProps> = ({
     }
   });
   const sunnyRate = daysCount > 0 ? Math.round((sunnyDays / daysCount) * 100) : 0;
+
+  // YoY (前年同期比) 計算
+  const prevTotalEnter = prevYearEntries.reduce((sum, e) => sum + (e.enter || 0), 0);
+  const diffEnter = totalEnter - prevTotalEnter;
+  const diffPercent = prevTotalEnter > 0 ? ((diffEnter / prevTotalEnter) * 100).toFixed(1) : null;
+  const isIncrease = diffEnter >= 0;
 
   // コース名のラベル表示
   const courseLabelMap: Record<string, string> = {
@@ -260,6 +273,21 @@ export const MonthlySummaryBanner: React.FC<MonthlySummaryBannerProps> = ({
               {formatNumber(totalEnter)}
             </span>
             <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>人</span>
+          </div>
+          <div style={{ fontSize: '0.8rem', marginTop: '0.45rem', fontWeight: 600, display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+            {prevTotalEnter > 0 ? (
+              <span style={{
+                backgroundColor: isIncrease ? 'rgba(59, 130, 246, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                color: isIncrease ? '#2563eb' : '#dc2626',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '6px',
+                fontSize: '0.78rem'
+              }}>
+                前年同月比 {isIncrease ? '+' : '▲'}{Math.abs(diffEnter)}人 ({isIncrease ? '+' : ''}{diffPercent}%)
+              </span>
+            ) : (
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>前年同期データなし</span>
+            )}
           </div>
         </div>
 

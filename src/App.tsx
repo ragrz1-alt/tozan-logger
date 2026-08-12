@@ -465,6 +465,44 @@ function App() {
     return { hasNextYear, hasNextMonth };
   }, [entries, selectedYear, availableYears, selectedMonthNum]);
 
+  const { prevYearDaily, prevMonthDaily } = useMemo(() => {
+    const currentYStr = selectedYear || (availableYears[availableYears.length - 1] || '2026');
+    const currentY = parseInt(currentYStr, 10);
+    const prevYStr = (currentY - 1).toString();
+    const maxDateStr = entries.length > 0 ? entries[entries.length - 1].dateStr : null;
+    const maxYear = maxDateStr ? maxDateStr.split('-')[0] : currentYStr;
+
+    // 1. Season Summary (Yearly) - 6/1 to 10/31
+    let prevYearEnd = `${prevYStr}-10-31`;
+    if (currentYStr === maxYear && maxDateStr) {
+        // If viewing the current ongoing year, only compare up to the latest available MM-DD
+        const mmdd = maxDateStr.substring(5); // e.g., '08-11'
+        if (mmdd < '10-31') {
+             prevYearEnd = `${prevYStr}-${mmdd}`;
+        }
+    }
+    const pyEntries = activeEntries.filter(e => e.dateStr >= `${prevYStr}-06-01` && e.dateStr <= prevYearEnd);
+    const { daily: pyDaily } = aggregateData(pyEntries, activeDirection, false);
+
+    // 2. Monthly Summary
+    let pyMonthDaily: { date: string; enter: number; exit: number }[] = [];
+    if (selectedMonthNum !== null) {
+       const mStr = selectedMonthNum.toString().padStart(2, '0');
+       let prevMonthEnd = `${prevYStr}-${mStr}-${new Date(currentY - 1, selectedMonthNum, 0).getDate().toString().padStart(2, '0')}`;
+       if (currentYStr === maxYear && maxDateStr) {
+           const [_, maxM, maxD] = maxDateStr.split('-');
+           if (parseInt(maxM, 10) === selectedMonthNum) {
+               prevMonthEnd = `${prevYStr}-${mStr}-${maxD}`;
+           }
+       }
+       const pmEntries = activeEntries.filter(e => e.dateStr >= `${prevYStr}-${mStr}-01` && e.dateStr <= prevMonthEnd);
+       const { daily: pmDaily } = aggregateData(pmEntries, activeDirection, false);
+       pyMonthDaily = pmDaily;
+    }
+
+    return { prevYearDaily: pyDaily, prevMonthDaily: pyMonthDaily };
+  }, [selectedYear, availableYears, entries, activeEntries, activeDirection, selectedMonthNum]);
+
   useEffect(() => {
     if (allStartDate && allEndDate) {
       const fetchWeather = async () => {
@@ -1351,6 +1389,7 @@ function App() {
               <YearlySummaryBanner
                 year={selectedYear || (availableYears[availableYears.length - 1] || '2026')}
                 entries={daily}
+                prevYearEntries={prevYearDaily}
                 weatherData={weatherData}
                 selectedCourse={selectedCourse}
                 onPrevYear={() => navigateYear(-1)}
@@ -1362,6 +1401,7 @@ function App() {
                 year={selectedYear || (availableYears[availableYears.length - 1] || '2026')}
                 month={selectedMonthNum}
                 entries={daily}
+                prevYearEntries={prevMonthDaily}
                 weatherData={weatherData}
                 selectedCourse={selectedCourse}
                 onPrevMonth={() => navigateMonth(-1)}
