@@ -56,3 +56,15 @@ jobs:
             echo "Failed to push after 3 retries."
             exit 1
           fi
+
+      - name: Send Heartbeat to Healthchecks.io
+        if: always() && secrets.HEALTHCHECK_URL != ''
+        env:
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: |
+          # ジョブが成功したか失敗したかに応じて、PingのURLを変更します（失敗時は即座にアラートを飛ばすため /fail を付与）
+          STATUS_SUFFIX=""
+          if [ "${{ job.status }}" != "success" ]; then
+            STATUS_SUFFIX="/fail"
+          fi
+          curl -fsS -m 10 --retry 5 -o /dev/null "$HEALTHCHECK_URL$STATUS_SUFFIX" || true

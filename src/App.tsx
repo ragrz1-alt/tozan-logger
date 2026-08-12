@@ -16,6 +16,7 @@ import { SystemInfoModal } from './components/SystemInfoModal';
 import { saveLogsToFirestore, loadLogsFromFirestore, checkCloudMetadata } from './utils/firebaseStorage';
 import { isFirebaseConfigured } from './config/firebaseConfig';
 import { YearlySummaryBanner } from './components/YearlySummaryBanner';
+import { MonthlySummaryBanner } from './components/MonthlySummaryBanner';
 
 function App() {
   const [entries, setEntries] = useState<LogEntry[]>([]);
@@ -395,6 +396,56 @@ function App() {
     }
     return false;
   }, [filterStartDate, filterEndDate, selectedYear, availableYears, activeEntries]);
+
+  // 選択中の期間が特定の1ヶ月間(1日〜末日)かどうか判定し、該当月を返す
+  const selectedMonthNum = useMemo(() => {
+    if (!filterStartDate || !filterEndDate) return null;
+    const year = selectedYear || (availableYears[availableYears.length - 1] || '2026');
+    for (let m = 1; m <= 12; m++) {
+      const mStr = m.toString().padStart(2, '0');
+      const daysInMonth = new Date(parseInt(year), m, 0).getDate();
+      if (filterStartDate === `${year}-${mStr}-01` && filterEndDate === `${year}-${mStr}-${daysInMonth}`) {
+        return m;
+      }
+    }
+    return null;
+  }, [filterStartDate, filterEndDate, selectedYear, availableYears]);
+
+  const navigateMonth = (direction: -1 | 1) => {
+    if (selectedMonthNum === null) return;
+    let newM = selectedMonthNum + direction;
+    let newY = parseInt(selectedYear || availableYears[availableYears.length - 1] || '2026');
+    if (newM < 1) {
+      newM = 12;
+      newY -= 1;
+    } else if (newM > 12) {
+      newM = 1;
+      newY += 1;
+    }
+    const newYearStr = newY.toString();
+    setSelectedYear(newYearStr);
+    const mStr = newM.toString().padStart(2, '0');
+    const daysInMonth = new Date(newY, newM, 0).getDate();
+    setFilterStartDate(`${newYearStr}-${mStr}-01`);
+    setFilterEndDate(`${newYearStr}-${mStr}-${daysInMonth}`);
+  };
+
+  const navigateYear = (direction: -1 | 1) => {
+    const currentY = parseInt(selectedYear || availableYears[availableYears.length - 1] || '2026');
+    const newY = currentY + direction;
+    const newYearStr = newY.toString();
+    
+    setSelectedYear(newYearStr);
+    if (selectedMonthNum !== null) {
+      const mStr = selectedMonthNum.toString().padStart(2, '0');
+      const daysInMonth = new Date(newY, selectedMonthNum, 0).getDate();
+      setFilterStartDate(`${newYearStr}-${mStr}-01`);
+      setFilterEndDate(`${newYearStr}-${mStr}-${daysInMonth}`);
+    } else {
+      setFilterStartDate(`${newYearStr}-01-01`);
+      setFilterEndDate(`${newYearStr}-12-31`);
+    }
+  };
 
   useEffect(() => {
     if (allStartDate && allEndDate) {
@@ -1277,13 +1328,28 @@ function App() {
 
             {isLoadingWeather && <p style={{ textAlign: 'center', marginBottom: '1rem', color: 'var(--text-secondary)' }}>気象データを読込中...</p>}
 
-            {/* 6. その年全体を表示している時は、年間 総入山者数を分かりやすくリッチにバナー表示 (UIプロ設計) */}
+            {/* 6. その年全体を表示している時は年間サマリーを、特定の月を表示している時は月間サマリーを表示 */}
             {isYearAllView && (
               <YearlySummaryBanner
                 year={selectedYear || (availableYears[availableYears.length - 1] || '2026')}
                 entries={daily}
                 weatherData={weatherData}
                 selectedCourse={selectedCourse}
+                onPrevYear={() => navigateYear(-1)}
+                onNextYear={() => navigateYear(1)}
+              />
+            )}
+            {!isYearAllView && selectedMonthNum !== null && (
+              <MonthlySummaryBanner
+                year={selectedYear || (availableYears[availableYears.length - 1] || '2026')}
+                month={selectedMonthNum}
+                entries={daily}
+                weatherData={weatherData}
+                selectedCourse={selectedCourse}
+                onPrevMonth={() => navigateMonth(-1)}
+                onNextMonth={() => navigateMonth(1)}
+                onPrevYear={() => navigateYear(-1)}
+                onNextYear={() => navigateYear(1)}
               />
             )}
 
