@@ -6,7 +6,7 @@ import { Calendar, Users, ArrowUpRight, ArrowDownRight, X, Wind, Droplets, Therm
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { LiveCamViewer } from './LiveCamViewer';
-import { HourlyCamModal } from './HourlyCamModal';
+import { getHistoryJsonUrl } from '../utils/camUrl';
 
 interface DailyDetailViewProps {
   details: DailyDetails;
@@ -19,15 +19,31 @@ interface DailyDetailViewProps {
 }
 
 export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weather, hourlyWeather, onClose, onSelectDate, prevDate, nextDate }) => {
-  const [selectedModalHour, setSelectedModalHour] = useState<string | null>(null);
+  const [selectedCamHour, setSelectedCamHour] = useState<string | null>(null);
   const [camHistory, setCamHistory] = useState<any | null>(null);
 
   useEffect(() => {
-    fetch('/cams/history.json?t=' + Date.now())
-      .then(res => res.ok ? res.json() : null)
-      .then(data => setCamHistory(data))
-      .catch(() => setCamHistory(null));
+    const fetchHistory = async () => {
+      try {
+        let res = await fetch(getHistoryJsonUrl());
+        if (!res.ok) {
+          res = await fetch('/cams/history.json?t=' + Date.now());
+        }
+        if (res.ok) {
+          const data = await res.json();
+          setCamHistory(data);
+        }
+      } catch (err) {
+        setCamHistory(null);
+      }
+    };
+    fetchHistory();
   }, [details.dateStr]);
+
+  const handleCamClick = (hourStr: string) => {
+    setSelectedCamHour(hourStr);
+    document.getElementById('live-cam-viewer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const displayDate = format(parseISO(details.dateStr), 'yyyy年MM月dd日 (E)', { locale: ja });
   const wDesc = weather && weather.weatherCode !== undefined
@@ -403,7 +419,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                     <td style={{ padding: '0.55rem 0.6rem', textAlign: 'center' }}>
                       {hasCamRecord ? (
                         <button
-                          onClick={() => setSelectedModalHour(hrStr)}
+                          onClick={() => handleCamClick(hrStr)}
                           style={{
                             padding: '0.35rem 0.75rem',
                             backgroundColor: 'rgba(16, 185, 129, 0.12)',
@@ -418,10 +434,10 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                             gap: '0.35rem',
                             transition: 'all 0.15s ease'
                           }}
-                          title={`${h.hour}時台の鴛泊・沓形・仙法志カメラ状況を確認`}
+                          title={`${h.hour}時台のライブカメラアーカイブを確認する`}
                         >
                           <Camera size={14} />
-                          <span>状況を見る</span>
+                          <span>映像を見る</span>
                           <span
                             style={{
                               width: '6px',
@@ -445,18 +461,13 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
       )}
 
       {/* 利尻山 ライブカメラ コンディション対比（鴛泊・沓形）を最下部に配置 */}
-      <LiveCamViewer dateStr={details.dateStr} hourlyWeather={hourlyWeather} />
-
-      {/* 時間帯別カメラ状況ポップアップ (案1のワンクリックモーダル) */}
-      {selectedModalHour && (
-        <HourlyCamModal
-          dateStr={details.dateStr}
-          hour={selectedModalHour}
-          hourlyWeather={hourlyWeather?.[selectedModalHour] || hourlyWeather?.[parseInt(selectedModalHour, 10).toString()]}
-          historyRecords={camHistory?.records?.[details.dateStr]?.[selectedModalHour]}
-          onClose={() => setSelectedModalHour(null)}
+      <div id="live-cam-viewer">
+        <LiveCamViewer 
+          dateStr={details.dateStr} 
+          hourlyWeather={hourlyWeather} 
+          externalSelectedHour={selectedCamHour}
         />
-      )}
+      </div>
       </div>
     </div>
   );

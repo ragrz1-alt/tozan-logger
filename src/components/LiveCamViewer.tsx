@@ -6,6 +6,7 @@ import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
 interface LiveCamViewerProps {
   dateStr: string;
   hourlyWeather?: Record<string, HourlyWeatherData>;
+  externalSelectedHour?: string | null;
 }
 
 interface CamHistory {
@@ -46,10 +47,16 @@ const HOURS = [
   '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23'
 ];
 
-export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWeather }) => {
+export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWeather, externalSelectedHour }) => {
   const [selectedHour, setSelectedHour] = useState<string>('12');
   const [history, setHistory] = useState<CamHistory | null>(null);
   const [modalImage, setModalImage] = useState<{ url: string; title: string } | null>(null);
+
+  useEffect(() => {
+    if (externalSelectedHour) {
+      setSelectedHour(externalSelectedHour);
+    }
+  }, [externalSelectedHour]);
 
   // カメラ履歴 metadata をロード（GitHub Rawから即時取得、失敗時はローカルフォールバック）
   useEffect(() => {

@@ -447,6 +447,24 @@ function App() {
     }
   };
 
+  const { hasNextYear, hasNextMonth } = useMemo(() => {
+    let hasNextYear = true;
+    let hasNextMonth = true;
+    const maxDateStr = entries.length > 0 ? entries[entries.length - 1].dateStr : null;
+    const currentYearStr = selectedYear || (availableYears[availableYears.length - 1] || '2026');
+    
+    if (maxDateStr) {
+      const [maxYear, maxMonth] = maxDateStr.split('-');
+      if (currentYearStr >= maxYear) {
+        hasNextYear = false;
+        if (selectedMonthNum !== null && selectedMonthNum >= parseInt(maxMonth, 10)) {
+          hasNextMonth = false;
+        }
+      }
+    }
+    return { hasNextYear, hasNextMonth };
+  }, [entries, selectedYear, availableYears, selectedMonthNum]);
+
   useEffect(() => {
     if (allStartDate && allEndDate) {
       const fetchWeather = async () => {
@@ -1336,7 +1354,7 @@ function App() {
                 weatherData={weatherData}
                 selectedCourse={selectedCourse}
                 onPrevYear={() => navigateYear(-1)}
-                onNextYear={() => navigateYear(1)}
+                onNextYear={hasNextYear ? () => navigateYear(1) : undefined}
               />
             )}
             {!isYearAllView && selectedMonthNum !== null && (
@@ -1347,9 +1365,9 @@ function App() {
                 weatherData={weatherData}
                 selectedCourse={selectedCourse}
                 onPrevMonth={() => navigateMonth(-1)}
-                onNextMonth={() => navigateMonth(1)}
+                onNextMonth={hasNextMonth ? () => navigateMonth(1) : undefined}
                 onPrevYear={() => navigateYear(-1)}
-                onNextYear={() => navigateYear(1)}
+                onNextYear={hasNextYear ? () => navigateYear(1) : undefined}
               />
             )}
 
