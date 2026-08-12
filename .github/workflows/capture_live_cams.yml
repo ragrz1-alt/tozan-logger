@@ -58,10 +58,14 @@ jobs:
           fi
 
       - name: Send Heartbeat to Healthchecks.io
-        if: always() && secrets.HEALTHCHECK_URL != ''
+        if: always()
         env:
           HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
         run: |
+          if [ -z "$HEALTHCHECK_URL" ]; then
+            echo "HEALTHCHECK_URL secret is not set, skipping heartbeat."
+            exit 0
+          fi
           # ジョブが成功したか失敗したかに応じて、PingのURLを変更します（失敗時は即座にアラートを飛ばすため /fail を付与）
           STATUS_SUFFIX=""
           if [ "${{ job.status }}" != "success" ]; then
