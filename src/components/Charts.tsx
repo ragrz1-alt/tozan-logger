@@ -3,6 +3,8 @@ import {
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { ja } from 'date-fns/locale';
+// @ts-ignore
+import * as JapaneseHolidays from 'japanese-holidays';
 import { getWeatherDescription, getWindDirection, getWeatherCategory, getWeatherCategoryColor } from '../utils/weatherApi';
 
 interface ChartProps {
@@ -75,6 +77,32 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
     return null;
   };
 
+  const renderCustomTick = (props: any) => {
+    const { x, y, payload } = props;
+    const item = mergedDailyData.find(d => d.displayDate === payload.value);
+    let fill = 'var(--text-secondary)';
+    
+    if (item) {
+      const d = new Date(item.date);
+      const day = d.getDay();
+      const isHoliday = JapaneseHolidays.isHoliday(d);
+      
+      if (isHoliday || day === 0) {
+        fill = '#ef4444'; // Red for Sunday/Holiday
+      } else if (day === 6) {
+        fill = '#3b82f6'; // Blue for Saturday
+      }
+    }
+    
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={0} dy={16} textAnchor="middle" fill={fill} fontSize={12} fontFamily="inherit">
+          {payload.value}
+        </text>
+      </g>
+    );
+  };
+
   return (
     <div>
       <div className="card">
@@ -130,7 +158,7 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={mergedDailyData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-              <XAxis dataKey="displayDate" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)' }} />
+              <XAxis dataKey="displayDate" stroke="var(--text-secondary)" tick={renderCustomTick} />
               <YAxis yAxisId="left" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)' }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ paddingTop: '15px', fontWeight: 600 }} />
