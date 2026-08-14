@@ -96,7 +96,7 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
     
     return (
       <g transform={`translate(${x},${y})`}>
-        <text x={0} y={0} dy={16} textAnchor="middle" fill={fill} fontSize={12} fontFamily="inherit">
+        <text x={0} y={0} dy={20} textAnchor="middle" fill={fill} fontSize={14} fontWeight={600} fontFamily="inherit">
           {payload.value}
         </text>
       </g>
@@ -159,7 +159,7 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
             <ComposedChart data={mergedDailyData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
               <XAxis dataKey="displayDate" stroke="var(--text-secondary)" tick={renderCustomTick} />
-              <YAxis yAxisId="left" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)' }} />
+              <YAxis yAxisId="left" stroke="var(--text-secondary)" tick={{ fill: 'var(--text-secondary)', fontSize: 13, fontWeight: 600 }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ paddingTop: '15px', fontWeight: 600 }} />
               <Bar 

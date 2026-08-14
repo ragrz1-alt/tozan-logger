@@ -1760,8 +1760,8 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={currentChartData} margin={{ top: 28, right: 25, left: 10, bottom: 15 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-                          <XAxis dataKey="hourLabel" stroke="var(--text-secondary)" tick={{ fontSize: 12 }} />
-                          <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 12 }} />
+                          <XAxis dataKey="hourLabel" stroke="var(--text-secondary)" tick={{ fontSize: 13, fontWeight: 600 }} />
+                          <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 13, fontWeight: 600 }} />
                           <Tooltip
                             itemSorter={(item: any) => (item.dataKey === 'enterCount' || item.name === '入山者数 (IN)' ? -1 : 1)}
                             formatter={(val: any, name: any, item: any) => [
