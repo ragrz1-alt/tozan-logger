@@ -302,19 +302,22 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
               >
                 {displayUrl ? (
                   <>
-                    <img
-                      src={displayUrl}
-                      alt={`${cam.name} ${selectedHour}時`}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        transition: 'transform 0.3s ease'
-                      }}
-                    />
+                      <img
+                        src={displayUrl}
+                        alt={`${cam.name} ${selectedHour}時`}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          transition: 'transform 0.3s ease'
+                        }}
+                        onError={(e) => { 
+                          if (imgPath) e.currentTarget.src = `/${imgPath}`; 
+                        }}
+                      />
                     <div style={{
                       position: 'absolute',
                       top: '0.5rem',
@@ -422,6 +425,10 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                 src={modalImage.url}
                 alt={modalImage.title}
                 style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain' }}
+                onError={(e) => {
+                  const urlObj = new URL(modalImage.url);
+                  e.currentTarget.src = urlObj.pathname.replace('/tozan-logger/public/', '/');
+                }}
               />
             </div>
             <div style={{ padding: '0.75rem 1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'right' }}>

@@ -3,7 +3,8 @@ name: Capture Rishiri Live Cameras
 on:
   workflow_dispatch: # Cloudflare等の外部APIキックおよびGitHub画面からの手動実行に対応
   repository_dispatch: # 外部APIからのリポジトリディスパッチトリガーにも対応
-
+  schedule:
+    - cron: '0 * * * *' # 毎時0分に実行
 permissions:
   contents: write
 

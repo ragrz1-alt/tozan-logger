@@ -314,6 +314,7 @@ export const LiveCamArchivePage: React.FC = () => {
                             src={getCamImageUrl(oshidomariPath)}
                             alt={`鴛泊 ${hr}:00`}
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => { e.currentTarget.src = `/${oshidomariPath}`; }}
                           />
                         ) : (
                           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
@@ -332,6 +333,7 @@ export const LiveCamArchivePage: React.FC = () => {
                             src={getCamImageUrl(kutsugataPath)}
                             alt={`沓形 ${hr}:00`}
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => { e.currentTarget.src = `/${kutsugataPath}`; }}
                           />
                         ) : (
                           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
@@ -350,6 +352,7 @@ export const LiveCamArchivePage: React.FC = () => {
                             src={getCamImageUrl(senposhiPath)}
                             alt={`仙法志 ${hr}:00`}
                             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => { e.currentTarget.src = `/${senposhiPath}`; }}
                           />
                         ) : (
                           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>

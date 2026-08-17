@@ -1,5 +1,5 @@
-// GitHub Raw URL (パブリックリポジトリから直リンクで最新画像・JSONを取得)
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/ragrz1-alt/tozan-logger/main/public';
+// GitHub Pages URL (安定した画像配信CDNとして利用)
+const GITHUB_RAW_BASE = 'https://ragrz1-alt.github.io/tozan-logger/public';
 
 /**
  * クラウド上（GitHub）に保存された最新の history.json を直接取得するURLを返す
