@@ -1,0 +1,46 @@
+name: Deploy to Firebase Hosting
+
+# ソースコード（src/, index.html, package.json 等）が変更された時に
+# 自動的にビルドして Firebase Hosting にデプロイする。
+# ※ カメラ画像の追加 (public/cams/) だけでは発火しない。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - 'firebase.json'
+      - 'scripts/generate_weather_cache.mjs'
+  workflow_dispatch:  # 手動実行にも対応
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Deploy to Firebase Hosting
+        run: npx firebase deploy --only hosting --non-interactive
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

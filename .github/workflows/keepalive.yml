@@ -1,0 +1,32 @@
+name: Keepalive - GitHub Actions スケジュール停止防止
+
+# GitHub は 60日間コミットがないリポジトリの scheduled workflow を自動的に無効化する。
+# このワークフローは毎月1日に軽量なコミットを行い、リポジトリの活性を維持する。
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # 毎月1日 00:00 UTC に実行
+  workflow_dispatch:      # 手動実行にも対応
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update keepalive timestamp
+        run: |
+          echo "Last keepalive: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" > .github/keepalive.txt
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .github/keepalive.txt
+          if git diff --staged --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "🤖 [Keepalive] GitHub Actions スケジュール停止防止 ($(date -u +'%Y-%m-%d'))"
+            git push origin main
+          fi
