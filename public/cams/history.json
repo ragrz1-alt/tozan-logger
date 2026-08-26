@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-08-26T14:53:55.432534+09:00",
+  "updatedAt": "2026-08-26T15:06:02.360830+09:00",
   "cameras": {
     "oshidomari": {
       "name": "鴛泊（本泊）",
@@ -4120,6 +4120,12 @@
         "kutsugata": "cams/2026-08-26/14_kutsugata.jpg",
         "oshidomari": "cams/2026-08-26/14_oshidomari.jpg",
         "senposhi": "cams/2026-08-26/14_senposhi.jpg"
+      },
+      "15": {
+        "timestamp": "2026-08-26T15:05:56.963335+09:00",
+        "kutsugata": "cams/2026-08-26/15_kutsugata.jpg",
+        "senposhi": "cams/2026-08-26/15_senposhi.jpg",
+        "oshidomari": "cams/2026-08-26/15_oshidomari.jpg"
       }
     }
   }
