@@ -1,6 +1,7 @@
-import React from 'react';
-import { Award, Users, TrendingUp, Calendar, Sun, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Award, Users, TrendingUp, Calendar, Sun, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { getWeatherCategory } from '../utils/weatherApi';
+import { MonthlyAIAnalysisModal } from './MonthlyAIAnalysisModal';
 
 interface MonthlySummaryBannerProps {
   year: string;
@@ -23,6 +24,7 @@ interface MonthlySummaryBannerProps {
     enter: number;
     exit: number;
   }[];
+  isAdmin?: boolean;
 }
 
 export const MonthlySummaryBanner: React.FC<MonthlySummaryBannerProps> = ({
@@ -35,8 +37,11 @@ export const MonthlySummaryBanner: React.FC<MonthlySummaryBannerProps> = ({
   onNextMonth,
   onPrevYear,
   onNextYear,
-  prevYearEntries = []
+  prevYearEntries = [],
+  isAdmin = false
 }) => {
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+
   const mStr = month.toString().padStart(2, '0');
   const monthPrefix = `${year}-${mStr}`;
   
@@ -211,6 +216,20 @@ export const MonthlySummaryBanner: React.FC<MonthlySummaryBannerProps> = ({
           zIndex: 10
         }}>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {isAdmin && (
+              <button
+                style={{
+                  ...buttonStyle,
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  boxShadow: '0 2px 8px rgba(59, 130, 246, 0.4)'
+                }}
+                onClick={() => setIsAIModalOpen(true)}
+              >
+                <Sparkles size={14} /> AI月次解析
+              </button>
+            )}
             {onPrevYear && (
               <button style={buttonStyle} onClick={onPrevYear}>
                 <ChevronLeft size={14} /> 前の年
@@ -383,6 +402,21 @@ export const MonthlySummaryBanner: React.FC<MonthlySummaryBannerProps> = ({
           </div>
         </div>
       </div>
+      
+      <MonthlyAIAnalysisModal
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+        analysisData={{
+          year,
+          month,
+          totalEnter,
+          prevTotalEnter: prevYearEntries.length > 0 ? prevTotalEnter : null,
+          diffEnter: prevYearEntries.length > 0 ? diffEnter : null,
+          diffPercent,
+          peakDate: peakEntry?.date || peakEntry?.dateStr,
+          peakCount: peakEntry?.enter || 0
+        }}
+      />
     </div>
   );
 };

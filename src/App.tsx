@@ -1408,6 +1408,7 @@ function App() {
                 onNextMonth={hasNextMonth ? () => navigateMonth(1) : undefined}
                 onPrevYear={() => navigateYear(-1)}
                 onNextYear={hasNextYear ? () => navigateYear(1) : undefined}
+                isAdmin={isAdmin}
               />
             )}
 
