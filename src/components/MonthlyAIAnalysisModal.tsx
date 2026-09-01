@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Sparkles, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { generateMonthlyAnalysis, type AIAnalysisRequest } from '../utils/aiAnalytics';
@@ -41,7 +42,7 @@ export const MonthlyAIAnalysisModal: React.FC<MonthlyAIAnalysisModalProps> = ({
 
   const isConfigured = !!import.meta.env.VITE_GEMINI_API_KEY;
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       top: 0, left: 0, right: 0, bottom: 0,
@@ -252,6 +253,7 @@ export const MonthlyAIAnalysisModal: React.FC<MonthlyAIAnalysisModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
