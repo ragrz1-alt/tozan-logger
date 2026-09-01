@@ -311,9 +311,9 @@ function App() {
     setSelectedDate(null);
     const year = selectedYear || (availableYears[availableYears.length - 1] || '2026');
     if (monthNum === null) {
-      // 選択した年の1年間だけを表示（すべての過去年データを混在表示させない）
-      setFilterStartDate(`${year}-01-01`);
-      setFilterEndDate(`${year}-12-31`);
+      // 選択した年のシーズン(6月〜10月)だけを表示
+      setFilterStartDate(`${year}-06-01`);
+      setFilterEndDate(`${year}-10-31`);
       return;
     }
     const mStr = monthNum.toString().padStart(2, '0');
@@ -377,12 +377,12 @@ function App() {
   const allStartDate = allAvailableDates.length > 0 ? allAvailableDates[0] : '';
   const allEndDate = allAvailableDates.length > 0 ? allAvailableDates[allAvailableDates.length - 1] : '';
 
-  // 選択中の期間が「その年全体(1〜12月等)」かどうか判定 (年間総入山者数のプレミアムKPIバナー表示条件)
+  // 選択中の期間が「シーズン全体(6〜10月等)」かどうか判定 (年間総入山者数のプレミアムKPIバナー表示条件)
   const isYearAllView = useMemo(() => {
     if (!filterStartDate || !filterEndDate) return false;
     const year = selectedYear || (availableYears[availableYears.length - 1] || '2026');
-    // 1. "YYYY-01-01" 〜 "YYYY-12-31" など年全体が指定されている場合
-    if (filterStartDate === `${year}-01-01` && filterEndDate === `${year}-12-31`) {
+    // 1. "YYYY-06-01" 〜 "YYYY-10-31" などシーズン全体が指定されている場合
+    if (filterStartDate === `${year}-06-01` && filterEndDate === `${year}-10-31`) {
       return true;
     }
     // 2. または対象年内の全ログが含まれる日付範囲になっている場合
@@ -1282,7 +1282,7 @@ function App() {
                           }}
                           onClick={() => handleSelectMonth(null)}
                         >
-                          その年全体 (1〜12月)
+                          登山シーズン (6〜10月)
                         </button>
                       );
                     })()}
