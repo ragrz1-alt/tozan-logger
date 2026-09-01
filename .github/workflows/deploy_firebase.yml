@@ -43,6 +43,6 @@ jobs:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
 
       - name: Deploy to Firebase Hosting
-        run: npx firebase deploy --only hosting --non-interactive
+        run: npx -p firebase-tools firebase deploy --only hosting --non-interactive
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
