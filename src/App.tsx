@@ -1253,61 +1253,82 @@ function App() {
                     <CalendarIcon size={18} style={{ color: 'var(--accent-primary)' }} />
                     <span>📅 解析期間フィルター (年・月 ワンクリック絞り込み)</span>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.75rem' }}>
                     {availableYears.length > 0 && (
                       <select 
                         className="select" 
                         value={selectedYear} 
                         onChange={(e) => handleYearChange(e.target.value)}
-                        style={{ width: 'auto', minWidth: '90px', fontWeight: 'bold', padding: '0.35rem 0.65rem', fontSize: '0.85rem' }}
+                        style={{ width: 'auto', minWidth: '80px', fontWeight: 'bold', padding: '0.3rem 0.5rem', fontSize: '0.85rem' }}
                       >
                         {availableYears.map(y => (
                           <option key={y} value={y}>{y}年</option>
                         ))}
                       </select>
                     )}
-                    {(() => {
-                      const year = selectedYear || (availableYears[availableYears.length - 1] || '2026');
-                      const isYearAll = filterStartDate === `${year}-01-01` && filterEndDate === `${year}-12-31`;
-                      return (
-                        <button 
-                          className="btn" 
-                          style={{ 
-                            padding: '0.35rem 0.75rem', 
-                            fontSize: '0.85rem', 
-                            backgroundColor: isYearAll ? '#10b981' : 'var(--bg-primary)', 
-                            color: isYearAll ? '#fff' : 'var(--text-primary)', 
-                            border: '1px solid var(--border-color)',
-                            fontWeight: isYearAll ? 700 : 400
-                          }}
-                          onClick={() => handleSelectMonth(null)}
-                        >
-                          登山シーズン (6〜10月)
-                        </button>
-                      );
-                    })()}
-                    {[5, 6, 7, 8, 9, 10].map(m => {
-                      const year = selectedYear || availableYears[0] || '2026';
-                      const mStr = m.toString().padStart(2, '0');
-                      const isActive = filterStartDate.startsWith(`${year}-${mStr}`) && filterEndDate.startsWith(`${year}-${mStr}`);
-                      return (
-                        <button
-                          key={m}
-                          className="btn"
-                          style={{ 
-                            padding: '0.35rem 0.75rem', 
-                            fontSize: '0.85rem', 
-                            backgroundColor: isActive ? '#10b981' : 'var(--bg-primary)', 
-                            color: isActive ? '#fff' : 'var(--text-primary)', 
-                            border: '1px solid var(--border-color)',
-                            fontWeight: isActive ? 700 : 400
-                          }}
-                          onClick={() => handleSelectMonth(m)}
-                        >
-                          {m}月
-                        </button>
-                      );
-                    })}
+                    
+                    {/* プロフェッショナルなセグメントコントロール風ボタングループ */}
+                    <div style={{
+                      display: 'flex',
+                      backgroundColor: 'var(--bg-secondary, #f3f4f6)',
+                      padding: '0.25rem',
+                      borderRadius: '8px',
+                      alignItems: 'center',
+                      gap: '0.2rem',
+                      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
+                    }}>
+                      {(() => {
+                        const year = selectedYear || (availableYears[availableYears.length - 1] || '2026');
+                        const isYearAll = filterStartDate === `${year}-06-01` && filterEndDate === `${year}-10-31`;
+                        return (
+                          <button 
+                            className="btn" 
+                            style={{ 
+                              padding: '0.3rem 0.6rem', 
+                              fontSize: '0.82rem', 
+                              backgroundColor: isYearAll ? '#10b981' : 'transparent', 
+                              color: isYearAll ? '#fff' : 'var(--text-secondary, #4b5563)', 
+                              border: 'none',
+                              borderRadius: '6px',
+                              fontWeight: isYearAll ? 700 : 600,
+                              boxShadow: isYearAll ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={() => handleSelectMonth(null)}
+                          >
+                            シーズン全体
+                          </button>
+                        );
+                      })()}
+                      
+                      <div style={{ width: '1px', height: '1.2rem', backgroundColor: 'var(--border-color, #d1d5db)', margin: '0 0.1rem' }} />
+
+                      {[5, 6, 7, 8, 9, 10].map(m => {
+                        const year = selectedYear || availableYears[0] || '2026';
+                        const mStr = m.toString().padStart(2, '0');
+                        const isActive = filterStartDate.startsWith(`${year}-${mStr}`) && filterEndDate.startsWith(`${year}-${mStr}`);
+                        return (
+                          <button
+                            key={m}
+                            className="btn"
+                            style={{ 
+                              padding: '0.3rem 0.6rem', 
+                              fontSize: '0.82rem', 
+                              backgroundColor: isActive ? '#10b981' : 'transparent', 
+                              color: isActive ? '#fff' : 'var(--text-secondary, #4b5563)', 
+                              border: 'none',
+                              borderRadius: '6px',
+                              fontWeight: isActive ? 700 : 600,
+                              boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={() => handleSelectMonth(m)}
+                          >
+                            {m}月
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>任意期間指定:</span>
