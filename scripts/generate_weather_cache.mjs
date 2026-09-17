@@ -126,8 +126,9 @@ async function generateWeatherCache() {
         : (k.sunshineDuration ?? m.sunshineDuration);
 
       let mergedCode = k.weatherCode;
-      // 現地実況優先：日照が十分（6時間以上）あり、かつ降水がほとんどない(1.0mm未満)日のみ「晴れ」扱いとする
-      if (sunshine >= 6.0 && precip < 1.0) {
+      // 現地実況優先：モデルの推計日照時間は過大に出やすいため、実地で「1日の大半が晴れ」とみなせる 9.0時間以上 を基準とする。
+      // これにより、夜間のみの少量の降水（日中は快晴で推計日照10時間等）の登山適日を正しく「晴れ」として救済する。
+      if (sunshine >= 9.0 && precip < 20.0) {
         mergedCode = Math.min(k.weatherCode, m.weatherCode, 1);
       } else if (precip >= 20) {
         mergedCode = 65;
