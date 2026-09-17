@@ -397,6 +397,9 @@ const getJmaWeatherCategory = (
     return 'Rainy';
   }
   if (code === 0 || code === 1 || code === 2) {
+    if (sunshineHours !== undefined && sunshineHours !== null && sunshineHours < 5.0) {
+      return 'Cloudy';
+    }
     return 'Sunny';
   }
   if (code === 3 || (code >= 50 && code <= 59)) {
@@ -429,6 +432,9 @@ const getEra5WeatherCategory = (
     return 'Rainy';
   }
   if (code === 0 || code === 1 || code === 2) {
+    if (sunshineHours !== undefined && sunshineHours !== null && sunshineHours < 5.0) {
+      return 'Cloudy';
+    }
     return 'Sunny';
   }
   if (code === 3 || (code >= 50 && code <= 59)) {
