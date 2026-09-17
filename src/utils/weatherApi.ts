@@ -91,8 +91,8 @@ const fetchSingleLocationWeather = async (
   return result;
 };
 
-const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v26_sunshine_threshold_9h';
-const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v26_sunshine_threshold_9h';
+const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v27_final_fix';
+const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v27_final_fix';
 
 // Convert wind direction degrees (0-360) to 16 compass points
 export const getWindDirection = (degree: number) => {
@@ -218,16 +218,11 @@ export const fetchWeatherData = async (
         : (k.sunshineDuration ?? m.sunshineDuration);
       
       // 天気コード: 20mm以上の大雨は荒天(65)、それ以外は実況の登山適日(晴れ間)や雨傾向を的確に表す代表コードを採用
-      let mergedCode = k.weatherCode;
-      // 現地実況優先：モデルの推計日照時間は過大に出やすいため、実地で「1日の大半が晴れ」とみなせる 9.0時間以上 を基準とする。
-      // これにより、夜間のみの少量の降水（日中は快晴で推計日照10時間等）の登山適日を正しく「晴れ」として救済する。
-      if (sunshine !== undefined && sunshine >= 9.0 && precip < 20.0) {
-        mergedCode = Math.min(k.weatherCode, m.weatherCode, 1);
-      } else if (precip >= 20) {
+      let mergedCode = Math.max(k.weatherCode, m.weatherCode);
+      if (precip >= 20) {
         mergedCode = 65;
-      } else if (precip >= 3.0) {
-        mergedCode = Math.max(k.weatherCode, m.weatherCode);
-      } else {
+      } else if (precip < 3.0) {
+        // 降水が少ない場合は、良い方の天気を採用（晴れ間があった可能性を考慮）
         mergedCode = Math.min(k.weatherCode, m.weatherCode);
       }
 
@@ -389,28 +384,35 @@ const getJmaWeatherCategory = (
     return 'HeavyRain';
   }
 
-  const isRealSunnyDay = sunshineHours !== undefined && sunshineHours !== null && sunshineHours >= 6.0;
-  if (isRealSunnyDay) {
-    return 'Sunny';
-  }
-
+  // 1. まずしっかりとした雨(3.0mm以上)や強い雨雪コードは最優先で雨判定とする
   if (precip >= 3.0 || code >= 62) {
     return 'Rainy';
   }
+
+  // 2. 「夜だけ雨で日中快晴」の救済
+  // 気象モデルの推計日照時間は過大に出やすいため、確実に快晴と呼べる 10.5時間以上 のみを無条件でSunnyとする
+  const isExtremelySunny = sunshineHours !== undefined && sunshineHours !== null && sunshineHours >= 10.5;
+  if (isExtremelySunny) {
+    return 'Sunny';
+  }
+
   if (code === 0 || code === 1 || code === 2) {
     if (sunshineHours !== undefined && sunshineHours !== null && sunshineHours < 5.0) {
       return 'Cloudy';
     }
     return 'Sunny';
   }
+  
   if (code === 3 || (code >= 50 && code <= 59)) {
     const hours = sunshineHours;
-    const isRealSunnyDay = hours !== undefined && hours !== null && hours >= 5.0;
-    if (isRealSunnyDay && precip < 1.0) {
+    // 霧雨・曇りコードだが少し晴れ間があった日。ここも推計の過大分を加味して 8.5時間以上 を条件とする
+    const isModerateSunny = hours !== undefined && hours !== null && hours >= 8.5;
+    if (isModerateSunny && precip < 1.0) {
       return 'Sunny';
     }
     return 'Cloudy';
   }
+  
   return 'Cloudy';
 };
 
