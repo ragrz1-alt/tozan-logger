@@ -57,7 +57,7 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
             <div style={{ marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               <p style={{ margin: '2px 0', color: 'var(--text-primary)', fontWeight: 600 }}>天候: {data.weatherText}</p>
               <p style={{ margin: '2px 0' }}>
-                ☀️ 日照時間: {data.sunshineDuration !== undefined && data.sunshineDuration !== null ? `${data.sunshineDuration} 時間` : '-'}
+                ☀️ 日照時間: {data.sunshineDuration !== undefined && data.sunshineDuration !== null ? `${data.sunshineDuration} 時間 (※気象モデル推計)` : '-'}
               </p>
               <p style={{ margin: '2px 0' }}>☔ 降水量: {data.precipitation} mm</p>
               <p style={{ margin: '2px 0' }}>💨 風: {data.windDirection} {data.windSpeedMax} m/s</p>

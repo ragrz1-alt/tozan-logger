@@ -126,8 +126,8 @@ async function generateWeatherCache() {
         : (k.sunshineDuration ?? m.sunshineDuration);
 
       let mergedCode = k.weatherCode;
-      // 現地実況優先：日照が十分（6時間以上）あり、かつ大雨(20mm以上)でなければ「晴れ」扱いとする
-      if (sunshine >= 6.0 && precip < 20.0) {
+      // 現地実況優先：日照が十分（6時間以上）あり、かつ降水がほとんどない(1.0mm未満)日のみ「晴れ」扱いとする
+      if (sunshine >= 6.0 && precip < 1.0) {
         mergedCode = Math.min(k.weatherCode, m.weatherCode, 1);
       } else if (precip >= 20) {
         mergedCode = 65;

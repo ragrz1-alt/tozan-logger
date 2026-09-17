@@ -91,8 +91,8 @@ const fetchSingleLocationWeather = async (
   return result;
 };
 
-const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v24_two_block_fix';
-const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v24_two_block_fix';
+const DAILY_WEATHER_CACHE_KEY = 'tozan_weather_daily_cache_v25_strict_sunny';
+const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_cache_v25_strict_sunny';
 
 // Convert wind direction degrees (0-360) to 16 compass points
 export const getWindDirection = (degree: number) => {
@@ -219,8 +219,8 @@ export const fetchWeatherData = async (
       
       // 天気コード: 20mm以上の大雨は荒天(65)、それ以外は実況の登山適日(晴れ間)や雨傾向を的確に表す代表コードを採用
       let mergedCode = k.weatherCode;
-      // 現地実況優先：日照が十分（6時間以上）あり、かつ大雨(20mm以上)でなければ「晴れ」扱いとする
-      if (sunshine !== undefined && sunshine >= 6.0 && precip < 20.0) {
+      // 現地実況優先：日照が十分（6時間以上）あり、かつ降水がほとんどない(1.0mm未満)日のみ「晴れ」扱いとする
+      if (sunshine !== undefined && sunshine >= 6.0 && precip < 1.0) {
         mergedCode = Math.min(k.weatherCode, m.weatherCode, 1);
       } else if (precip >= 20) {
         mergedCode = 65;
