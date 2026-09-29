@@ -17,7 +17,7 @@ export const useCameraAnalysis = () => {
     const cached = localStorage.getItem('tozan_weather_analysis_cache');
     const localData = cached ? JSON.parse(cached) : {};
 
-    fetch('/cams/analysis_results.json')
+    fetch(`/cams/analysis_results.json?t=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
         setAnalysisResults({ ...localData, ...data });

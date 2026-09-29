@@ -69,7 +69,7 @@ export const LiveCamPoCPanel: React.FC = () => {
     const cached = localStorage.getItem('tozan_weather_analysis_cache');
     const localData = cached ? JSON.parse(cached) : {};
 
-    fetch('/cams/analysis_results.json')
+    fetch(`/cams/analysis_results.json?t=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
         setAnalysisResults({ ...localData, ...data });
@@ -241,7 +241,7 @@ export const LiveCamPoCPanel: React.FC = () => {
             style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)' }}
           >
             {availableDates.map(d => (
-              <option key={d} value={d}>{d} {analysisResults[d] ? '✓' : ''}</option>
+              <option key={d} value={d}>{d} {analysisResults[d] && analysisResults[d].length > 0 ? '✓' : ''}</option>
             ))}
           </select>
         </div>
