@@ -162,19 +162,49 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Wind size={16} /> 風 <strong>{windDir} {weather.windSpeedMax}m/s</strong></span>
               
               {cameraAnalysis.length > 0 && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-secondary)', padding: '0.2rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-color)', marginLeft: '0.5rem' }}>
-                  <Camera size={14} /> 
-                  山頂AI判定: 
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginLeft: '0.5rem' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', color: 'var(--text-secondary)' }}>
+                    <Camera size={14} /> 山頂(AI):
+                  </span>
                   {(() => {
                     const valid = cameraAnalysis.filter(c => c.status !== 'missing');
-                    if (valid.length === 0) return <strong>データなし</strong>;
-                    const clear = valid.filter(c => c.visibility === 'clear').length;
-                    const foggy = valid.filter(c => c.visibility === 'foggy').length;
-                    if (foggy >= valid.length * 0.5) return <strong style={{ color: '#64748b' }}>ガス ({foggy}/{valid.length})</strong>;
-                    if (clear >= valid.length * 0.5) return <strong style={{ color: '#d97706' }}>快晴 ({clear}/{valid.length})</strong>;
-                    return <strong style={{ color: '#94a3b8' }}>曇り</strong>;
+                    if (valid.length === 0) return <span>データなし</span>;
+                    
+                    const cams = [
+                      { id: 'oshidomari', name: '鴛泊' },
+                      { id: 'kutsugata', name: '沓形' },
+                      { id: 'senposhi', name: '仙法志' }
+                    ];
+                    
+                    return cams.map(cam => {
+                      const cData = valid.filter(c => c.fileName.includes(cam.id));
+                      if (cData.length === 0) return null;
+                      const clear = cData.filter(c => c.visibility === 'clear').length;
+                      const foggy = cData.filter(c => c.visibility === 'foggy').length;
+                      
+                      let label = '曇り';
+                      let color = '#94a3b8'; // gray
+                      let bg = 'rgba(203, 213, 225, 0.15)';
+                      
+                      // 40%以上見えていればそのカメラからは「快晴」
+                      if (clear >= cData.length * 0.4) {
+                        label = '快晴';
+                        color = '#d97706'; // orange
+                        bg = 'rgba(245, 158, 11, 0.15)';
+                      } else if (foggy >= cData.length * 0.5) {
+                        label = 'ガス';
+                        color = '#64748b'; // slate
+                        bg = 'rgba(148, 163, 184, 0.2)';
+                      }
+                      
+                      return (
+                        <span key={cam.id} style={{ padding: '0.2rem 0.5rem', borderRadius: '6px', backgroundColor: bg, color: color, fontSize: '0.8rem', fontWeight: 600, border: `1px solid ${color}33` }}>
+                          {cam.name}: {label}
+                        </span>
+                      );
+                    });
                   })()}
-                </span>
+                </div>
               )}
             </div>
           )}
@@ -439,14 +469,37 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                         {(() => {
                           const hourCams = cameraAnalysis.filter(c => c.fileName.startsWith(hrStr + '_') && c.status !== 'missing');
-                          if (hourCams.length > 0) {
-                            const foggy = hourCams.filter(c => c.visibility === 'foggy').length;
-                            const clear = hourCams.filter(c => c.visibility === 'clear').length;
-                            if (foggy >= hourCams.length * 0.5) return <span style={{ padding: '0.2rem 0.4rem', borderRadius: '4px', backgroundColor: '#cbd5e1', color: '#334155', fontSize: '0.7rem', fontWeight: 'bold' }}>ガス</span>;
-                            if (clear >= hourCams.length * 0.5) return <span style={{ padding: '0.2rem 0.4rem', borderRadius: '4px', backgroundColor: '#10b981', color: '#fff', fontSize: '0.7rem', fontWeight: 'bold' }}>快晴</span>;
-                            return <span style={{ padding: '0.2rem 0.4rem', borderRadius: '4px', backgroundColor: '#94a3b8', color: '#fff', fontSize: '0.7rem', fontWeight: 'bold' }}>曇り</span>;
-                          }
-                          return null;
+                          if (hourCams.length === 0) return null;
+
+                          const cams = [
+                            { id: 'oshidomari', name: '鴛' },
+                            { id: 'kutsugata', name: '沓' },
+                            { id: 'senposhi', name: '仙' }
+                          ];
+                          
+                          return cams.map(cam => {
+                            const cData = hourCams.find(c => c.fileName.includes(cam.id));
+                            if (!cData) return null;
+                            
+                            let label = '曇';
+                            let bg = '#94a3b8';
+                            let fg = '#fff';
+                            
+                            if (cData.visibility === 'clear') {
+                              label = '晴';
+                              bg = '#f59e0b';
+                            } else if (cData.visibility === 'foggy') {
+                              label = 'ガス';
+                              bg = '#cbd5e1';
+                              fg = '#334155';
+                            }
+                            
+                            return (
+                              <span key={cam.id} title={`${cam.name}: ${label}`} style={{ padding: '0.15rem 0.35rem', borderRadius: '4px', backgroundColor: bg, color: fg, fontSize: '0.65rem', fontWeight: 'bold' }}>
+                                {cam.name}:{label}
+                              </span>
+                            );
+                          });
                         })()}
                         {hasCamRecord ? (
                           <button
