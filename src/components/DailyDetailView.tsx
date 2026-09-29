@@ -8,17 +8,20 @@ import { ja } from 'date-fns/locale';
 import { LiveCamViewer } from './LiveCamViewer';
 import { getHistoryJsonUrl } from '../utils/camUrl';
 
+import type { ImageAnalysis } from '../hooks/useCameraAnalysis';
+
 interface DailyDetailViewProps {
   details: DailyDetails;
   weather?: WeatherData;
   hourlyWeather?: Record<string, HourlyWeatherData>;
+  cameraAnalysis?: ImageAnalysis[];
   onClose: () => void;
   onSelectDate?: (dateStr: string) => void;
   prevDate?: string;
   nextDate?: string;
 }
 
-export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weather, hourlyWeather, onClose, onSelectDate, prevDate, nextDate }) => {
+export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weather, hourlyWeather, cameraAnalysis = [], onClose, onSelectDate, prevDate, nextDate }) => {
   const [selectedCamHour, setSelectedCamHour] = useState<string | null>(null);
   const [camHistory, setCamHistory] = useState<any | null>(null);
 
@@ -153,10 +156,26 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
           <h3 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>{displayDate} の詳細アナリティクス</h3>
           {weather && (
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.95rem', color: 'var(--text-secondary)', marginTop: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <span>天候: <strong>{wDesc ? `${wDesc.emoji} ${wDesc.text}` : '不明'}</strong></span>
+              <span>麓の天候: <strong>{wDesc ? `${wDesc.emoji} ${wDesc.text}` : '不明'}</strong></span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Thermometer size={16} /> 最高 <strong>{weather.tempMax}℃</strong></span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Droplets size={16} /> 降水量 <strong>{weather.precipitation}mm</strong></span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Wind size={16} /> 風 <strong>{windDir} {weather.windSpeedMax}m/s</strong></span>
+              
+              {cameraAnalysis.length > 0 && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', backgroundColor: 'var(--bg-secondary)', padding: '0.2rem 0.6rem', borderRadius: '8px', border: '1px solid var(--border-color)', marginLeft: '0.5rem' }}>
+                  <Camera size={14} /> 
+                  山頂AI判定: 
+                  {(() => {
+                    const valid = cameraAnalysis.filter(c => c.status !== 'missing');
+                    if (valid.length === 0) return <strong>データなし</strong>;
+                    const clear = valid.filter(c => c.visibility === 'clear').length;
+                    const foggy = valid.filter(c => c.visibility === 'foggy').length;
+                    if (foggy >= valid.length * 0.5) return <strong style={{ color: '#64748b' }}>ガス ({foggy}/{valid.length})</strong>;
+                    if (clear >= valid.length * 0.5) return <strong style={{ color: '#d97706' }}>快晴 ({clear}/{valid.length})</strong>;
+                    return <strong style={{ color: '#94a3b8' }}>曇り</strong>;
+                  })()}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -417,40 +436,44 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                     <td style={{ padding: '0.55rem 0.6rem', color: 'var(--exit-color)' }}>{h.exit} 人</td>
                     <td style={{ padding: '0.55rem 0.6rem', fontWeight: 700 }}>{h.enter + h.exit} 人</td>
                     <td style={{ padding: '0.55rem 0.6rem', textAlign: 'center' }}>
-                      {hasCamRecord ? (
-                        <button
-                          onClick={() => handleCamClick(hrStr)}
-                          style={{
-                            padding: '0.35rem 0.75rem',
-                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                            color: '#10b981',
-                            border: '1px solid #10b981',
-                            borderRadius: '9999px',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            transition: 'all 0.15s ease'
-                          }}
-                          title={`${h.hour}時台のライブカメラアーカイブを確認する`}
-                        >
-                          <Camera size={14} />
-                          <span>映像を見る</span>
-                          <span
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                        {(() => {
+                          const hourCams = cameraAnalysis.filter(c => c.fileName.startsWith(hrStr + '_') && c.status !== 'missing');
+                          if (hourCams.length > 0) {
+                            const foggy = hourCams.filter(c => c.visibility === 'foggy').length;
+                            const clear = hourCams.filter(c => c.visibility === 'clear').length;
+                            if (foggy >= hourCams.length * 0.5) return <span style={{ padding: '0.2rem 0.4rem', borderRadius: '4px', backgroundColor: '#cbd5e1', color: '#334155', fontSize: '0.7rem', fontWeight: 'bold' }}>ガス</span>;
+                            if (clear >= hourCams.length * 0.5) return <span style={{ padding: '0.2rem 0.4rem', borderRadius: '4px', backgroundColor: '#10b981', color: '#fff', fontSize: '0.7rem', fontWeight: 'bold' }}>快晴</span>;
+                            return <span style={{ padding: '0.2rem 0.4rem', borderRadius: '4px', backgroundColor: '#94a3b8', color: '#fff', fontSize: '0.7rem', fontWeight: 'bold' }}>曇り</span>;
+                          }
+                          return null;
+                        })()}
+                        {hasCamRecord ? (
+                          <button
+                            onClick={() => handleCamClick(hrStr)}
                             style={{
-                              width: '6px',
-                              height: '6px',
-                              borderRadius: '50%',
-                              backgroundColor: '#10b981',
-                              display: 'inline-block'
+                              padding: '0.35rem 0.75rem',
+                              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                              color: '#10b981',
+                              border: '1px solid #10b981',
+                              borderRadius: '9999px',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              transition: 'all 0.15s ease'
                             }}
-                          />
-                        </button>
-                      ) : (
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>-</span>
-                      )}
+                            title={`${h.hour}時台のライブカメラアーカイブを確認する`}
+                          >
+                            <Camera size={14} />
+                            <span>映像を見る</span>
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>-</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

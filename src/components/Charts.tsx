@@ -6,36 +6,67 @@ import { ja } from 'date-fns/locale';
 // @ts-ignore
 import * as JapaneseHolidays from 'japanese-holidays';
 import { getWeatherDescription, getWindDirection, getWeatherCategory, getWeatherCategoryColor } from '../utils/weatherApi';
+import type { ImageAnalysis } from '../hooks/useCameraAnalysis';
 
 interface ChartProps {
   dailyData: any[];
   hourlyData: any[];
   weatherData: Record<string, any>;
+  cameraAnalysis?: Record<string, ImageAnalysis[]>;
   onSelectDate?: (dateStr: string) => void;
 }
 
-export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectDate }) => {
+export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, cameraAnalysis = {}, onSelectDate }) => {
   // Merge weather data into daily data
   const mergedDailyData = dailyData.map(d => {
     const weather = weatherData[d.date];
+    const camData = cameraAnalysis[d.date] || [];
+    
+    // 山頂の天候を評価
+    let mountainCategory = 'unknown';
+    if (camData.length > 0) {
+      const validCams = camData.filter(c => c.status !== 'missing');
+      if (validCams.length > 0) {
+        const foggyCount = validCams.filter(c => c.visibility === 'foggy').length;
+        const clearCount = validCams.filter(c => c.visibility === 'clear').length;
+        if (foggyCount >= validCams.length * 0.5) {
+          mountainCategory = 'foggy';
+        } else if (clearCount >= validCams.length * 0.5) {
+          mountainCategory = 'clear';
+        } else {
+          mountainCategory = 'cloudy';
+        }
+      }
+    }
+
     const wDesc = weather && weather.weatherCode !== undefined
       ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration, d.date)
       : null;
-    const category = weather && weather.weatherCode !== undefined
+    let category = weather && weather.weatherCode !== undefined
       ? getWeatherCategory(weather.weatherCode, weather.precipitation, weather.sunshineDuration, d.date)
       : 'Unknown';
+
+    // 麓は晴れだが山がガスの場合など、色分けのカスタマイズ
+    let barColor = getWeatherCategoryColor(category);
+    if (category === 'Sunny' && mountainCategory === 'clear') {
+      barColor = '#f59e0b'; // 本当の快晴（オレンジ）
+    } else if (category === 'Sunny' && mountainCategory === 'foggy') {
+      barColor = '#94a3b8'; // 麓は晴れ・山頂ガス（くすんだグレー）
+    }
+
     return {
       ...d,
       displayDate: format(parseISO(d.date), 'M/d (E)', { locale: ja }),
       tempMax: weather ? weather.tempMax : null,
       weatherCode: weather ? weather.weatherCode : null,
       weatherCategory: category,
+      mountainCategory,
       weatherText: wDesc ? `${wDesc.emoji} ${wDesc.text}` : '',
       precipitation: weather ? weather.precipitation : null,
       sunshineDuration: weather ? weather.sunshineDuration : null,
       windSpeedMax: weather ? weather.windSpeedMax : null,
       windDirection: weather && weather.windDirection !== undefined ? getWindDirection(weather.windDirection) : null,
-      color: getWeatherCategoryColor(category),
+      color: barColor,
     };
   });
 
@@ -55,7 +86,14 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, onSelectD
           )}
           {data.weatherText && (
             <div style={{ marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              <p style={{ margin: '2px 0', color: 'var(--text-primary)', fontWeight: 600 }}>天候: {data.weatherText}</p>
+              <p style={{ margin: '2px 0', color: 'var(--text-primary)', fontWeight: 600 }}>麓の天候: {data.weatherText}</p>
+              
+              {data.mountainCategory && data.mountainCategory !== 'unknown' && (
+                <p style={{ margin: '4px 0', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', backgroundColor: data.mountainCategory === 'clear' ? 'rgba(245, 158, 11, 0.15)' : data.mountainCategory === 'foggy' ? 'rgba(148, 163, 184, 0.2)' : 'rgba(203, 213, 225, 0.15)', color: data.mountainCategory === 'clear' ? '#d97706' : data.mountainCategory === 'foggy' ? '#64748b' : '#94a3b8', fontWeight: 700, fontSize: '0.85rem' }}>
+                  🏔 山頂: {data.mountainCategory === 'clear' ? '快晴 (Clear)' : data.mountainCategory === 'foggy' ? 'ガス (Foggy)' : '曇り (Cloudy)'}
+                </p>
+              )}
+
               <p style={{ margin: '2px 0' }}>
                 ☀️ 日照時間: {data.sunshineDuration !== undefined && data.sunshineDuration !== null ? `${data.sunshineDuration} 時間 (※気象モデル推計)` : '-'}
               </p>

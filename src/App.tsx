@@ -17,6 +17,7 @@ import { saveLogsToFirestore, loadLogsFromFirestore, checkCloudMetadata } from '
 import { isFirebaseConfigured } from './config/firebaseConfig';
 import { YearlySummaryBanner } from './components/YearlySummaryBanner';
 import { MonthlySummaryBanner } from './components/MonthlySummaryBanner';
+import { useCameraAnalysis } from './hooks/useCameraAnalysis';
 
 function App() {
   const [entries, setEntries] = useState<LogEntry[]>([]);
@@ -28,6 +29,9 @@ function App() {
   const [hourlyWeather, setHourlyWeather] = useState<Record<string, HourlyWeatherData>>({});
   
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
+  
+  // 山頂AI解析データの取得
+  const { analysisResults: cameraAnalysis } = useCameraAnalysis();
 
   // System Info & Weather Source Modal
   const [isSystemInfoOpen, setIsSystemInfoOpen] = useState(false);
@@ -1437,7 +1441,8 @@ function App() {
             <Charts 
               dailyData={daily} 
               hourlyData={hourly} 
-              weatherData={weatherData} 
+              weatherData={weatherData}
+              cameraAnalysis={cameraAnalysis}
               onSelectDate={(date) => setSelectedDate(date)} 
             />
               </>
@@ -1451,6 +1456,7 @@ function App() {
             details={selectedDayDetails}
             weather={selectedDate ? weatherData[selectedDate] : undefined}
             hourlyWeather={hourlyWeather}
+            cameraAnalysis={selectedDate ? cameraAnalysis[selectedDate] : undefined}
             onClose={() => setSelectedDate(null)}
             onSelectDate={handleSelectDate}
             prevDate={prevDate}

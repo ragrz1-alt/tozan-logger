@@ -1,0 +1,1869 @@
+{
+  "2026-07-28": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり、山全体に日が当たっており、視界は良好です。一部に薄い雲が見られます。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "快晴の青空が広がり、山全体に日が当たっており、視界は非常に良好です。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 6,
+      "visibility": "clear",
+      "reason": "太陽が輝き、海面に反射していますが、空には薄い雲が広範囲にわたって見られます。山ははっきりと見えますが、日陰になっています。",
+      "status": "ok"
+    }
+  ],
+  "2026-07-29": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が暗い厚い雲に覆われており、山全体が雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空は雲に覆われているが、山は全体的に見えている。山頂付近は雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空は雲に覆われているが、山は全体的に見えている。山頂付近は雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空は雲に覆われているが、山は全体的に見えている。山頂付近は雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空は雲に覆われているが、山は全体的に見えている。山頂付近は雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    }
+  ],
+  "2026-07-30": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "全体が厚い雲と霧に覆われており、遠くの景色がほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "厚い雲と霧に覆われ、遠くの山が全く見えないため。雨粒がレンズについている。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの景色はやや霞んでいるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空は厚い雲に覆われ、遠くの山は雲の中に見え隠れしているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "厚い雲と霧に覆われ、遠くの山が全く見えないため。雨粒がレンズについている。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの景色はやや霞んでいるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "全体が厚い雲と霧に覆われており、遠くの景色がほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "山全体が厚い雲と霧に覆われており、視界が非常に悪いため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの景色はやや霞んでいるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空は厚い雲に覆われているが、遠くの景色は比較的見えているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "山全体が厚い雲と霧に覆われており、視界が非常に悪いため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの山は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "全体が厚い雲と霧に覆われており、遠くの景色がほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "山全体が厚い雲と霧に覆われており、視界が非常に悪いため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの山は雲に隠れているため。",
+      "status": "ok"
+    }
+  ],
+  "2026-07-31": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "空全体が厚い雲に覆われ、山はガスでほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "空全体が真っ白な厚い雲に覆われ、山はガスで全く見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空は厚い雲に覆われているが、山頂の一部が見えているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "空全体が厚い雲に覆われ、山はガスでほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "空全体が厚い雲に覆われ、山はガスでほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "空全体が厚い雲に覆われ、山はガスでほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "空全体が厚い雲に覆われ、山はガスでほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "空全体が厚い雲に覆われ、山はガスでほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 6,
+      "visibility": "cloudy",
+      "reason": "空に青空が一部見え、山頂も雲に覆われながらも視認できるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "空全体が厚い雲に覆われ、山はガスでほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山頂付近は雲に隠れているため。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-01": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂付近は雲に覆われているが、全体的に曇り空。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂は厚い雲に覆われており、全体的に曇り空。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂付近は雲に覆われており、全体的に曇り空。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "山全体が低い雲とガスに覆われており、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "山全体が濃いガスに覆われており、全く見えない。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "山頂付近が厚い雲とガスに覆われており、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂付近は雲に覆われているが、全体的に曇り空。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "山全体が濃いガスに覆われており、全く見えない。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂付近は雲に覆われており、全体的に曇り空。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂付近は雲に覆われているが、全体的に曇り空。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "山全体が濃いガスに覆われており、全く見えない。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂付近は雲に覆われているが、全体的に曇り空。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂付近は雲に覆われているが、全体的に曇り空。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "山全体が濃いガスに覆われており、全く見えない。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂付近は雲に覆われているが、全体的に曇り空。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-02": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "foggy",
+      "reason": "夜明け前で全体的に薄暗く、空は厚い雲に覆われ、山は霞んで見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "空全体が厚い雲に覆われ、山は全く見えず、ガスがかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "夜明け前で全体的に薄暗く、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "clear",
+      "reason": "青空が広がり、山ははっきりと見えるが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山は雲に隠れて見えにくいため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり、山ははっきりと見えるが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "青空が広がり、山ははっきりと見えるが、山腹に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空は部分的に青空が見えるが、山は厚い雲に覆われ、見えにくいため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "青空が広がり、山ははっきりと見えるが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "青空が広がり、山ははっきりと見えるが、山腹に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空は部分的に青空が見えるが、山は厚い雲に覆われ、見えにくいため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "青空が広がり、山ははっきりと見えるが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 0,
+      "visibility": "clear",
+      "reason": "快晴で青空が広がり、山は非常にクリアに見えるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "快晴で青空が広がり、山は非常にクリアに見えるが、山頂付近に小さな雲があるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 0,
+      "visibility": "clear",
+      "reason": "夕方で空は暗いが、太陽が輝き、山は非常にクリアに見えるため。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-03": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "夜明けで空は青く、山もはっきりと見えているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "山全体が厚い雲と霧に覆われており、視界が非常に悪いため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空は厚い雲に覆われ暗く、山頂付近は雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり日差しも強く、山は一部雲がかかっているものの良好な視界のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山も雲に隠れている部分が多いため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 6,
+      "visibility": "clear",
+      "reason": "空は曇っているが、山は全体的に見えており視界は良好なため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空は見えるが、山頂付近は雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "clear",
+      "reason": "空には雲が多いが、山ははっきりと見えており視界は良好なため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり、山もはっきりと見えているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空は見えるが、山頂付近は雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "clear",
+      "reason": "空には雲が多いが、山ははっきりと見えており視界は良好なため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり、山もはっきりと見えているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "青空が広がり、山もはっきりと見えているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "clear",
+      "reason": "空には雲が多いが、山ははっきりと見えており視界は良好なため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "clear",
+      "reason": "夕日が差し込み、山もはっきりと見えているため。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-04": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "clear",
+      "reason": "空全体に雲が多く、山に日が当たっている様子はないが、山頂は見えるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "山全体が厚い雲に覆われており、青空が見えず、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山も暗く、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "clear",
+      "reason": "空全体に雲が多く、山に日が当たっている様子はないが、山ははっきりと見えるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂付近が雲に覆われており、青空も見えず、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、山も暗く、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "clear",
+      "reason": "青空が広がり、山に日が当たっており、視界が良好なため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 6,
+      "visibility": "cloudy",
+      "reason": "山頂付近が雲に覆われており、全体的に薄曇りのため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "clear",
+      "reason": "青空が広がり、山もはっきりと見え、視界が良好なため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "ほぼ快晴で、山に日が当たっており、視界が非常に良好なため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "cloudy",
+      "reason": "青空は見えるが、山頂付近に雲がかかっており、視界が部分的に悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり、山もはっきりと見えるが、山頂付近に雲が見られるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 0,
+      "visibility": "clear",
+      "reason": "快晴で、山に日が当たっており、視界が非常に良好なため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "快晴で山に日が当たっているが、山頂に笠雲が見られるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "青空が広がり、日が当たっているが、山は逆光で暗く、山頂付近に雲が見られるため。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-05": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "山頂付近に雲がかかっているが、全体的に青空が広がり、山もよく見えるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "山全体が厚い雲と霧に覆われており、視界が非常に悪いため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "山が厚い雲に覆われており、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 0,
+      "visibility": "clear",
+      "reason": "快晴で青空が広がり、山全体が非常にクリアに見えるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "cloudy",
+      "reason": "山頂付近に笠雲がかかっているが、山の下部は見えており、全体的に明るい。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 6,
+      "visibility": "cloudy",
+      "reason": "空は曇り空で、山頂付近に雲がかかっており、全体的に視界がやや悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり、山はよく見えるが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "山頂付近が厚い雲に覆われており、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 6,
+      "visibility": "cloudy",
+      "reason": "空は曇り空で、山頂付近に雲がかかっており、全体的に視界がやや悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "青空が広がり、山はよく見えるが、山頂付近に小さな雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "cloudy",
+      "reason": "山頂付近に笠雲がかかっているが、山の下部は見えており、青空も見える。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "clear",
+      "reason": "青空と雲が混在しており、山頂付近に雲がかかっているが、山はよく見える。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり、山はよく見えるが、山頂付近に小さな雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "cloudy",
+      "reason": "山頂付近に笠雲がかかっているが、山の下部は見えており、青空も見える。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "空は厚い暗い雲に覆われ、山はほとんど見えず、視界が非常に悪い。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-06": [
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空が見え、山頂付近に雲がかかっているが、全体的に明るい。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山全体が厚い雲に覆われ、山頂は見えない。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山は霞んで見えにくい。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり、山頂付近に薄い雲がかかっているが、全体的に晴れている。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "山全体が濃い雲とガスに覆われ、ほとんど見えない。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山は霞んで見えにくい。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空が広がり、山頂付近に雲がかかっているが、全体的に晴れている。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山頂付近は雲に覆われているが、山の輪郭は見える。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山は霞んで見えにくい。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空が広がり、山頂付近に雲がかかっているが、全体的に晴れている。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "山全体が濃い雲とガスに覆われ、ほとんど見えない。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山は霞んで見えにくい。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-07": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": -1,
+      "visibility": "missing",
+      "reason": "画像取得エラーのため解析スキップ",
+      "status": "missing"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの山は雲と霞でほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "空全体が濃い霧または厚い雲で覆われており、遠くの山や景色が全く見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの海岸線は見えるものの霞がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "foggy",
+      "reason": "空全体が非常に厚い雲に覆われており、遠くの山や景色がほとんど見えず、レンズの水滴も視界を悪くしているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "空全体が濃い霧または厚い雲で覆われており、遠くの山や景色が全く見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの海岸線は見えるものの霞がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの山は雲と霞でほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "空全体が濃い霧または厚い雲で覆われており、遠くの山や景色が全く見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの海岸線は見えるものの霞がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの山は雲と霞でほとんど見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 10,
+      "visibility": "foggy",
+      "reason": "空全体が濃い霧または厚い雲で覆われており、遠くの山や景色が全く見えないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 9,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われており、遠くの海岸線は見えるものの霞がかかっているため。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-08": [],
+  "2026-08-09": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "cloudy",
+      "reason": "山頂付近に雲がかかっているが、全体的に青空が広がり、山はよく見えるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "山頂が厚い雲に覆われているが、空は明るく、雲の端に日が当たっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "cloudy",
+      "reason": "青空が広がり、山に日が当たっているが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "cloudy",
+      "reason": "青空が見えるが、厚い雲が広がり、山頂は雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山全体が厚い雲に覆われているが、青空も一部見え、雲に日が当たっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "cloudy",
+      "reason": "青空が広がり、山に日が当たっているが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "cloudy",
+      "reason": "広い青空が広がり、山に日が当たっているが、山頂付近は雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空が広がり、山に日が当たっているが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "cloudy",
+      "reason": "広い青空が広がり、山に日が当たっているが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "cloudy",
+      "reason": "広い青空が広がり、山に日が当たっているが、山頂付近は雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空が広がり、山に日が当たっているが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "cloudy",
+      "reason": "広い青空が広がり、山に日が当たっているが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "cloudy",
+      "reason": "広い青空が広がり、山に日が当たっているが、山頂付近は雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空が広がり、山に日が当たっているが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "cloudy",
+      "reason": "夕日が差し込み、青空も見えるが、山頂付近に雲がかかっているため。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-10": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "山頂ははっきりと見え、青空が広がり、一部に薄い雲があるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "山ははっきりと見えるが、空全体が薄い霞がかかったような状態のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "山ははっきりと見え、空は青く、雲がほとんどないため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "青空が広がり、山は非常に鮮明に見え、日差しが強い快晴のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 0,
+      "visibility": "clear",
+      "reason": "青空が広がり、山ははっきりと見え、雲が全くない快晴のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "青空が広がり、山は鮮明に見え、ごくわずかな雲がある快晴のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 0,
+      "visibility": "clear",
+      "reason": "青空が広がり、山は非常に鮮明に見え、雲が全くない快晴のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 0,
+      "visibility": "clear",
+      "reason": "青空が広がり、山ははっきりと見え、雲が全くない快晴のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "青空が広がり、山は鮮明に見え、ごくわずかな雲がある快晴のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空は見えるが、山頂付近に雲がかかっており、視界が一部遮られているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "clear",
+      "reason": "青空が広がり、山ははっきりと見えるが、空には中程度の雲が点在しているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり、山は鮮明に見えるが、空にはいくつかの雲があるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 0,
+      "visibility": "clear",
+      "reason": "青空が広がり、山は非常に鮮明に見え、雲が全くない快晴のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 0,
+      "visibility": "clear",
+      "reason": "青空が広がり、山ははっきりと見え、雲が全くない快晴のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "夕方で日差しが強いが、青空が広がり、山は鮮明に見え、雲がほとんどないため。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-11": [],
+  "2026-08-12": [],
+  "2026-08-13": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "clear",
+      "reason": "夜明けで山頂は暗いが、全体的に青空が見え、山ははっきりと見えるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "山頂付近が厚い雲に覆われており、全体的に曇り空のため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "clear",
+      "reason": "夜明けで山頂は暗いが、全体的に青空が見え、山ははっきりと見えるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり、日差しが強く、山ははっきりと見えるため。山頂付近に小さな雲がある。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空が見えるが、山頂付近が雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 1,
+      "visibility": "clear",
+      "reason": "快晴で青空が広がり、山は非常にクリアに見えるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空が広がり日差しもあるが、山頂付近が雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "cloudy",
+      "reason": "青空が見えるが、山頂付近が厚い雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "快晴で青空が広がり、山ははっきりと見えるため。山頂付近に小さな雲がある。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "clear",
+      "reason": "青空が広がり日差しも強いが、山頂付近に大きな雲があるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 3,
+      "visibility": "cloudy",
+      "reason": "青空が広がり日差しも強いが、山頂付近が雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "快晴で青空が広がり、山ははっきりと見えるため。山頂付近に小さな雲がある。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "cloudy",
+      "reason": "青空が見えるが、山頂付近が雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "cloudy",
+      "reason": "青空が見えるが、山頂付近が厚い雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 2,
+      "visibility": "clear",
+      "reason": "青空が広がり、夕日が当たっているため。山頂付近に小さな雲がある。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-14": [],
+  "2026-08-15": [
+    {
+      "fileName": "05_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "clear",
+      "reason": "青空が見え、山全体がはっきりと視認できるため。山頂付近に薄い雲がかかっている。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山の大部分が厚い雲に覆われており、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "05_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山も暗く見えているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 6,
+      "visibility": "cloudy",
+      "reason": "青空が見えるが、山頂付近は雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "山の大部分が厚い雲に覆われており、山頂付近も雲の中にあるため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "08_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "clear",
+      "reason": "青空が広がり、山全体がはっきりと見えるため。山頂付近に雲がかかっている。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "山の大部分が厚い雲に覆われており、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "山の大部分が雲に覆われており、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "11_senposhi.jpg",
+      "is_sunny": true,
+      "cloud_cover": 4,
+      "visibility": "clear",
+      "reason": "青空が広がり、山全体がはっきりと見えるため。山頂付近に雲がかかっている。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_oshidomari.jpg",
+      "is_sunny": true,
+      "cloud_cover": 5,
+      "visibility": "cloudy",
+      "reason": "青空が見えるが、山頂付近は雲に覆われているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "山の大部分が雲に覆われており、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "14_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山も暗く見えているため。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_oshidomari.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "山の大部分が厚い雲に覆われており、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_kutsugata.jpg",
+      "is_sunny": false,
+      "cloud_cover": 7,
+      "visibility": "cloudy",
+      "reason": "山の大部分が雲に覆われており、視界が悪い。",
+      "status": "ok"
+    },
+    {
+      "fileName": "17_senposhi.jpg",
+      "is_sunny": false,
+      "cloud_cover": 8,
+      "visibility": "cloudy",
+      "reason": "空全体が厚い雲に覆われ、山も暗く見えているため。",
+      "status": "ok"
+    }
+  ],
+  "2026-08-16": [],
+  "2026-08-17": [],
+  "2026-08-18": [],
+  "2026-08-19": [],
+  "2026-08-20": [],
+  "2026-08-21": [],
+  "2026-08-22": [],
+  "2026-08-23": [],
+  "2026-08-24": [],
+  "2026-08-25": [],
+  "2026-08-26": [],
+  "2026-08-27": [],
+  "2026-08-28": [],
+  "2026-08-29": [],
+  "2026-08-30": [],
+  "2026-08-31": [],
+  "2026-09-01": [],
+  "2026-09-02": [],
+  "2026-09-03": [],
+  "2026-09-04": [],
+  "2026-09-05": [],
+  "2026-09-06": [],
+  "2026-09-07": [],
+  "2026-09-08": [],
+  "2026-09-09": [],
+  "2026-09-10": [],
+  "2026-09-11": [],
+  "2026-09-12": [],
+  "2026-09-13": [],
+  "2026-09-14": [],
+  "2026-09-15": [],
+  "2026-09-16": [],
+  "2026-09-17": []
+}
