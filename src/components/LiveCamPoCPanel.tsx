@@ -275,9 +275,13 @@ export const LiveCamPoCPanel: React.FC = () => {
           <span>{isAnalyzing ? 'AI解析中...' : 'この日の画像を解析する (15枚バッチ処理)'}</span>
         </button>
         
-        {currentResults && (
+        {currentResults && currentResults.length > 0 ? (
           <span style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <CheckCircle2 size={16} /> 解析完了（キャッシュ済）
+          </span>
+        ) : (
+          <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            未解析
           </span>
         )}
       </div>
