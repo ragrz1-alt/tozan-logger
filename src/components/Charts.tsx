@@ -6,7 +6,7 @@ import { ja } from 'date-fns/locale';
 // @ts-ignore
 import * as JapaneseHolidays from 'japanese-holidays';
 import { getWeatherDescription, getWindDirection, getWeatherCategory, getWeatherCategoryColor } from '../utils/weatherApi';
-import type { ImageAnalysis } from '../hooks/useCameraAnalysis';
+import { evaluateDailyCameraVisibility, type ImageAnalysis } from '../hooks/useCameraAnalysis';
 
 interface ChartProps {
   dailyData: any[];
@@ -22,32 +22,9 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, cameraAna
     const weather = weatherData[d.date];
     const camData = cameraAnalysis[d.date] || [];
     
-    // 山頂の天候を評価（いずれかのカメラで山頂が見えていれば「晴れ」とみなす、登山者目線の判定）
-    let mountainCategory = 'unknown';
-    if (camData.length > 0) {
-      const validCams = camData.filter(c => c.status !== 'missing');
-      if (validCams.length > 0) {
-        // カメラごとに1日の判定を出す
-        const cams = ['oshidomari', 'kutsugata', 'senposhi'];
-        const camResults = cams.map(cam => {
-          const cData = validCams.filter(c => c.fileName.includes(cam));
-          if (cData.length === 0) return 'unknown';
-          const clear = cData.filter(c => c.visibility === 'clear').length;
-          const foggy = cData.filter(c => c.visibility === 'foggy').length;
-          if (clear >= cData.length * 0.4) return 'clear'; // 40%以上見えていればそのカメラからは晴れ
-          if (foggy >= cData.length * 0.5) return 'foggy';
-          return 'cloudy';
-        });
-
-        if (camResults.includes('clear')) {
-          mountainCategory = 'clear'; // どこかから見えていれば、その日は「山が見えた日」
-        } else if (camResults.every(r => r === 'foggy' || r === 'unknown')) {
-          mountainCategory = 'foggy'; // どこからもガスで見えない
-        } else {
-          mountainCategory = 'cloudy';
-        }
-      }
-    }
+    // 山頂の天候を評価（新・山頂ピーク厳格判定ルールに基づく共通関数を使用）
+    const camSummary = evaluateDailyCameraVisibility(camData);
+    const mountainCategory = camSummary.mountainCategory;
 
     const wDesc = weather && weather.weatherCode !== undefined
       ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration, d.date)

@@ -1,0 +1,26 @@
+{
+  "10_oshidomari.jpg": {
+    "is_sunny": false,
+    "cloud_cover": 8,
+    "visibility": "cloudy",
+    "reason": "空全体が厚い灰色の雲で覆われており、山頂付近は雲に隠れています。"
+  },
+  "10_kutsugata.jpg": {
+    "is_sunny": false,
+    "cloud_cover": 8,
+    "visibility": "foggy",
+    "reason": "空全体が厚い雲に覆われており、青空は見えません。山々は霧に包まれており、視界は非常に悪いです。"
+  },
+  "05_oshidomari.jpg": {
+    "is_sunny": false,
+    "cloud_cover": 9,
+    "visibility": "cloudy",
+    "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れて見えません。日差しもありません。"
+  },
+  "15_senposhi.jpg": {
+    "is_sunny": false,
+    "cloud_cover": 9,
+    "visibility": "cloudy",
+    "reason": "空全体が厚い雲に覆われており、山頂付近は雲に隠れているため、晴れておらず視界も曇りです。"
+  }
+}

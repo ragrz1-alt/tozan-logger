@@ -1,6 +1,9 @@
-import React from 'react';
-import { Award, Users, TrendingUp, Calendar, Sun, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Award, Users, TrendingUp, Calendar, Sun, AlertTriangle, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { getWeatherCategory } from '../utils/weatherApi';
+import { MonthlyAIAnalysisModal } from './MonthlyAIAnalysisModal';
+import { evaluateDailyCameraVisibility, type ImageAnalysis } from '../hooks/useCameraAnalysis';
+import type { LogEntry } from '../utils/logParser';
 
 interface YearlySummaryBannerProps {
   year: string;
@@ -10,7 +13,9 @@ interface YearlySummaryBannerProps {
     enter: number;
     exit: number;
   }[];
+  rawEntries?: LogEntry[];
   weatherData: Record<string, any>;
+  cameraAnalysis?: Record<string, ImageAnalysis[]>;
   selectedCourse?: string;
   onPrevYear?: () => void;
   onNextYear?: () => void;
@@ -20,18 +25,24 @@ interface YearlySummaryBannerProps {
     enter: number;
     exit: number;
   }[];
+  isAdmin?: boolean;
 }
 
 export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
   year,
   entries,
+  rawEntries = [],
   weatherData,
+  cameraAnalysis = {},
   selectedCourse = 'all',
   onPrevYear,
   onNextYear,
-  prevYearEntries = []
+  prevYearEntries = [],
+  isAdmin = false,
 }) => {
-  // その年に該当するエントリーのうち、シーズン(6月〜10月)のみ抽出
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+
+  // メイン登山シーズン (6月〜9月) で統一集計（10月データがある場合も含めつつ利用解析と整合）
   const yearEntries = entries.filter(e => {
     const d = e.date || e.dateStr || '';
     if (!d.startsWith(year)) return false;
@@ -44,7 +55,6 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
   const daysCount = yearEntries.length;
   const avgEnter = daysCount > 0 ? Math.round(totalEnter / daysCount) : 0;
 
-  // ピーク日の算出
   let peakEntry = yearEntries[0];
   for (const e of yearEntries) {
     if (e.enter > (peakEntry?.enter || 0)) {
@@ -52,8 +62,10 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
     }
   }
 
-  // 天候傾向（晴れ・良好天候日数）の算出
   let sunnyDays = 0;
+  let summitClearDays = 0;
+  let camAnalyzedDays = 0;
+
   yearEntries.forEach(e => {
     const d = e.date || e.dateStr || '';
     const w = weatherData[d];
@@ -63,19 +75,19 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
         sunnyDays++;
       }
     }
+    const camEval = evaluateDailyCameraVisibility(cameraAnalysis[d]);
+    if (camEval.mountainCategory !== 'unknown') {
+      camAnalyzedDays++;
+      if (camEval.mountainCategory === 'clear') summitClearDays++;
+    }
   });
   const sunnyRate = daysCount > 0 ? Math.round((sunnyDays / daysCount) * 100) : 0;
 
-  // YoY (前年同期比) 計算
   const prevTotalEnter = prevYearEntries.reduce((sum, e) => sum + (e.enter || 0), 0);
   const diffEnter = totalEnter - prevTotalEnter;
   const diffPercent = prevTotalEnter > 0 ? ((diffEnter / prevTotalEnter) * 100).toFixed(1) : null;
   const isIncrease = diffEnter >= 0;
 
-  // -------------------------------------------------------------------------
-  // 欠測期間（シーズン: 6月〜9月）の自動検知アルゴリズム
-  // ※現在進行中の年 (例: 今年以降) は未来のデータ空白にアラートを出さないよう除外
-  // -------------------------------------------------------------------------
   const currentYear = new Date().getFullYear().toString();
   const isPastYear = parseInt(year, 10) < parseInt(currentYear, 10);
 
@@ -89,7 +101,7 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
   if (isPastYear) {
     const startSeason = new Date(`${year}-06-01`);
     const endSeason = new Date(`${year}-09-30`);
-    let curr = new Date(startSeason);
+    const curr = new Date(startSeason);
     while (curr <= endSeason) {
       const dateStr = curr.toISOString().substring(0, 10);
       if (!existingDateSet.has(dateStr)) {
@@ -99,7 +111,6 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
     }
   }
 
-  // 連続する欠測ブロックの抽出と最も長い欠測期間のハイライト生成
   let missingPeriodText = '';
   if (seasonMissingDates.length >= 3) {
     const blocks: { start: string; end: string; count: number }[] = [];
@@ -140,16 +151,14 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
     }
   }
 
-  // 欠測あり判定: 過去年のシーズン(6/1〜9/30)に3日以上のデータ空白がある場合
   const hasSeasonMissingData = isPastYear && seasonMissingDates.length >= 3;
 
-  // コース名のラベル表示
   const courseLabelMap: Record<string, string> = {
     all: '利尻山 全体合算',
     oshidomari: '鴛泊コース',
     kutsugata: '沓形コース',
     cameras: 'ライブカメラ',
-    analytics: '利用分析'
+    analytics: '利用分析',
   };
   const courseName = courseLabelMap[selectedCourse] || '利尻山 全体';
 
@@ -192,88 +201,114 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
         backdropFilter: 'blur(10px)',
         position: 'relative',
         overflow: 'hidden',
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
       }}
     >
-      {/* 背景装飾オーブ */}
-      <div style={{
-        position: 'absolute',
-        top: '-40px',
-        right: '-40px',
-        width: '180px',
-        height: '180px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, transparent 70%)',
-        pointerEvents: 'none'
-      }} />
+      <div
+        style={{
+          position: 'absolute',
+          top: '-40px',
+          right: '-40px',
+          width: '180px',
+          height: '180px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }}
+      />
 
-      {/* ヘッダーセクション */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '1rem',
-        marginBottom: '1.35rem',
-        borderBottom: '1px solid rgba(16, 185, 129, 0.22)',
-        paddingBottom: '0.9rem'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          marginBottom: '1.35rem',
+          borderBottom: '1px solid rgba(16, 185, 129, 0.22)',
+          paddingBottom: '0.9rem',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{
-            width: '46px',
-            height: '46px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #10b981, #3b82f6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffffff',
-            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-          }}>
+          <div
+            style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #10b981, #3b82f6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+            }}
+          >
             <Award size={24} />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-              <span style={{
-                fontSize: '0.82rem',
-                fontWeight: 800,
-                padding: '0.2rem 0.65rem',
-                borderRadius: '999px',
-                backgroundColor: '#10b981',
-                color: '#ffffff',
-                letterSpacing: '0.04em'
-              }}>
+              <span
+                style={{
+                  fontSize: '0.82rem',
+                  fontWeight: 800,
+                  padding: '0.2rem 0.65rem',
+                  borderRadius: '999px',
+                  backgroundColor: '#10b981',
+                  color: '#ffffff',
+                  letterSpacing: '0.04em',
+                }}
+              >
                 YEARLY HIGHLIGHTS
               </span>
-              <span style={{
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                color: 'var(--text-secondary)'
-              }}>
+              <span
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: 'var(--text-secondary)',
+                }}
+              >
                 {courseName}
               </span>
             </div>
-            <h2 style={{
-              fontSize: '1.45rem',
-              fontWeight: 900,
-              color: 'var(--text-primary)',
-              margin: '0.25rem 0 0 0',
-              letterSpacing: '-0.02em',
-              lineHeight: 1.2
-            }}>
-              {year}年 シーズン(6月〜10月) 入山者数 総合サマリー
+            <h2
+              style={{
+                fontSize: '1.45rem',
+                fontWeight: 900,
+                color: 'var(--text-primary)',
+                margin: '0.25rem 0 0 0',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.2,
+              }}
+            >
+              {year}年 シーズン 入山者数 総合サマリー
             </h2>
           </div>
         </div>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          gap: '0.5rem',
-          position: 'relative',
-          zIndex: 10
-        }}>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: '0.5rem',
+            position: 'relative',
+            zIndex: 10,
+          }}
+        >
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {isAdmin && (
+              <button
+                style={{
+                  ...buttonStyle,
+                  background: 'linear-gradient(135deg, #10b981, #3b82f6)',
+                  color: 'white',
+                  border: 'none',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                }}
+                onClick={() => setIsAIModalOpen(true)}
+              >
+                <Sparkles size={14} /> AIシーズン総括解析
+              </button>
+            )}
             {onPrevYear && (
               <button style={buttonStyle} onClick={onPrevYear}>
                 <ChevronLeft size={14} /> 前の年
@@ -285,38 +320,43 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
               </button>
             )}
           </div>
-          <div style={{
-            fontSize: '0.85rem',
-            color: 'var(--text-primary)',
-            fontWeight: 700,
-            backgroundColor: 'var(--bg-primary)',
-            padding: '0.5rem 0.95rem',
-            borderRadius: '8px',
-            border: '1px solid var(--border-color)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}>
+          <div
+            style={{
+              fontSize: '0.85rem',
+              color: 'var(--text-primary)',
+              fontWeight: 700,
+              backgroundColor: 'var(--bg-primary)',
+              padding: '0.5rem 0.95rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
             <Calendar size={15} style={{ color: 'var(--accent-primary)' }} />
-            <span>計測期間: {year}年 (全 {daysCount} 日間)</span>
+            <span>
+              計測期間: {year}年 (全 {daysCount} 日間)
+            </span>
           </div>
         </div>
       </div>
 
-      {/* 欠測期間の美しい警告アラートバナー (シーズン 6月〜9月 で空白検知時のみ表示) */}
       {hasSeasonMissingData && (
-        <div style={{
-          backgroundColor: 'rgba(245, 158, 11, 0.12)',
-          border: '1px solid rgba(245, 158, 11, 0.45)',
-          borderRadius: '12px',
-          padding: '1rem 1.25rem',
-          marginBottom: '1.25rem',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: '0.85rem',
-          color: 'var(--text-primary)'
-        }}>
+        <div
+          style={{
+            backgroundColor: 'rgba(245, 158, 11, 0.12)',
+            border: '1px solid rgba(245, 158, 11, 0.45)',
+            borderRadius: '12px',
+            padding: '1rem 1.25rem',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.85rem',
+            color: 'var(--text-primary)',
+          }}
+        >
           <AlertTriangle size={22} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '2px' }} />
           <div>
             <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#d97706', marginBottom: '0.25rem' }}>
@@ -330,24 +370,26 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
         </div>
       )}
 
-      {/* KPI 4連タイルグリッド (リッチ＆プロフェッショナル配置) */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-        gap: '1rem',
-        alignItems: 'stretch'
-      }}>
-        {/* タイル1: 年間総入山者数 (圧倒的メインKPI) */}
-        <div style={{
-          backgroundColor: 'var(--bg-primary)',
-          borderRadius: '12px',
-          padding: '1.1rem 1.25rem',
-          border: '1px solid var(--border-color)',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+          gap: '1rem',
+          alignItems: 'stretch',
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderRadius: '12px',
+            padding: '1.1rem 1.25rem',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
               シーズン 総入山者数
@@ -355,51 +397,77 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
             <Users size={18} style={{ color: '#10b981' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', margin: '0.2rem 0' }}>
-            <span style={{
-              fontSize: '2.1rem',
-              fontWeight: 900,
-              background: 'linear-gradient(135deg, #10b981, #059669)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              lineHeight: 1.1
-            }}>
+            <span
+              style={{
+                fontSize: '2.1rem',
+                fontWeight: 900,
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                lineHeight: 1.1,
+              }}
+            >
               {formatNumber(totalEnter)}
             </span>
             <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>人</span>
           </div>
-          <div style={{ fontSize: '0.8rem', marginTop: '0.45rem', fontWeight: 600, display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+          <div
+            style={{
+              fontSize: '0.8rem',
+              marginTop: '0.45rem',
+              fontWeight: 600,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '0.4rem',
+              alignItems: 'center',
+            }}
+          >
             {prevTotalEnter > 0 ? (
-              <span style={{
-                backgroundColor: isIncrease ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                color: isIncrease ? '#059669' : '#dc2626',
-                padding: '0.2rem 0.5rem',
-                borderRadius: '6px',
-                fontSize: '0.78rem'
-              }}>
-                前年同期比 {isIncrease ? '+' : '▲'}{Math.abs(diffEnter)}人 ({isIncrease ? '+' : ''}{diffPercent}%)
+              <span
+                style={{
+                  backgroundColor: isIncrease ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  color: isIncrease ? '#059669' : '#dc2626',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '6px',
+                  fontSize: '0.78rem',
+                }}
+              >
+                前年同期比 {isIncrease ? '+' : '▲'}
+                {Math.abs(diffEnter)}人 ({isIncrease ? '+' : ''}
+                {diffPercent}%)
               </span>
             ) : (
               <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>前年同期データなし</span>
             )}
             {hasSeasonMissingData && (
-              <span style={{ color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', marginLeft: 'auto', fontSize: '0.75rem' }}>
+              <span
+                style={{
+                  color: '#d97706',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  marginLeft: 'auto',
+                  fontSize: '0.75rem',
+                }}
+              >
                 <AlertTriangle size={12} /> 一部欠測あり
               </span>
             )}
           </div>
         </div>
 
-        {/* タイル2: 1日平均入山者数 */}
-        <div style={{
-          backgroundColor: 'var(--bg-primary)',
-          borderRadius: '12px',
-          padding: '1.1rem 1.25rem',
-          border: '1px solid var(--border-color)',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+        <div
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderRadius: '12px',
+            padding: '1.1rem 1.25rem',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
               1日平均 入山者数
@@ -407,12 +475,14 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
             <TrendingUp size={18} style={{ color: '#3b82f6' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', margin: '0.2rem 0' }}>
-            <span style={{
-              fontSize: '1.9rem',
-              fontWeight: 900,
-              color: 'var(--text-primary)',
-              lineHeight: 1.1
-            }}>
+            <span
+              style={{
+                fontSize: '1.9rem',
+                fontWeight: 900,
+                color: 'var(--text-primary)',
+                lineHeight: 1.1,
+              }}
+            >
               {formatNumber(avgEnter)}
             </span>
             <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)' }}>人 / 日</span>
@@ -422,17 +492,18 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
           </div>
         </div>
 
-        {/* タイル3: シーズン最大ピーク日 */}
-        <div style={{
-          backgroundColor: 'var(--bg-primary)',
-          borderRadius: '12px',
-          padding: '1.1rem 1.25rem',
-          border: '1px solid var(--border-color)',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+        <div
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderRadius: '12px',
+            padding: '1.1rem 1.25rem',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
               シーズン最多 ピーク日
@@ -440,12 +511,14 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
             <Award size={18} style={{ color: '#f59e0b' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem', margin: '0.2rem 0' }}>
-            <span style={{
-              fontSize: '1.75rem',
-              fontWeight: 900,
-              color: '#f59e0b',
-              lineHeight: 1.1
-            }}>
+            <span
+              style={{
+                fontSize: '1.75rem',
+                fontWeight: 900,
+                color: '#f59e0b',
+                lineHeight: 1.1,
+              }}
+            >
               {formatPeakDate(peakEntry?.date || peakEntry?.dateStr)}
             </span>
             <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -457,17 +530,18 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
           </div>
         </div>
 
-        {/* タイル4: 天候の傾向 (晴天日割合) */}
-        <div style={{
-          backgroundColor: 'var(--bg-primary)',
-          borderRadius: '12px',
-          padding: '1.1rem 1.25rem',
-          border: '1px solid var(--border-color)',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}>
+        <div
+          style={{
+            backgroundColor: 'var(--bg-primary)',
+            borderRadius: '12px',
+            padding: '1.1rem 1.25rem',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
               晴れ・良好天候の割合
@@ -475,21 +549,48 @@ export const YearlySummaryBanner: React.FC<YearlySummaryBannerProps> = ({
             <Sun size={18} style={{ color: '#fbbf24' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', margin: '0.2rem 0' }}>
-            <span style={{
-              fontSize: '1.9rem',
-              fontWeight: 900,
-              color: 'var(--text-primary)',
-              lineHeight: 1.1
-            }}>
+            <span
+              style={{
+                fontSize: '1.9rem',
+                fontWeight: 900,
+                color: 'var(--text-primary)',
+                lineHeight: 1.1,
+              }}
+            >
               {sunnyRate}
             </span>
-            <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)' }}>% ({sunnyDays}日 / {daysCount}日)</span>
+            <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              % ({sunnyDays}日 / {daysCount}日)
+            </span>
           </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-            実況気象分析に基づく良好天候比率
+          <div style={{ fontSize: '0.78rem', color: camAnalyzedDays > 0 ? '#d97706' : 'var(--text-secondary)', fontWeight: camAnalyzedDays > 0 ? 700 : 400, marginTop: '0.35rem' }}>
+            {camAnalyzedDays > 0
+              ? `🏔️ うち山頂快晴(AIカメラ): ${summitClearDays}日`
+              : '実況気象分析に基づく良好天候比率'}
           </div>
         </div>
       </div>
+
+      <MonthlyAIAnalysisModal
+        isOpen={isAIModalOpen}
+        onClose={() => setIsAIModalOpen(false)}
+        analysisData={{
+          year,
+          month: null,
+          courseName,
+          selectedCourse,
+          totalEnter,
+          prevTotalEnter: prevYearEntries.length > 0 ? prevTotalEnter : null,
+          diffEnter: prevYearEntries.length > 0 ? diffEnter : null,
+          diffPercent,
+          peakDate: peakEntry?.date || peakEntry?.dateStr,
+          peakCount: peakEntry?.enter || 0,
+          dailyEntries: entries,
+          rawEntries,
+          weatherData,
+          cameraAnalysis,
+        }}
+      />
     </div>
   );
 };

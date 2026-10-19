@@ -315,47 +315,85 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="controls-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        <div className="card" style={{ margin: 0, padding: '1rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
-          <div style={{ color: 'var(--enter-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.9rem' }}>
-            <ArrowUpRight size={18} /> 入山者数 (合計)
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '0.4rem' }}>
-            {details.totalEnter} <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>人</span>
-          </div>
-        </div>
+      {/* KPI Cards (5連: 入山・下山・滞在時間・リスク内訳・差分) */}
+      {(() => {
+        let lateEnterCount = 0; // 10:30〜14:00
+        let lateExitCount = 0;  // 17:00以降
+        let midnightEnterCount = 0; // 21:00〜00:59
+        details.entries.forEach(e => {
+          const isEnter = e.course === 'kutsugata' ? e.direction === 'L' : e.direction === 'R';
+          const parts = e.timeStr.split(':').map(Number);
+          const pHour = parts[0] + (parts[1] || 0) / 60;
+          if (isEnter) {
+            if (pHour >= 10.5 && pHour < 14.0) lateEnterCount++;
+            if (e.hour >= 21 || e.hour === 0) midnightEnterCount++;
+          } else {
+            if (e.hour >= 17) lateExitCount++;
+          }
+        });
 
-        <div className="card" style={{ margin: 0, padding: '1rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
-          <div style={{ color: 'var(--exit-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.9rem' }}>
-            <ArrowDownRight size={18} /> 下山者数 (合計)
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '0.4rem' }}>
-            {details.totalExit} <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>人</span>
-          </div>
-        </div>
+        return (
+          <div className="controls-grid" style={{ marginBottom: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))' }}>
+            <div className="card" style={{ margin: 0, padding: '1rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
+              <div style={{ color: 'var(--enter-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.9rem' }}>
+                <ArrowUpRight size={18} /> 入山者数 (合計)
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '0.4rem' }}>
+                {details.totalEnter} <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>人</span>
+              </div>
+            </div>
 
-        <div className="card" style={{ margin: 0, padding: '1rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-primary)' }}>
-          <div style={{ color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.9rem' }}>
-            <Timer size={18} /> 推定 山中滞在時間
-          </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 700, marginTop: '0.4rem', color: 'var(--accent-primary)' }}>
-            {details.estDurationStr}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-            平均入山 {details.avgEnterTimeStr} → 平均下山 {details.avgExitTimeStr}
-          </div>
-        </div>
+            <div className="card" style={{ margin: 0, padding: '1rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
+              <div style={{ color: 'var(--exit-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.9rem' }}>
+                <ArrowDownRight size={18} /> 下山者数 (合計)
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '0.4rem' }}>
+                {details.totalExit} <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>人</span>
+              </div>
+            </div>
 
-        <div className="card" style={{ margin: 0, padding: '1rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
-          <div style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.9rem' }}>
-            <Users size={18} /> 入山/下山の差分
+            <div className="card" style={{ margin: 0, padding: '1rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-primary)' }}>
+              <div style={{ color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.9rem' }}>
+                <Timer size={18} /> 推定 山中滞在時間
+              </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.4rem', color: 'var(--accent-primary)' }}>
+                {details.estDurationStr}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                平均入山 {details.avgEnterTimeStr} → 平均下山 {details.avgExitTimeStr}
+              </div>
+            </div>
+
+            <div className="card" style={{ margin: 0, padding: '0.9rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)', border: (lateExitCount > 0 || lateEnterCount > 0) ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid var(--border-color)' }}>
+              <div style={{ color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontWeight: 700, fontSize: '0.88rem' }}>
+                ⚠️ 安全・リスク時間帯内訳
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.22rem', marginTop: '0.45rem', fontSize: '0.8rem', fontWeight: 700 }}>
+                <span style={{ color: lateEnterCount > 0 ? '#2563eb' : 'var(--text-secondary)' }}>
+                  🚢 遅発入山(10:30-14:00): {lateEnterCount}人
+                </span>
+                <span style={{ color: lateExitCount > 0 ? '#ef4444' : 'var(--text-secondary)' }}>
+                  🌙 遅延下山(17:00以降): {lateExitCount}人
+                </span>
+                {midnightEnterCount > 0 && (
+                  <span style={{ color: '#d97706' }}>
+                    🌌 深夜未明入山(21-0時): {midnightEnterCount}人
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="card" style={{ margin: 0, padding: '1rem', textAlign: 'center', backgroundColor: 'var(--bg-primary)' }}>
+              <div style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.9rem' }}>
+                <Users size={18} /> 入山/下山の差分
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '0.4rem' }}>
+                {details.totalEnter - details.totalExit > 0 ? `+${details.totalEnter - details.totalExit}` : details.totalEnter - details.totalExit} <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>人</span>
+              </div>
+            </div>
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: '0.4rem' }}>
-            {details.totalEnter - details.totalExit > 0 ? `+${details.totalEnter - details.totalExit}` : details.totalEnter - details.totalExit} <span style={{ fontSize: '0.9rem', fontWeight: 400 }}>人</span>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Hourly Chart for the specific day */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.85rem', marginTop: '1.75rem' }}>

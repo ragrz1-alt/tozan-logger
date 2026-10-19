@@ -1229,13 +1229,13 @@ function App() {
               <LiveCamPoCPanel />
             ) : selectedCourse === 'now' ? (
               <RishiriNowPanel />
-            ) : selectedCourse === ('poc' as any) && isAdmin ? (
-              <LiveCamPoCPanel />
             ) : selectedCourse === 'analytics' ? (
               <StakeholderAnalytics
                 entries={entries}
                 weatherData={weatherData}
+                cameraAnalysis={cameraAnalysis}
                 availableYears={availableYears}
+                isAdmin={isAdmin}
                 onSelectDate={(date) => {
                   handleSelectDate(date);
                 }}
@@ -1414,11 +1414,14 @@ function App() {
               <YearlySummaryBanner
                 year={selectedYear || (availableYears[availableYears.length - 1] || '2026')}
                 entries={daily}
+                rawEntries={activeEntries}
                 prevYearEntries={prevYearDaily}
                 weatherData={weatherData}
+                cameraAnalysis={cameraAnalysis}
                 selectedCourse={selectedCourse}
                 onPrevYear={() => navigateYear(-1)}
                 onNextYear={hasNextYear ? () => navigateYear(1) : undefined}
+                isAdmin={isAdmin}
               />
             )}
             {!isYearAllView && selectedMonthNum !== null && (
@@ -1426,8 +1429,10 @@ function App() {
                 year={selectedYear || (availableYears[availableYears.length - 1] || '2026')}
                 month={selectedMonthNum}
                 entries={daily}
+                rawEntries={activeEntries}
                 prevYearEntries={prevMonthDaily}
                 weatherData={weatherData}
+                cameraAnalysis={cameraAnalysis}
                 selectedCourse={selectedCourse}
                 onPrevMonth={() => navigateMonth(-1)}
                 onNextMonth={hasNextMonth ? () => navigateMonth(1) : undefined}
