@@ -147,7 +147,8 @@ export const LiveCamPoCPanel: React.FC = () => {
         parts.push({ inlineData: { mimeType: img.mimeType, data: img.data } });
       }
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      const modelName = 'gemini-3.8-flash';
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,8 +178,13 @@ export const LiveCamPoCPanel: React.FC = () => {
       });
 
       if (!response.ok) {
-        const errJson = await response.json();
-        throw new Error(`API Error: ${errJson.error?.message || response.statusText}`);
+        const errJson = await response.json().catch(() => ({}));
+        const status = response.status;
+        const msg = errJson.error?.message || response.statusText;
+        if (status === 429 || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED')) {
+          throw new Error('Gemini APIの利用上限（1日あたりの無料枠）に達しました。Google AI Studioでお支払い設定を行うか、制限リセットをお待ちください。');
+        }
+        throw new Error(`API Error (${status}): ${msg}`);
       }
 
       const data = await response.json();
@@ -196,7 +202,16 @@ export const LiveCamPoCPanel: React.FC = () => {
       
       const newResults = { ...analysisResults, [selectedDate]: dateResults };
       setAnalysisResults(newResults);
-      localStorage.setItem('tozan_weather_analysis_cache', JSON.stringify(newResults));
+
+      // localStorageへの保存（容量上限エラー対策としてtry-catchし、差分のみ保存）
+      try {
+        const cached = localStorage.getItem('tozan_weather_analysis_cache');
+        const localData = cached ? JSON.parse(cached) : {};
+        localData[selectedDate] = dateResults;
+        localStorage.setItem('tozan_weather_analysis_cache', JSON.stringify(localData));
+      } catch (storageErr) {
+        console.warn('localStorageへの保存をスキップしました（ブラウザの容量上限など）:', storageErr);
+      }
 
     } catch (err: any) {
       setErrorMsg(err.message);
