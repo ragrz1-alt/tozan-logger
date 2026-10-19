@@ -997,12 +997,12 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
               }}
             >
               <div style={{ padding: '1rem', backgroundColor: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 700 }}>☀️ 麓の晴天日数 / 晴天率</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 700 }}>☀️ 島の晴天日数 / 晴天率</div>
                 <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#f59e0b', marginTop: '0.25rem' }}>
                   {factSheet.baseSunnyDays}日 <span style={{ fontSize: '0.95rem' }}>({factSheet.baseSunnyRate}%)</span>
                 </div>
                 <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  対象期間 {factSheet.daysCount}日中の麓の良好天候日数
+                  アメダス実測×3方向カメラ統合判定 ({factSheet.daysCount}日中)
                 </div>
               </div>
 
@@ -1035,6 +1035,185 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                   降水25mm以上 または 最大風速15m/s以上の警戒日
                 </div>
               </div>
+            </div>
+
+            {/* 【提案A】時間帯別「山頂視界ゴールデンタイム」曲線（7時間帯: 05, 07, 09, 11, 13, 15, 17時） */}
+            <div
+              style={{
+                padding: '1.25rem',
+                backgroundColor: 'var(--bg-primary)',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                    <Sun size={18} style={{ color: '#f59e0b' }} />
+                    <span>🌅 時間帯別「山頂視界ゴールデンタイム」曲線 （7時間帯AIカメラ実測）</span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    利尻山特有の「朝〜午前は山頂が抜けやすく、昼過ぎから湧き上がり雲（対流雲）でガスに包まれる」確率を定量化（早出促進エビデンス）
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                  <span style={badgeStyle('rgba(16, 185, 129, 0.15)', '#059669')}>
+                    🌅 午前(05〜09時) 山頂快晴率: {factSheet.morningSummitClearRate}%
+                  </span>
+                  <span style={badgeStyle('rgba(100, 116, 139, 0.16)', '#475569')}>
+                    ☁️ 午後(13〜15時) 山頂快晴率: {factSheet.afternoonSummitClearRate}%
+                  </span>
+                </div>
+              </div>
+
+              {factSheet.camAnalyzedDays > 0 ? (
+                <div style={{ height: '260px', width: '100%' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={factSheet.hourlyCameraGoldenTime} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                      <XAxis dataKey="hourSlot" stroke="var(--text-secondary)" tick={{ fontSize: 12, fontWeight: 700 }} />
+                      <YAxis stroke="var(--text-secondary)" unit="%" domain={[0, 100]} tick={{ fontSize: 12 }} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                        }}
+                        formatter={(val: any, name: any) => [`${val}%`, name]}
+                      />
+                      <Legend />
+                      <Bar dataKey="summitClearRate" fill="#10b981" name="🏔️ 山頂快晴率 (%)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="sunnyRate" fill="#f59e0b" name="☀️ 日差し・青空率 (%)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="foggyRate" fill="#94a3b8" name="🌫️ ガス不可視率 (%)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div style={{ padding: '1.25rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
+                  この期間のカメラAI解析データがまだありません。「カメラAI解析(PoC)」タブで解析を実行すると、時間帯別の山頂視界ゴールデンタイム曲線が自動描画されます。
+                </div>
+              )}
+            </div>
+
+            {/* 【提案C】3方向カメラ（北:鴛泊 / 西:沓形 / 南:仙法志）視界比較 ＆ アメダス風向別・晴天非対称マトリクス */}
+            <div
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                borderRadius: '12px',
+                border: '1px solid var(--border-color)',
+                overflow: 'hidden',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div style={{ padding: '0.9rem 1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <span style={{ fontWeight: 800, fontSize: '0.98rem', color: '#2563eb', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Compass size={18} />
+                  <span>🧭 3方向カメラ（北:鴛泊 / 西:沓形 / 南:仙法志）視界比較 ＆ アメダス風向別・非対称マトリクス</span>
+                </span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  風向によって「風上側は海霧や雲がかかるが、風下側は山頂まで抜ける」独立峰特有の非対称性を実測比較
+                </span>
+              </div>
+
+              {factSheet.camAnalyzedDays > 0 ? (
+                <div style={{ padding: '1rem 1.25rem' }}>
+                  {/* 3方向カメラ通期比較カード */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem', marginBottom: '1rem' }}>
+                    {factSheet.cameraDirectionTotals.map(cd => (
+                      <div
+                        key={cd.camId}
+                        style={{
+                          padding: '0.85rem 1rem',
+                          borderRadius: '10px',
+                          backgroundColor: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-color)',
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                          📷 {cd.camLabel} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>({cd.sampleCount}枚)</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '1.35rem', fontWeight: 900, color: '#10b981' }}>
+                            山頂快晴 {cd.summitClearRate}%
+                          </span>
+                          <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 700 }}>
+                            ☀️日差し {cd.sunnyRate}%
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                          平均雲量: <strong>{cd.avgCloudCover}</strong> / 10 ｜ ガス不可視率: {cd.foggyRate}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 風向別×3方向カメラ非対称テーブル */}
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                          <th style={{ padding: '0.6rem 0.9rem' }}>主風向グループ (アメダス実測)</th>
+                          <th style={{ padding: '0.6rem 0.9rem' }}>該当日数</th>
+                          <th style={{ padding: '0.6rem 0.9rem' }}>北：鴛泊カメラ (快晴率 / 雲量)</th>
+                          <th style={{ padding: '0.6rem 0.9rem' }}>西：沓形カメラ (快晴率 / 雲量)</th>
+                          <th style={{ padding: '0.6rem 0.9rem' }}>南：仙法志カメラ (快晴率 / 雲量)</th>
+                          <th style={{ padding: '0.6rem 0.9rem' }}>風向別の最も視界が良い方角</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {factSheet.windDirectionCameraStats.map(wg => (
+                          <tr key={wg.windGroupKey} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '0.6rem 0.9rem', fontWeight: 800 }}>{wg.windGroupLabel}</td>
+                            <td style={{ padding: '0.6rem 0.9rem', fontWeight: 700 }}>{wg.daysCount} 日</td>
+                            <td style={{ padding: '0.6rem 0.9rem' }}>
+                              {wg.daysCount > 0 ? (
+                                <span>
+                                  <strong style={{ color: '#10b981' }}>{wg.oshidomariClearRate}%</strong>{' '}
+                                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>(雲量 {wg.oshidomariAvgCloud})</span>
+                                </span>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                            <td style={{ padding: '0.6rem 0.9rem' }}>
+                              {wg.daysCount > 0 ? (
+                                <span>
+                                  <strong style={{ color: '#3b82f6' }}>{wg.kutsugataClearRate}%</strong>{' '}
+                                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>(雲量 {wg.kutsugataAvgCloud})</span>
+                                </span>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                            <td style={{ padding: '0.6rem 0.9rem' }}>
+                              {wg.daysCount > 0 ? (
+                                <span>
+                                  <strong style={{ color: '#f59e0b' }}>{wg.senposhiClearRate}%</strong>{' '}
+                                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>(雲量 {wg.senposhiAvgCloud})</span>
+                                </span>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                            <td style={{ padding: '0.6rem 0.9rem' }}>
+                              {wg.daysCount > 0 ? (
+                                <span style={badgeStyle('rgba(16, 185, 129, 0.14)', '#059669')}>{wg.bestDirectionLabel}</span>
+                              ) : (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>該当データなし</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: '1.25rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
+                  カメラAI解析データが蓄積されると、風向別の3方向カメラ（鴛泊・沓形・仙法志）視界非対称マトリクスが表示されます。
+                </div>
+              )}
             </div>
 
             {/* 大雨・強風ハザード発生日の強行入山実績テーブル */}
@@ -1125,6 +1304,31 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
         {/* ------------------------------------------------------------------ */}
         {activeTab === 'strategy' && (
           <div>
+            {/* シーズン特性・誘客基準ポリシーバナー */}
+            <div
+              style={{
+                padding: '0.9rem 1.15rem',
+                marginBottom: '1.25rem',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(16, 185, 129, 0.07)',
+                border: '1px solid rgba(16, 185, 129, 0.28)',
+                fontSize: '0.82rem',
+                lineHeight: 1.55,
+                color: 'var(--text-primary)',
+              }}
+            >
+              <div style={{ fontWeight: 800, color: '#059669', marginBottom: '0.25rem' }}>
+                📌 誘客チャンス判定基準（6月下旬〜9月コアシーズン集中 × 9月秋山条件付き誘客）
+              </div>
+              <div>
+                ・<strong>🌱 6月上旬〜中旬（6/1〜6/19）</strong>：残雪期・山開き直後の立ち上がり期で誘客には向かないため、誘客ターゲット・機会損失日から<strong>自動除外</strong>しています。
+                <br />
+                ・<strong>🏔️ 6月下旬（6/20）〜8月</strong>：夏山コアシーズン。AIカメラで日中（07〜13時）に山頂快晴が確認された少人数日を <strong>「👑 特A級チャンス喪失日（山頂絶景×穴場）」</strong> として最優先抽出します。
+                <br />
+                ・<strong>🍁 9月（シルバーウィーク含む）</strong>：近年の温暖化・初雪の遅れにより有力な登山シーズン対象ですが、<strong>日没が17時台前半と非常に早い</strong>ため、安易な誘客ではなく<strong>「前泊＋早朝5時前入山・15時下山」をセットにした安全条件付き誘客</strong>として区分しています。
+              </div>
+            </div>
+
             {/* 4連KPI */}
             <div
               style={{
@@ -1145,23 +1349,25 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
               </div>
 
               <div style={{ padding: '1rem', backgroundColor: 'rgba(59, 130, 246, 0.08)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                <div style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: 800 }}>📉 チャンス喪失日 (好天×少人数)</div>
+                <div style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: 800 }}>📉 コア期チャンス喪失日 (6/20〜9/30)</div>
                 <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#2563eb', marginTop: '0.25rem' }}>
                   {factSheet.opportunityLossDays.length} <span style={{ fontSize: '0.95rem' }}>日</span>
                 </div>
-                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  登山日和にもかかわらず期待値の75%以下だった穴場日
+                <div style={{ fontSize: '0.76rem', color: '#059669', fontWeight: 700, marginTop: '0.2rem' }}>
+                  👑 うち山頂快晴の特A級絶景穴場日: {factSheet.superPrimeOpportunityCount}日
                 </div>
               </div>
 
               <div style={{ padding: '1rem', backgroundColor: 'rgba(245, 158, 11, 0.08)', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-                <div style={{ fontSize: '0.8rem', color: '#d97706', fontWeight: 800 }}>🚢 うち前日荒天（交通ラグ疑い）</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#d97706', marginTop: '0.25rem' }}>
-                  {factSheet.opportunityLossDays.filter(o => o.causeBadge === '🚢 前日荒天・交通影響疑い').length}{' '}
-                  <span style={{ fontSize: '0.95rem' }}>日</span>
+                <div style={{ fontSize: '0.8rem', color: '#d97706', fontWeight: 800 }}>🍁 9月条件付誘客 / 🚢 前日荒天ラグ</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#d97706', marginTop: '0.25rem' }}>
+                  秋山 {factSheet.opportunityLossDays.filter(o => o.causeBadge.includes('秋山')).length}日{' '}
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    / 荒天ラグ {factSheet.opportunityLossDays.filter(o => o.causeBadge === '🚢 前日荒天・交通影響疑い').length}日
+                  </span>
                 </div>
                 <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  前日の強風・大雨によるフェリー警戒・来島減が疑われる日
+                  9月早出条件付き穴場日と前日欠航警戒ラグ日の内訳
                 </div>
               </div>
 
@@ -1171,7 +1377,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                   {factSheet.bestPromoWeek || '該当なし'}
                 </div>
                 <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  好天日が多いのに1日あたり入山者が少ない狙い目ウィーク
+                  6月下旬〜9月のコア期で好天が多いのに空いている狙い目週
                 </div>
               </div>
             </div>
@@ -1191,7 +1397,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                   📅 週別の「登山日和率（天候勝率）× 集客効率」比較テーブル
                 </span>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  「好天率が高いのに好天日の平均入山者が少ない週」が来年度の最も効果的な誘客プロモーション対象週です
+                  6月上旬〜中旬（残雪期）を除外し、6月下旬〜9月のコアシーズンから重点誘客週を判定しています
                 </span>
               </div>
               <div style={{ overflowX: 'auto' }}>
@@ -1200,6 +1406,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                     <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                       <th style={{ padding: '0.6rem 1rem' }}>週</th>
                       <th style={{ padding: '0.6rem 1rem' }}>登山日和日数 (勝率)</th>
+                      <th style={{ padding: '0.6rem 1rem' }}>山頂快晴日数 (AI)</th>
                       <th style={{ padding: '0.6rem 1rem' }}>週合計入山者</th>
                       <th style={{ padding: '0.6rem 1rem' }}>全日程平均</th>
                       <th style={{ padding: '0.6rem 1rem' }}>好天1日あたり平均</th>
@@ -1213,29 +1420,58 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                         key={w.weekLabel}
                         style={{
                           borderBottom: '1px solid var(--border-color)',
-                          backgroundColor: w.isTargetPromoWeek ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
+                          backgroundColor: w.isTargetPromoWeek
+                            ? 'rgba(16, 185, 129, 0.08)'
+                            : w.isEarlyPreSeasonWeek
+                            ? 'rgba(148, 163, 184, 0.06)'
+                            : 'transparent',
+                          opacity: w.isEarlyPreSeasonWeek ? 0.78 : 1,
                         }}
                       >
                         <td style={{ padding: '0.6rem 1rem', fontWeight: 800 }}>{w.weekLabel}</td>
                         <td style={{ padding: '0.6rem 1rem', fontWeight: 700, color: w.goodWeatherRate >= 50 ? '#059669' : 'var(--text-primary)' }}>
                           {w.goodWeatherDays} / {w.daysCount}日 ({w.goodWeatherRate}%)
                         </td>
+                        <td style={{ padding: '0.6rem 1rem', fontWeight: 700, color: w.summitClearDays > 0 ? '#10b981' : 'var(--text-secondary)' }}>
+                          {w.summitClearDays > 0 ? `🏔️ ${w.summitClearDays}日` : '-'}
+                        </td>
                         <td style={{ padding: '0.6rem 1rem', fontWeight: 700 }}>{w.totalEnter.toLocaleString()} 人</td>
                         <td style={{ padding: '0.6rem 1rem' }}>{w.avgEnterPerDay} 人/日</td>
                         <td style={{ padding: '0.6rem 1rem', fontWeight: 800, color: '#2563eb' }}>
                           {w.goodWeatherDays > 0 ? `${w.avgEnterOnGoodWeather} 人/好天日` : '-'}
                         </td>
-                        <td style={{ padding: '0.6rem 1rem', color: 'var(--text-secondary)' }}>{w.sunsetApprox}</td>
+                        <td style={{ padding: '0.6rem 1rem', color: w.isSeptemberWeek ? '#dc2626' : 'var(--text-secondary)', fontWeight: w.isSeptemberWeek ? 700 : 400 }}>
+                          {w.sunsetApprox}
+                        </td>
                         <td style={{ padding: '0.6rem 1rem' }}>
-                          {w.isTargetPromoWeek ? (
-                            <span style={badgeStyle('rgba(16,185,129,0.2)', '#059669')}>🎯 最重点誘客ターゲット週 (好天×穴場)</span>
-                          ) : w.weekLabel === factSheet.highestRiskWeek ? (
-                            <span style={badgeStyle('rgba(239,68,68,0.15)', '#dc2626')}>⚠️ 安全管理・遅発遅延の重点警戒週</span>
-                          ) : w.avgEnterPerDay >= factSheet.avgEnter * 1.25 ? (
-                            <span style={badgeStyle('rgba(59,130,246,0.12)', '#2563eb')}>🔥 繁忙ピーク週 (混雑・踏圧対策)</span>
-                          ) : (
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>標準運用週</span>
-                          )}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                            {w.isEarlyPreSeasonWeek ? (
+                              <span style={badgeStyle('rgba(148, 163, 184, 0.2)', '#475569')}>
+                                🌱 シーズン序盤・残雪期 (誘客対象外)
+                              </span>
+                            ) : w.isTargetPromoWeek ? (
+                              <>
+                                <span style={badgeStyle('rgba(16,185,129,0.2)', '#059669')}>
+                                  🎯 最重点誘客ターゲット週 (好天×穴場)
+                                </span>
+                                {w.isSeptemberWeek && (
+                                  <span style={badgeStyle('rgba(245,158,11,0.18)', '#b45309')}>
+                                    🍁 秋山・早出条件付き誘客
+                                  </span>
+                                )}
+                              </>
+                            ) : w.weekLabel === factSheet.highestRiskWeek ? (
+                              <span style={badgeStyle('rgba(239,68,68,0.15)', '#dc2626')}>⚠️ 安全管理・遅発遅延の重点警戒週</span>
+                            ) : w.avgEnterPerDay >= factSheet.avgEnter * 1.25 ? (
+                              <span style={badgeStyle('rgba(59,130,246,0.12)', '#2563eb')}>🔥 繁忙ピーク週 (混雑・踏圧対策)</span>
+                            ) : w.isSeptemberWeek ? (
+                              <span style={badgeStyle('rgba(245,158,11,0.14)', '#d97706')}>
+                                🍁 秋山シーズン週 (⚠️日没17時台・早出必須)
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>コアシーズン標準週</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1248,22 +1484,22 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
             <div style={{ backgroundColor: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
               <div style={{ padding: '0.9rem 1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <span style={{ fontWeight: 800, fontSize: '0.98rem', color: '#2563eb' }}>
-                  🔍 天候的に登山日和だったのに少なかった「チャンス喪失日（誘客課題日）」一覧
+                  🔍 コアシーズン（6/20〜9/30）の「チャンス喪失日（好天×少人数）」一覧 ＆ 👑特A級絶景格付け
                 </span>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  前日の天候（フェリー欠航・足止めラグ）とカレンダー要因を自動照合しています
+                  日中コアタイム（07〜13時）に山頂快晴だった日を「👑特A級」として最上位に表示しています
                 </span>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                      <th style={{ padding: '0.65rem 0.9rem' }}>日付</th>
+                      <th style={{ padding: '0.65rem 0.9rem' }}>日付 / ランク</th>
                       <th style={{ padding: '0.65rem 0.9rem' }}>区分</th>
-                      <th style={{ padding: '0.65rem 0.9rem' }}>実績 (期待値比)</th>
+                      <th style={{ padding: '0.65rem 0.9rem' }}>実績 (コア期待値比)</th>
                       <th style={{ padding: '0.65rem 0.9rem' }}>当日の天候・山頂視界</th>
                       <th style={{ padding: '0.65rem 0.9rem' }}>前日の天候 (交通ラグ判定)</th>
-                      <th style={{ padding: '0.65rem 0.9rem' }}>考えられる要因分類</th>
+                      <th style={{ padding: '0.65rem 0.9rem' }}>考えられる要因分類・誘客条件</th>
                       <th style={{ padding: '0.65rem 0.9rem' }}>詳細</th>
                     </tr>
                   </thead>
@@ -1272,9 +1508,22 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                       <tr
                         key={o.date}
                         onClick={() => onSelectDate?.(o.date)}
-                        style={{ borderBottom: '1px solid var(--border-color)', cursor: onSelectDate ? 'pointer' : 'default' }}
+                        style={{
+                          borderBottom: '1px solid var(--border-color)',
+                          backgroundColor: o.isSuperPrime ? 'rgba(16, 185, 129, 0.05)' : 'transparent',
+                          cursor: onSelectDate ? 'pointer' : 'default',
+                        }}
                       >
-                        <td style={{ padding: '0.65rem 0.9rem', fontWeight: 800 }}>{o.displayDate}</td>
+                        <td style={{ padding: '0.65rem 0.9rem', fontWeight: 800 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            <span>{o.displayDate}</span>
+                            {o.isSuperPrime && (
+                              <span style={badgeStyle('rgba(245, 158, 11, 0.18)', '#b45309')}>
+                                👑 特A級 (山頂絶景)
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td style={{ padding: '0.65rem 0.9rem' }}>
                           <span
                             style={
@@ -1290,12 +1539,16 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                           {o.enter}人 <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', fontWeight: 600 }}>(期待{o.expectedEnter}人の{o.gapRatio}%)</span>
                         </td>
                         <td style={{ padding: '0.65rem 0.9rem' }}>
-                          {o.weatherText} ({o.tempMax}℃ / 風{o.windSpeed}m/s)
-                          {o.mountainCategory === 'clear' && (
-                            <span style={{ marginLeft: '0.35rem', color: '#059669', fontWeight: 700, fontSize: '0.76rem' }}>
-                              [山頂快晴]
+                          <div>{o.weatherText} ({o.tempMax}℃ / 風{o.windSpeed}m/s)</div>
+                          {o.mountainCategory === 'clear' ? (
+                            <span style={{ color: '#059669', fontWeight: 700, fontSize: '0.76rem' }}>
+                              🏔️ 山頂快晴 (コアタイム{o.coreTimeClearCount}枚快晴)
                             </span>
-                          )}
+                          ) : o.coreTimeClearCount > 0 ? (
+                            <span style={{ color: '#059669', fontWeight: 600, fontSize: '0.75rem' }}>
+                              🌤️ 日中山頂可視 ({o.coreTimeClearCount}枚)
+                            </span>
+                          ) : null}
                         </td>
                         <td style={{ padding: '0.65rem 0.9rem', color: o.prevRain >= 10 || o.prevWind >= 13 ? '#ef4444' : 'var(--text-secondary)', fontWeight: o.prevRain >= 10 || o.prevWind >= 13 ? 700 : 400 }}>
                           {o.prevDateWeatherText} (雨{o.prevRain}mm / 風{o.prevWind}m/s)
@@ -1306,6 +1559,8 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                               style={
                                 o.causeBadge === '🚢 前日荒天・交通影響疑い'
                                   ? badgeStyle('rgba(245,158,11,0.16)', '#d97706')
+                                  : o.causeBadge === '🍁 秋山好天・条件付き誘客 (⚠️早出必須)'
+                                  ? badgeStyle('rgba(234,88,12,0.15)', '#c2410c')
                                   : o.causeBadge === '🏖️ 連休前後・反動減'
                                   ? badgeStyle('rgba(139,92,246,0.15)', '#7c3aed')
                                   : badgeStyle('rgba(16,185,129,0.15)', '#059669')
@@ -1324,7 +1579,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                     {factSheet.opportunityLossDays.length === 0 && (
                       <tr>
                         <td colSpan={7} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                          選択された期間に顕著な機会損失日はありませんでした。
+                          選択されたコア期間（6/20〜9/30）に顕著な機会損失日はありませんでした。
                         </td>
                       </tr>
                     )}

@@ -37,10 +37,16 @@ export interface OpportunityLossDay {
   tempMax: number;
   windSpeed: number;
   mountainCategory: 'clear' | 'cloudy' | 'foggy' | 'unknown';
+  isSuperPrime: boolean; // 👑 特A級（日中コアタイム山頂快晴 × 好天 × 少人数）
+  coreTimeClearCount: number; // 07〜13時における山頂快晴カメラ枚数
   prevDateWeatherText: string;
   prevRain: number;
   prevWind: number;
-  causeBadge: '🚢 前日荒天・交通影響疑い' | '🏖️ 連休前後・反動減' | '📅 オフピーク・誘客穴場日';
+  causeBadge:
+    | '🚢 前日荒天・交通影響疑い'
+    | '🏖️ 連休前後・反動減'
+    | '🍁 秋山好天・条件付き誘客 (⚠️早出必須)'
+    | '📅 オフピーク・誘客穴場日';
   causeDetail: string;
 }
 
@@ -77,6 +83,40 @@ export interface WeeklyEfficiencyStat {
   afterSunsetExitCount: number;
   sunsetApprox: string;
   isTargetPromoWeek: boolean;
+  isEarlyPreSeasonWeek: boolean; // 6月上旬〜中旬（残雪・立ち上がり期：誘客対象外）
+  isSeptemberWeek: boolean; // 9月（温暖化によりシーズン対象だが日没早期化で条件付き誘客）
+}
+
+export interface HourlyCameraVisibilityStat {
+  hourSlot: string; // '05:00' | '07:00' | '09:00' | '11:00' | '13:00' | '15:00' | '17:00'
+  sampleCount: number;
+  summitClearRate: number; // 山頂快晴率 (%)
+  sunnyRate: number; // 日差し・青空率 (%)
+  foggyRate: number; // ガス不可視率 (%)
+  avgCloudCover: number; // 平均雲量 (0.0〜10.0)
+}
+
+export interface CameraDirectionTotalStat {
+  camId: 'oshidomari' | 'kutsugata' | 'senposhi';
+  camLabel: string;
+  sampleCount: number;
+  summitClearRate: number;
+  sunnyRate: number;
+  foggyRate: number;
+  avgCloudCover: number;
+}
+
+export interface WindDirectionCameraStat {
+  windGroupKey: string;
+  windGroupLabel: string;
+  daysCount: number;
+  oshidomariClearRate: number;
+  kutsugataClearRate: number;
+  senposhiClearRate: number;
+  oshidomariAvgCloud: number;
+  kutsugataAvgCloud: number;
+  senposhiAvgCloud: number;
+  bestDirectionLabel: string;
 }
 
 export interface PeriodFactSheet {
@@ -114,8 +154,15 @@ export interface PeriodFactSheet {
   summitFoggyDays: number;
   sunnyBaseButFoggySummitDays: number;
   morningClearAfternoonBadDays: string[];
-  // 誘客チャンス喪失・週別効率
+  // カメラAI新分析指標（提案A・C）
+  hourlyCameraGoldenTime: HourlyCameraVisibilityStat[];
+  morningSummitClearRate: number; // 05〜09時平均山頂快晴率 (%)
+  afternoonSummitClearRate: number; // 13〜15時平均山頂快晴率 (%)
+  cameraDirectionTotals: CameraDirectionTotalStat[];
+  windDirectionCameraStats: WindDirectionCameraStat[];
+  // 誘客チャンス喪失・週別効率（6/20〜9/30コアシーズン基準＋提案B）
   goodWeatherDaysCount: number;
+  superPrimeOpportunityCount: number;
   opportunityLossDays: OpportunityLossDay[];
   weeklyStats: WeeklyEfficiencyStat[];
   bestPromoWeek: string | null;
@@ -225,6 +272,30 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
     weekdayDays.length > 0
       ? Math.round(weekdayDays.reduce((s, d) => s + d.enter, 0) / weekdayDays.length)
       : avgEnter;
+
+  // 6月上旬〜中旬（6/1〜6/19）は残雪・立ち上がり期で誘客に向かないため、
+  // 誘客チャンス判定の基準（期待値）は「6月下旬（6/20）〜9月末」のコアシーズン平均から算出する
+  const isEarlyPreSeasonDate = (dateStr: string): boolean => {
+    const md = dateStr.substring(5, 10);
+    return md >= '06-01' && md <= '06-19';
+  };
+
+  const coreSeasonDaily = filteredDaily.filter(d => !isEarlyPreSeasonDate(d.date));
+  const baseForExpected = coreSeasonDaily.length > 0 ? coreSeasonDaily : filteredDaily;
+  const coreAvgEnter =
+    baseForExpected.length > 0
+      ? Math.round(baseForExpected.reduce((s, d) => s + d.enter, 0) / baseForExpected.length)
+      : avgEnter;
+  const coreHolidays = baseForExpected.filter(d => isHolidayOrWeekend(d.date));
+  const coreWeekdays = baseForExpected.filter(d => !isHolidayOrWeekend(d.date));
+  const coreHolidayAvgEnter =
+    coreHolidays.length > 0
+      ? Math.round(coreHolidays.reduce((s, d) => s + d.enter, 0) / coreHolidays.length)
+      : coreAvgEnter;
+  const coreWeekdayAvgEnter =
+    coreWeekdays.length > 0
+      ? Math.round(coreWeekdays.reduce((s, d) => s + d.enter, 0) / coreWeekdays.length)
+      : coreAvgEnter;
 
   // 上位5日集中率
   const sortedByEnter = [...filteredDaily].sort((a, b) => b.enter - a.enter);
@@ -419,13 +490,73 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
   let hazardDaysCount = 0;
   let hazardDaysEnterTotal = 0;
   let goodWeatherDaysCount = 0;
+  let superPrimeOpportunityCount = 0;
   const opportunityLossDays: OpportunityLossDay[] = [];
+
+  // 提案A: 7時間帯ごとの山頂視界ゴールデンタイム集計バケット
+  const GOLDEN_SLOTS = ['05', '07', '09', '11', '13', '15', '17'] as const;
+  const slotBuckets: Record<
+    string,
+    { total: number; clear: number; sunny: number; foggy: number; cloudSum: number }
+  > = {};
+  GOLDEN_SLOTS.forEach(s => {
+    slotBuckets[s] = { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 };
+  });
+
+  // 提案C: 3方向カメラ全体集計 ＆ 風向別×3方向カメラ非対称集計バケット
+  const CAM_DIRS = [
+    { id: 'oshidomari' as const, label: '北：鴛泊カメラ' },
+    { id: 'kutsugata' as const, label: '西：沓形カメラ' },
+    { id: 'senposhi' as const, label: '南：仙法志カメラ' },
+  ];
+  const dirTotalsMap: Record<
+    'oshidomari' | 'kutsugata' | 'senposhi',
+    { total: number; clear: number; sunny: number; foggy: number; cloudSum: number }
+  > = {
+    oshidomari: { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 },
+    kutsugata: { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 },
+    senposhi: { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 },
+  };
+
+  const WIND_GROUPS = [
+    { key: 'east_se', label: '東〜南東風 (ヤマセ・オホーツク気流)' },
+    { key: 'south_sw', label: '南〜南西風 (夏季節風・暖湿流)' },
+    { key: 'west_nw', label: '西〜北西風 (日本海風・季節風)' },
+    { key: 'north_ne', label: '北〜北東風 (宗谷海峡・高気圧圏)' },
+  ] as const;
+
+  const windCamMap: Record<
+    string,
+    {
+      daysCount: number;
+      oshidomari: { total: number; clear: number; cloudSum: number };
+      kutsugata: { total: number; clear: number; cloudSum: number };
+      senposhi: { total: number; clear: number; cloudSum: number };
+    }
+  > = {};
+  WIND_GROUPS.forEach(wg => {
+    windCamMap[wg.key] = {
+      daysCount: 0,
+      oshidomari: { total: 0, clear: 0, cloudSum: 0 },
+      kutsugata: { total: 0, clear: 0, cloudSum: 0 },
+      senposhi: { total: 0, clear: 0, cloudSum: 0 },
+    };
+  });
+
+  const getWindGroupKey = (deg?: number): string => {
+    if (deg === undefined || deg === null) return 'south_sw';
+    if (deg >= 45 && deg < 135) return 'east_se';
+    if (deg >= 135 && deg < 225) return 'south_sw';
+    if (deg >= 225 && deg < 315) return 'west_nw';
+    return 'north_ne';
+  };
 
   // 週別集計マップ
   const weeklyMap: Record<
     string,
     {
       daysCount: number;
+      earlyDaysCount: number;
       goodWeatherDays: number;
       summitClearDays: number;
       totalEnter: number;
@@ -453,10 +584,12 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
     const dayNum = parseInt(d.date.substring(8, 10), 10);
     const wNum = Math.min(Math.ceil(dayNum / 7), 5);
     const weekLabel = month !== null ? `第${wNum}週` : `${mNum}月第${wNum}週`;
+    const isEarlyDate = isEarlyPreSeasonDate(d.date);
 
     if (!weeklyMap[weekLabel]) {
       weeklyMap[weekLabel] = {
         daysCount: 0,
+        earlyDaysCount: 0,
         goodWeatherDays: 0,
         summitClearDays: 0,
         totalEnter: 0,
@@ -469,10 +602,81 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
     }
     const wk = weeklyMap[weekLabel];
     wk.daysCount++;
+    if (isEarlyDate) wk.earlyDaysCount++;
     wk.totalEnter += d.enter;
     wk.lateEnter += rawSt.lateEnter;
     wk.lateExit += rawSt.lateExit;
     wk.afterSunsetExit += rawSt.afterSunsetExit;
+
+    // カメラ有効データの時間帯別(提案A)・方向別＆風向別(提案C)集計
+    const validDayCams = (cam || []).filter(
+      c => c.status !== 'missing' && c.visibility !== 'missing' && c.cloud_cover >= 0
+    );
+    if (validDayCams.length > 0) {
+      const wgKey = getWindGroupKey(w?.windDirection);
+      const wgBucket = windCamMap[wgKey];
+      if (wgBucket) wgBucket.daysCount++;
+
+      const has07 = validDayCams.some(c => c.fileName.startsWith('07_'));
+      const has09 = validDayCams.some(c => c.fileName.startsWith('09_'));
+      const has13 = validDayCams.some(c => c.fileName.startsWith('13_'));
+      const has15 = validDayCams.some(c => c.fileName.startsWith('15_'));
+
+      validDayCams.forEach(c => {
+        const hrPrefix = c.fileName.substring(0, 2);
+        const isClear = c.visibility === 'clear' && c.summit_visible !== false;
+        const isSunny = c.is_sunny === true || isClear || (c.cloud_cover >= 0 && c.cloud_cover <= 4);
+        const isFoggy = c.visibility === 'foggy';
+        const cloud = c.cloud_cover >= 0 ? c.cloud_cover : 5;
+
+        // 7時間帯スロットへの割り当て（過去5枠解析データの08時・14時も補完反映）
+        const targetSlots: string[] = [];
+        if (slotBuckets[hrPrefix]) {
+          targetSlots.push(hrPrefix);
+        } else if (hrPrefix === '08') {
+          if (!has07) targetSlots.push('07');
+          if (!has09) targetSlots.push('09');
+        } else if (hrPrefix === '14') {
+          if (!has13) targetSlots.push('13');
+          if (!has15) targetSlots.push('15');
+        }
+
+        targetSlots.forEach(slotKey => {
+          const sb = slotBuckets[slotKey];
+          if (sb) {
+            sb.total++;
+            if (isClear) sb.clear++;
+            if (isSunny) sb.sunny++;
+            if (isFoggy) sb.foggy++;
+            sb.cloudSum += cloud;
+          }
+        });
+
+        // 3方向カメラ集計
+        const camDir: 'oshidomari' | 'kutsugata' | 'senposhi' | null = c.fileName.includes('oshidomari')
+          ? 'oshidomari'
+          : c.fileName.includes('kutsugata')
+          ? 'kutsugata'
+          : c.fileName.includes('senposhi')
+          ? 'senposhi'
+          : null;
+
+        if (camDir) {
+          const dt = dirTotalsMap[camDir];
+          dt.total++;
+          if (isClear) dt.clear++;
+          if (isSunny) dt.sunny++;
+          if (isFoggy) dt.foggy++;
+          dt.cloudSum += cloud;
+
+          if (wgBucket) {
+            wgBucket[camDir].total++;
+            if (isClear) wgBucket[camDir].clear++;
+            wgBucket[camDir].cloudSum += cloud;
+          }
+        }
+      });
+    }
 
     // 島の天気カテゴリ（アメダス実測×3方向カメラハイブリッド判定）
     const baseCat =
@@ -518,60 +722,160 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
       wk.goodWeatherDays++;
       wk.goodWeatherEnterSum += d.enter;
 
-      // 期待入山者数（休日なら休日平均、平日なら平日平均、ただし全体の月平均も考慮）
-      const isHol = isHolidayOrWeekend(d.date);
-      const expected = isHol ? Math.max(holidayAvgEnter, avgEnter) : Math.max(weekdayAvgEnter, Math.round(avgEnter * 0.85));
+      // 6/1〜6/19のシーズン序盤・残雪期は「空いていても誘客対象外」のためチャンス喪失日から除外
+      if (!isEarlyDate) {
+        // 期待入山者数（コアシーズン 6/20〜9/30 の休日平均・平日平均を基準にする）
+        const isHol = isHolidayOrWeekend(d.date);
+        const expected = isHol
+          ? Math.max(coreHolidayAvgEnter, coreAvgEnter)
+          : Math.max(coreWeekdayAvgEnter, Math.round(coreAvgEnter * 0.85));
 
-      // 登山日和なのに期待値の75%以下（または月平均の70%以下）しか入っていない日を「チャンス喪失日（誘客課題日）」として抽出
-      if (expected > 5 && (d.enter <= expected * 0.75 || d.enter <= avgEnter * 0.7)) {
-        const prevDateStr = format(subDays(parseISO(d.date), 1), 'yyyy-MM-dd');
-        const prevW = weatherData[prevDateStr];
-        const prevWDesc =
-          prevW && prevW.weatherCode !== undefined
-            ? getWeatherDescription(prevW.weatherCode, prevW.precipitation, prevW.sunshineDuration, prevDateStr, cameraAnalysis[prevDateStr])
-            : null;
-        const prevRain = prevW?.precipitation || 0;
-        const prevWind = prevW?.windSpeedMax || 0;
+        // 登山日和なのに期待値の75%以下（またはコア平均の70%以下）しか入っていない日を「チャンス喪失日」として抽出
+        if (expected > 5 && (d.enter <= expected * 0.75 || d.enter <= coreAvgEnter * 0.7)) {
+          const prevDateStr = format(subDays(parseISO(d.date), 1), 'yyyy-MM-dd');
+          const prevW = weatherData[prevDateStr];
+          const prevWDesc =
+            prevW && prevW.weatherCode !== undefined
+              ? getWeatherDescription(prevW.weatherCode, prevW.precipitation, prevW.sunshineDuration, prevDateStr, cameraAnalysis[prevDateStr])
+              : null;
+          const prevRain = prevW?.precipitation || 0;
+          const prevWind = prevW?.windSpeedMax || 0;
 
-        const wDesc =
-          w && w.weatherCode !== undefined
-            ? getWeatherDescription(w.weatherCode, w.precipitation, w.sunshineDuration, d.date, cam)
-            : null;
+          const wDesc =
+            w && w.weatherCode !== undefined
+              ? getWeatherDescription(w.weatherCode, w.precipitation, w.sunshineDuration, d.date, cam)
+              : null;
 
-        let causeBadge: OpportunityLossDay['causeBadge'] = '📅 オフピーク・誘客穴場日';
-        let causeDetail = '前日・当日ともに穏やかな好天。カレンダー上の端境期・平日による純粋な需要ギャップ（来年度の有力な誘客ターゲット日）';
+          // 提案B: 登山コアタイム（07〜13時）に山頂快晴が確認されている「👑 特A級チャンス喪失日」判定
+          const coreTimeClearCount = validDayCams.filter(c => {
+            const hr = c.fileName.substring(0, 2);
+            return (
+              ['07', '08', '09', '11', '13'].includes(hr) &&
+              c.visibility === 'clear' &&
+              c.summit_visible !== false
+            );
+          }).length;
+          const isSuperPrime = camEval.mountainCategory === 'clear' || coreTimeClearCount >= 3;
+          if (isSuperPrime) superPrimeOpportunityCount++;
 
-        if (prevRain >= 10.0 || prevWind >= 13.0) {
-          causeBadge = '🚢 前日荒天・交通影響疑い';
-          causeDetail = `当日は登山日和に回復したが、前日の荒天（降水${prevRain}mm / 最大風速${prevWind}m/s）によるフェリー欠航警戒や前泊キャンセルが影響した可能性大`;
-        } else if (isHol) {
-          causeBadge = '🏖️ 連休前後・反動減';
-          causeDetail = '休日・好天にもかかわらず入山者が伸び悩んだ特異日（連休最終日の移動日や島外イベント競合等の可能性）';
+          let causeBadge: OpportunityLossDay['causeBadge'] = '📅 オフピーク・誘客穴場日';
+          let causeDetail =
+            '前日・当日ともに穏やかな好天。6月下旬〜8月のコアシーズンにおける平日・端境期の純粋な需要ギャップ（来年度の有力な誘客ターゲット日）';
+
+          if (prevRain >= 10.0 || prevWind >= 13.0) {
+            causeBadge = '🚢 前日荒天・交通影響疑い';
+            causeDetail = `当日は登山日和に回復したが、前日の荒天（降水${prevRain}mm / 最大風速${prevWind}m/s）によるフェリー欠航警戒や前泊キャンセルが影響した可能性大${
+              mNum === 9 ? '（※9月のため日没17時台・早出条件付き）' : ''
+            }`;
+          } else if (mNum === 9) {
+            causeBadge = '🍁 秋山好天・条件付き誘客 (⚠️早出必須)';
+            causeDetail =
+              '近年は温暖化・降雪の遅れで9月も絶好の秋山シーズン。ただし日没が17時台前半と早いため、「前泊＋早朝5時前入山・15時下山」をセットにした安全条件付き誘客が必須（当日午前フェリー着での入山誘導はNG）';
+          } else if (isHol) {
+            causeBadge = '🏖️ 連休前後・反動減';
+            causeDetail =
+              '休日・好天にもかかわらず入山者が伸び悩んだ特異日（連休最終日の移動日や島外イベント競合等の可能性）';
+          }
+
+          opportunityLossDays.push({
+            date: d.date,
+            displayDate: format(parseISO(d.date), 'M/d(E)', { locale: ja }),
+            dayType: isHol ? '休日・祝日' : '平日',
+            enter: d.enter,
+            expectedEnter: expected,
+            gapRatio: Math.round((d.enter / Math.max(expected, 1)) * 100),
+            weatherText: wDesc ? `${wDesc.emoji}${wDesc.text}` : '☀️晴れ',
+            tempMax: w?.tempMax || 0,
+            windSpeed: w?.windSpeedMax || 0,
+            mountainCategory: camEval.mountainCategory,
+            isSuperPrime,
+            coreTimeClearCount,
+            prevDateWeatherText: prevWDesc ? `${prevWDesc.emoji}${prevWDesc.text}` : '不明',
+            prevRain,
+            prevWind,
+            causeBadge,
+            causeDetail,
+          });
         }
-
-        opportunityLossDays.push({
-          date: d.date,
-          displayDate: format(parseISO(d.date), 'M/d(E)', { locale: ja }),
-          dayType: isHol ? '休日・祝日' : '平日',
-          enter: d.enter,
-          expectedEnter: expected,
-          gapRatio: Math.round((d.enter / Math.max(expected, 1)) * 100),
-          weatherText: wDesc ? `${wDesc.emoji}${wDesc.text}` : '☀️晴れ',
-          tempMax: w?.tempMax || 0,
-          windSpeed: w?.windSpeedMax || 0,
-          mountainCategory: camEval.mountainCategory,
-          prevDateWeatherText: prevWDesc ? `${prevWDesc.emoji}${prevWDesc.text}` : '不明',
-          prevRain,
-          prevWind,
-          causeBadge,
-          causeDetail,
-        });
       }
     }
   });
 
-  // チャンス喪失日はギャップが大きい順（達成率が低い順）にソート
-  opportunityLossDays.sort((a, b) => a.gapRatio - b.gapRatio || a.enter - b.enter);
+  // チャンス喪失日は「👑 特A級（山頂快晴）」を優先しつつ、ギャップが大きい順（達成率が低い順）にソート
+  opportunityLossDays.sort((a, b) => {
+    if (a.isSuperPrime !== b.isSuperPrime) return a.isSuperPrime ? -1 : 1;
+    return a.gapRatio - b.gapRatio || a.enter - b.enter;
+  });
+
+  // 提案A: 時間帯別山頂視界ゴールデンタイム配列の構築
+  const hourlyCameraGoldenTime: HourlyCameraVisibilityStat[] = GOLDEN_SLOTS.map(s => {
+    const sb = slotBuckets[s];
+    const total = sb.total;
+    return {
+      hourSlot: `${s}:00`,
+      sampleCount: total,
+      summitClearRate: total > 0 ? Math.round((sb.clear / total) * 100) : 0,
+      sunnyRate: total > 0 ? Math.round((sb.sunny / total) * 100) : 0,
+      foggyRate: total > 0 ? Math.round((sb.foggy / total) * 100) : 0,
+      avgCloudCover: total > 0 ? Math.round((sb.cloudSum / total) * 10) / 10 : 0,
+    };
+  });
+
+  const morningTotal = slotBuckets['05'].total + slotBuckets['07'].total + slotBuckets['09'].total;
+  const morningClear = slotBuckets['05'].clear + slotBuckets['07'].clear + slotBuckets['09'].clear;
+  const morningSummitClearRate = morningTotal > 0 ? Math.round((morningClear / morningTotal) * 100) : 0;
+
+  const afternoonTotal = slotBuckets['13'].total + slotBuckets['15'].total;
+  const afternoonClear = slotBuckets['13'].clear + slotBuckets['15'].clear;
+  const afternoonSummitClearRate = afternoonTotal > 0 ? Math.round((afternoonClear / afternoonTotal) * 100) : 0;
+
+  // 提案C: 3方向カメラ全体比較 ＆ 風向別×3方向カメラ非対称統計の構築
+  const cameraDirectionTotals: CameraDirectionTotalStat[] = CAM_DIRS.map(cd => {
+    const dt = dirTotalsMap[cd.id];
+    return {
+      camId: cd.id,
+      camLabel: cd.label,
+      sampleCount: dt.total,
+      summitClearRate: dt.total > 0 ? Math.round((dt.clear / dt.total) * 100) : 0,
+      sunnyRate: dt.total > 0 ? Math.round((dt.sunny / dt.total) * 100) : 0,
+      foggyRate: dt.total > 0 ? Math.round((dt.foggy / dt.total) * 100) : 0,
+      avgCloudCover: dt.total > 0 ? Math.round((dt.cloudSum / dt.total) * 10) / 10 : 0,
+    };
+  });
+
+  const windDirectionCameraStats: WindDirectionCameraStat[] = WIND_GROUPS.map(wg => {
+    const wb = windCamMap[wg.key];
+    const oRate = wb.oshidomari.total > 0 ? Math.round((wb.oshidomari.clear / wb.oshidomari.total) * 100) : 0;
+    const kRate = wb.kutsugata.total > 0 ? Math.round((wb.kutsugata.clear / wb.kutsugata.total) * 100) : 0;
+    const sRate = wb.senposhi.total > 0 ? Math.round((wb.senposhi.clear / wb.senposhi.total) * 100) : 0;
+
+    const oCloud = wb.oshidomari.total > 0 ? Math.round((wb.oshidomari.cloudSum / wb.oshidomari.total) * 10) / 10 : 0;
+    const kCloud = wb.kutsugata.total > 0 ? Math.round((wb.kutsugata.cloudSum / wb.kutsugata.total) * 10) / 10 : 0;
+    const sCloud = wb.senposhi.total > 0 ? Math.round((wb.senposhi.cloudSum / wb.senposhi.total) * 10) / 10 : 0;
+
+    let bestDirectionLabel = 'データ収集待ち';
+    if (wb.daysCount > 0) {
+      const pairs = [
+        { name: '鴛泊(北)', rate: oRate, cloud: oCloud },
+        { name: '沓形(西)', rate: kRate, cloud: kCloud },
+        { name: '仙法志(南)', rate: sRate, cloud: sCloud },
+      ].sort((a, b) => b.rate - a.rate || a.cloud - b.cloud);
+      bestDirectionLabel = `🏆 ${pairs[0].name}側が好視界 (快晴率${pairs[0].rate}% / 雲量${pairs[0].cloud})`;
+    }
+
+    return {
+      windGroupKey: wg.key,
+      windGroupLabel: wg.label,
+      daysCount: wb.daysCount,
+      oshidomariClearRate: oRate,
+      kutsugataClearRate: kRate,
+      senposhiClearRate: sRate,
+      oshidomariAvgCloud: oCloud,
+      kutsugataAvgCloud: kCloud,
+      senposhiAvgCloud: sCloud,
+      bestDirectionLabel,
+    };
+  });
 
   const baseSunnyRate = daysCount > 0 ? Math.round((baseSunnyDays / daysCount) * 100) : 0;
 
@@ -582,6 +886,8 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
     const avgEnterOnGoodWeather =
       st.goodWeatherDays > 0 ? Math.round(st.goodWeatherEnterSum / st.goodWeatherDays) : avgEnterPerDay;
     const sunsetInfo = getSunsetHourForDate(st.sampleDate);
+    const isEarlyPreSeasonWeek = st.earlyDaysCount > st.daysCount / 2;
+    const isSeptemberWeek = st.sampleDate.substring(5, 7) === '09';
 
     return {
       weekLabel,
@@ -597,12 +903,15 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
       afterSunsetExitCount: st.afterSunsetExit,
       sunsetApprox: sunsetInfo.label,
       isTargetPromoWeek: false,
+      isEarlyPreSeasonWeek,
+      isSeptemberWeek,
     };
   });
 
+  // 6月上旬〜中旬（残雪期・立ち上がり期）を除いたコアシーズン（6月下旬〜9月）の中で、
   // 好天日が2日以上あり、かつ好天時の平均入山者数が最も少ない週を「来年度の最重点誘客ターゲット週」とする
   let bestPromoWeek: string | null = null;
-  const promoCandidates = weeklyStats.filter(w => w.goodWeatherDays >= 2);
+  const promoCandidates = weeklyStats.filter(w => !w.isEarlyPreSeasonWeek && w.goodWeatherDays >= 2);
   if (promoCandidates.length > 0) {
     promoCandidates.sort((a, b) => a.avgEnterOnGoodWeather - b.avgEnterOnGoodWeather);
     bestPromoWeek = promoCandidates[0].weekLabel;
@@ -631,7 +940,7 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
     .slice(0, 5)
     .map((d, idx) => {
       const w = weatherData[d.date];
-      const wDesc = w ? getWeatherDescription(w.weatherCode, w.precipitation, w.sunshineDuration, d.date) : null;
+      const wDesc = w ? getWeatherDescription(w.weatherCode, w.precipitation, w.sunshineDuration, d.date, cameraAnalysis[d.date]) : null;
       return `  ${idx + 1}位: ${format(parseISO(d.date), 'M/d(E)', { locale: ja })} ${d.enter}人 (${wDesc ? wDesc.text : '不明'})`;
     })
     .join('\n');
@@ -639,10 +948,10 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
   const oppLossText =
     opportunityLossDays.length > 0
       ? opportunityLossDays
-          .slice(0, 6)
+          .slice(0, 8)
           .map(
             o =>
-              `  ・${o.displayDate}[${o.dayType}]: 入山${o.enter}人 (期待値${o.expectedEnter}人の${o.gapRatio}%) | 当日:${o.weatherText}(最高${o.tempMax}℃, 風${o.windSpeed}m/s, 山頂視界:${o.mountainCategory}) | 前日:${o.prevDateWeatherText}(降水${o.prevRain}mm, 風${o.prevWind}m/s) ➔ 判定:${o.causeBadge} (${o.causeDetail})`
+              `  ・${o.displayDate}[${o.dayType}]${o.isSuperPrime ? '【👑特A級:山頂絶景】' : ''}: 入山${o.enter}人 (コア期待値${o.expectedEnter}人の${o.gapRatio}%) | 当日:${o.weatherText}(最高${o.tempMax}℃, 風${o.windSpeed}m/s, 山頂視界:${o.mountainCategory}) | 前日:${o.prevDateWeatherText}(降水${o.prevRain}mm, 風${o.prevWind}m/s) ➔ 判定:${o.causeBadge} (${o.causeDetail})`
           )
           .join('\n')
       : '  ・該当する顕著な機会損失日はありませんでした。';
@@ -661,7 +970,33 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
   const weeklyText = weeklyStats
     .map(
       w =>
-        `  ・${w.weekLabel} (日没${w.sunsetApprox}): 計${w.totalEnter}人 (日平均${w.avgEnterPerDay}人) | 登山日和${w.goodWeatherDays}/${w.daysCount}日(晴天率${w.goodWeatherRate}%, 好天日平均${w.avgEnterOnGoodWeather}人) | 遅発入山(10:30-14:00):${w.lateEnterCount}人, 遅延下山(17時以降):${w.lateExitCount}人(日没後${w.afterSunsetExitCount}人)${w.isTargetPromoWeek ? ' ★来年度誘客ターゲット候補週' : ''}`
+        `  ・${w.weekLabel} (日没${w.sunsetApprox}): 計${w.totalEnter}人 (日平均${w.avgEnterPerDay}人) | 登山日和${w.goodWeatherDays}/${w.daysCount}日(晴天率${w.goodWeatherRate}%, 好天日平均${w.avgEnterOnGoodWeather}人) | 遅発入山:${w.lateEnterCount}人, 遅延下山:${w.lateExitCount}人(日没後${w.afterSunsetExitCount}人)${
+          w.isEarlyPreSeasonWeek
+            ? ' [🌱シーズン序盤・残雪期:誘客対象外]'
+            : w.isTargetPromoWeek
+            ? w.isSeptemberWeek
+              ? ' ★来年度誘客ターゲット週 [🍁秋山・日没早期化のため早出条件付き誘客]'
+              : ' ★来年度最重点誘客ターゲット週 (コアシーズン好天×穴場)'
+            : w.isSeptemberWeek
+            ? ' [🍁秋山シーズン:日没17時台・早出注意]'
+            : ''
+        }`
+    )
+    .join('\n');
+
+  const goldenTimeText = hourlyCameraGoldenTime
+    .filter(h => h.sampleCount > 0)
+    .map(
+      h =>
+        `  ・${h.hourSlot}: 山頂快晴率 ${h.summitClearRate}% / 日差し率 ${h.sunnyRate}% / ガス率 ${h.foggyRate}% / 平均雲量 ${h.avgCloudCover}`
+    )
+    .join('\n');
+
+  const windAsymmetryText = windDirectionCameraStats
+    .filter(wg => wg.daysCount > 0)
+    .map(
+      wg =>
+        `  ・${wg.windGroupLabel} (${wg.daysCount}日): 鴛泊(北)快晴率${wg.oshidomariClearRate}%[雲量${wg.oshidomariAvgCloud}] / 沓形(西)快晴率${wg.kutsugataClearRate}%[雲量${wg.kutsugataAvgCloud}] / 仙法志(南)快晴率${wg.senposhiClearRate}%[雲量${wg.senposhiAvgCloud}] ➔ ${wg.bestDirectionLabel}`
     )
     .join('\n');
 
@@ -671,6 +1006,7 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
 【第1の柱：事実ベースの動態データ】
 ・総入山者数: ${totalEnter}人 (${prevText})
 ・計測日数: ${daysCount}日間 / 1日平均: ${avgEnter}人 (休日・祝日・お盆平均: ${holidayAvgEnter}人 vs 平日平均: ${weekdayAvgEnter}人)
+・コアシーズン(6/20〜9/30)基準平均: 1日平均 ${coreAvgEnter}人 (休日 ${coreHolidayAvgEnter}人 / 平日 ${coreWeekdayAvgEnter}人)
 ・コース内訳: 鴛泊コース ${oshidomariEnter}人 / 沓形コース ${kutsugataEnter}人
 ・上位5日間への集中率: ${top5ConcentrationRatio}%
 ・平均行動タイムライン: 平均入山 ${avgEnterTimeStr} → 平均下山 ${avgExitTimeStr} (推定山中滞在: ${avgDurationStr})
@@ -685,17 +1021,23 @@ ${top5DaysText}
 ・遅延下山が多発した特異日TOP5と原因分類（スタート遅れ型 vs 山中停滞・バテ・悪天型）:
 ${lateExitText}
 
-【第3の柱：気象 × 山頂AIカメラ雲量・視界解析データ】
-・麓の晴天日数: ${baseSunnyDays}日 / ${daysCount}日 (${baseSunnyRate}%)
+【第3の柱：気象庁アメダス実測 × 3方向7時間帯AIカメラ解析データ】
+・島の晴天日数: ${baseSunnyDays}日 / ${daysCount}日 (${baseSunnyRate}%)
 ・登山日和（降水2mm以下・風12.5m/s以下・山頂ガスなし）日数: ${goodWeatherDaysCount}日
 ・AIカメラ山頂視界内訳 (解析済 ${camAnalyzedDays}日分): 山頂快晴(Clear) ${summitClearDays}日 / 山頂雲隠れ(Cloudy) ${summitCloudyDays}日 / 山体ガス不可視(Foggy) ${summitFoggyDays}日
 ・麓は晴れだが山頂がガスだったギャップ日数: ${sunnyBaseButFoggySummitDays}日
-・朝(5時・8時)は山頂快晴で午後(11時・14時)にガスへ急変した警戒日: ${morningClearAfternoonBadDays.length > 0 ? morningClearAfternoonBadDays.join(', ') : '該当なし'}
+・朝(5〜9時)は山頂快晴で午後(11〜15時)にガスへ急変した警戒日: ${morningClearAfternoonBadDays.length > 0 ? morningClearAfternoonBadDays.join(', ') : '該当なし'}
+・【提案A】時間帯別「山頂視界ゴールデンタイム」推移 (午前05-09時平均快晴率: ${morningSummitClearRate}% vs 午後13-15時平均快晴率: ${afternoonSummitClearRate}%):
+${goldenTimeText || '  ・カメラ解析データ未集計'}
+・【提案C】アメダス風向別 × 3方向カメラ（北:鴛泊 / 西:沓形 / 南:仙法志）山頂視界非対称データ:
+${windAsymmetryText || '  ・カメラ解析データ未集計'}
 
-【第4の柱：週別推移 ＆ 誘客チャンス喪失日（好天×少人数）データ】
+【第4の柱：週別推移 ＆ コアシーズン(6/20〜9/30)誘客チャンス喪失日データ】
+※ 6月上旬〜中旬(6/1〜6/19)はまだ残雪期・シーズン立ち上がり期であり空いていても誘客に向かないため誘客ターゲットから除外。
+※ 9月は近年の温暖化・降雪の遅れによりシルバーウィークを含め有力な秋山シーズンとなっているが、日没が17時台前半と早いため安易な誘客は危険であり「前泊＋早朝5時前入山・15時下山」をセットにした条件付き誘客が必須。
 ・週別の天候勝率 × 集客効率 × リスク推移:
 ${weeklyText}
-・登山日和（好天）だったのに人が少なかった「誘客チャンス喪失日（穴場日）」リスト（前日天候ラグ判定付き）:
+・コアシーズン(6/20〜9/30)における「誘客チャンス喪失日（好天×少人数）」リスト（うち山頂快晴の👑特A級穴場日: ${superPrimeOpportunityCount}日）:
 ${oppLossText}
 `.trim();
 
@@ -732,7 +1074,13 @@ ${oppLossText}
     summitFoggyDays,
     sunnyBaseButFoggySummitDays,
     morningClearAfternoonBadDays,
+    hourlyCameraGoldenTime,
+    morningSummitClearRate,
+    afternoonSummitClearRate,
+    cameraDirectionTotals,
+    windDirectionCameraStats,
     goodWeatherDaysCount,
+    superPrimeOpportunityCount,
     opportunityLossDays,
     weeklyStats,
     bestPromoWeek,
@@ -804,15 +1152,18 @@ ${data.notes || '特記事項なし'}
   - また、週が進むにつれて（特に8月後半〜9月の日没早期化に伴い）遅い下山や日没後下山がどう変化しているか警告してください。
 - **荒天強行・深夜未明入山**: ハザード日や深夜帯の入山実態とリスクを指摘してください。
 
-## 3. 🌤️ 気象 × 山頂視界（雲量）のミクロ・マクロ解析
-- 「麓の晴天率」と「AIカメラによる山頂快晴率・ガス率」のギャップ（麓は晴れだが山頂はガスだった日や、朝晴れて昼から崩れた日）が登山者の行動やリスクにどう影響したか解説してください。
+## 3. 🌤️ 気象 × 3方向7時間帯AIカメラ視界（ゴールデンタイム＆風向非対称）解析
+- **麓と山頂の視界ギャップ**: 「島の晴天率」と「AIカメラによる山頂快晴率・ガス率」のギャップを解説してください。
+- **時間帯別「山頂視界ゴールデンタイム」曲線**: 朝（05〜09時）と午後（13〜15時）の山頂快晴率・雲量の推移から、「絶景を見るためにも早朝スタート・午前中登頂が圧倒的に有利である」という早出促進エビデンスを論じてください。
+- **風向×3方向カメラ（鴛泊・沓形・仙法志）の非対称性**: 風向によってどの方角が晴れやすく、どこに雲がかかりやすいかの特徴と、コース選択や当日朝の案内への活用法を解説してください。
 
-## 4. 🎯 次年度へ向けた戦略提言（誘客チャンス喪失日の攻略 ＆ 安全対策重点カレンダー）
-- **【誘客戦略：好天なのに少なかった「チャンス喪失日・課題週」の分析】**:
-  - 抽出された「チャンス喪失日（登山日和なのに期待値を下回った日）」と「週別の晴天率×集客効率」をもとに、**①前日荒天（フェリー欠航・足止めラグ）が原因だった日**と、**②純粋なカレンダー上の穴場週・平日ギャップだった日**を切り分けて解説してください。
-  - その上で、「来年度のどの週・どの曜日に、どのようなターゲット層（道内リピーター、シニア・平日休暇層、島内滞留客など）へどんな誘客施策・キャンペーンを打つべきか」を具体的に提案してください。
+## 4. 🎯 次年度へ向けた戦略提言（6月下旬〜9月コアシーズンの誘客攻略 ＆ 9月秋山安全対策）
+- **【誘客戦略：コアシーズン（6月下旬〜9月）の「👑特A級チャンス喪失日・課題週」の分析】**:
+  - ※6月上旬〜中旬（6/1〜6/19）は残雪・立ち上がり期で誘客に向かないため除外し、**6月下旬〜9月のコアシーズン**に焦点を当ててください。
+  - 抽出された「チャンス喪失日（特に山頂まで快晴だった👑特A級穴場日）」と「週別の晴天率×集客効率」をもとに、**①前日荒天（フェリー欠航・足止めラグ）が原因だった日**、**②6月下旬〜8月の純粋な穴場週・平日ギャップだった日**、**③近年の温暖化・降雪遅れで有力な登山対象となった「9月（シルバーウィーク前後含む）の秋山好天日」**を切り分けて解説してください。
+  - 特に**9月の誘客**については、「近年は暖かく登山適期が広がっている一方、日没が17時台前半と非常に早いため、安易な誘客ではなく『前泊＋早朝5時前入山・15時下山』をセットにした条件付き誘客が不可欠である」点を必ず強調してください。
 - **【安全管理戦略：来年度の重点パトロール・声かけ時期】**:
-  - 来年度の同期間において、いつ・どの時間帯にどのような安全対策（登山口での声かけ、フェリー・宿での早出啓発、ヘッドランプ確認など）を強化すべきか提言してください。
+  - 来年度の同期間において、いつ・どの時間帯にどのような安全対策（登山口での声かけ、フェリー・宿での早出＆山頂ゴールデンタイム啓発、9月の日没早期化対策など）を強化すべきか提言してください。
 
 出力はMarkdown形式で、見出し・太字・箇条書き・引用ブロック（> ）を効果的に使い、プロフェッショナルで読みやすい構成にしてください。
 `.trim();
