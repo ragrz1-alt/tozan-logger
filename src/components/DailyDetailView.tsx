@@ -50,7 +50,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
 
   const displayDate = format(parseISO(details.dateStr), 'yyyy年MM月dd日 (E)', { locale: ja });
   const wDesc = weather && weather.weatherCode !== undefined
-    ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration, details.dateStr)
+    ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration, details.dateStr, cameraAnalysis)
     : null;
   const windDir = weather && weather.windDirection !== undefined ? getWindDirection(weather.windDirection) : '';
 
@@ -156,9 +156,19 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
           <h3 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>{displayDate} の詳細アナリティクス</h3>
           {weather && (
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.95rem', color: 'var(--text-secondary)', marginTop: '0.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <span>麓の天候: <strong>{wDesc ? `${wDesc.emoji} ${wDesc.text}` : '不明'}</strong></span>
+              <span>天候判定: <strong>{wDesc ? `${wDesc.emoji} ${wDesc.text}` : '不明'}</strong></span>
+              {weather.sunshineDuration !== undefined && (
+                <span>☀️ 日照(沓形): <strong>{weather.sunshineDuration.toFixed(1)}h</strong></span>
+              )}
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Thermometer size={16} /> 最高 <strong>{weather.tempMax}℃</strong></span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Droplets size={16} /> 降水量 <strong>{weather.precipitation}mm</strong></span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <Droplets size={16} /> 降水量 <strong>{weather.precipitation}mm</strong>
+                {(weather.motodomari || weather.kutsugata) && (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    (本泊 {weather.motodomari?.precipitation ?? '-'} / 沓形 {weather.kutsugata?.precipitation ?? '-'}mm)
+                  </span>
+                )}
+              </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Wind size={16} /> 風 <strong>{windDir} {weather.windSpeedMax}m/s</strong></span>
               
               {cameraAnalysis.length > 0 && (

@@ -104,11 +104,11 @@ export const saveLogsToFirestore = async (entries: LogEntry[]): Promise<boolean>
       groupedByMonth[monthStr].push(entry);
     });
 
-    // ② Firestore上の現在のデータを一括取得 (メタデータ以外)
+    // ② Firestore上の現在のデータを一括取得 (メタデータ・カメラ解析データ以外)
     const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
     const existingDocsMap: Record<string, any> = {};
     querySnapshot.forEach(docSnap => {
-      if (docSnap.id !== META_DOC_ID) {
+      if (docSnap.id !== META_DOC_ID && !docSnap.id.startsWith('camera_ai_')) {
         existingDocsMap[docSnap.id] = {
           ref: docSnap.ref,
           data: docSnap.data()
@@ -194,8 +194,8 @@ export const loadLogsFromFirestore = async (): Promise<LogEntry[]> => {
     let allEntries: LogEntry[] = [];
 
     querySnapshot.forEach(docSnap => {
-      // メタデータドキュメントは除外
-      if (docSnap.id === META_DOC_ID) return;
+      // メタデータおよびカメラ解析ドキュメントは除外
+      if (docSnap.id === META_DOC_ID || docSnap.id.startsWith('camera_ai_')) return;
       
       const data = docSnap.data();
       if (data && Array.isArray(data.entries)) {
@@ -220,7 +220,7 @@ export const loadLogsFromFirestore = async (): Promise<LogEntry[]> => {
 };
 
 /**
- * Cloud Firestore の 'counter_logs' コレクション内の全ドキュメントを削除します。
+ * Cloud Firestore の 'counter_logs' コレクション内の全ログドキュメントを削除します。
  */
 export const clearLogsFromFirestore = async (): Promise<boolean> => {
   const db = getDB();
@@ -233,9 +233,11 @@ export const clearLogsFromFirestore = async (): Promise<boolean> => {
     const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
     const docs = querySnapshot.docs;
 
-    // バッチ削除でもサイズオーバー(Transaction too big)になるほどデータが大きいため、確実に1つずつ直列で削除する
+    // カメラ解析ドキュメントは残し、ログドキュメントのみ削除
     for (let i = 0; i < docs.length; i++) {
-      await deleteDoc(docs[i].ref);
+      if (!docs[i].id.startsWith('camera_ai_')) {
+        await deleteDoc(docs[i].ref);
+      }
     }
     return true;
   } catch (error) {
@@ -243,3 +245,59 @@ export const clearLogsFromFirestore = async (): Promise<boolean> => {
     return false;
   }
 };
+
+// ============================================================================
+// カメラAI雲量・山頂視界解析データの Cloud Firestore 自動永続化機能
+// ============================================================================
+const CAMERA_DOC_ID = 'camera_ai_analysis_v2';
+
+/**
+ * カメラAI解析結果（全体マップまたは差分）を Cloud Firestore に自動保存します。
+ */
+export const saveCameraAnalysisToFirestore = async (
+  analysisMap: Record<string, any[]>
+): Promise<boolean> => {
+  const db = getDB();
+  if (!db) return false;
+
+  try {
+    const docRef = doc(db, COLLECTION_NAME, CAMERA_DOC_ID);
+    await setDoc(docRef, {
+      records: analysisMap,
+      updatedAt: Date.now(),
+      cleared: Object.keys(analysisMap).length === 0,
+    });
+    return true;
+  } catch (error) {
+    console.error('Failed to save camera analysis to Firestore:', error);
+    return false;
+  }
+};
+
+/**
+ * Cloud Firestore から保存済みのカメラAI解析結果を読み込みます。
+ */
+export const loadCameraAnalysisFromFirestore = async (): Promise<{
+  records: Record<string, any[]>;
+  cleared: boolean;
+} | null> => {
+  const db = getDB();
+  if (!db) return null;
+
+  try {
+    const docRef = doc(db, COLLECTION_NAME, CAMERA_DOC_ID);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      return {
+        records: (data.records as Record<string, any[]>) || {},
+        cleared: Boolean(data.cleared),
+      };
+    }
+    return null;
+  } catch (error) {
+    console.warn('Failed to load camera analysis from Firestore:', error);
+    return null;
+  }
+};
+

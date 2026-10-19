@@ -344,7 +344,7 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
     .filter(([, st]) => st.lateEnter > 0)
     .map(([date, st]) => {
       const w = weatherData[date];
-      const wDesc = w ? getWeatherDescription(w.weatherCode, w.precipitation, w.sunshineDuration, date) : null;
+      const wDesc = w ? getWeatherDescription(w.weatherCode, w.precipitation, w.sunshineDuration, date, cameraAnalysis[date]) : null;
       return {
         date,
         displayDate: format(parseISO(date), 'M/d(E)', { locale: ja }),
@@ -361,7 +361,7 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
     .filter(([, st]) => st.lateExit > 0)
     .map(([date, st]) => {
       const w = weatherData[date];
-      const wDesc = w ? getWeatherDescription(w.weatherCode, w.precipitation, w.sunshineDuration, date) : null;
+      const wDesc = w ? getWeatherDescription(w.weatherCode, w.precipitation, w.sunshineDuration, date, cameraAnalysis[date]) : null;
       const dayAvgEnter = st.enterCount > 0 ? st.enterHourSum / st.enterCount : avgEnterHour;
       const dayAvgExit = st.exitCount > 0 ? st.exitHourSum / st.exitCount : avgExitHour;
       const durMin = dayAvgExit > dayAvgEnter ? Math.round((dayAvgExit - dayAvgEnter) * 60) : avgDurationMinutes;
@@ -474,10 +474,10 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
     wk.lateExit += rawSt.lateExit;
     wk.afterSunsetExit += rawSt.afterSunsetExit;
 
-    // 麓の天気カテゴリ
+    // 島の天気カテゴリ（アメダス実測×3方向カメラハイブリッド判定）
     const baseCat =
       w && w.weatherCode !== undefined
-        ? getWeatherCategory(w.weatherCode, w.precipitation, w.sunshineDuration, d.date)
+        ? getWeatherCategory(w.weatherCode, w.precipitation, w.sunshineDuration, d.date, cam)
         : 'Unknown';
     const isBaseSunny = baseCat === 'Sunny';
     if (isBaseSunny) baseSunnyDays++;
@@ -528,14 +528,14 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
         const prevW = weatherData[prevDateStr];
         const prevWDesc =
           prevW && prevW.weatherCode !== undefined
-            ? getWeatherDescription(prevW.weatherCode, prevW.precipitation, prevW.sunshineDuration, prevDateStr)
+            ? getWeatherDescription(prevW.weatherCode, prevW.precipitation, prevW.sunshineDuration, prevDateStr, cameraAnalysis[prevDateStr])
             : null;
         const prevRain = prevW?.precipitation || 0;
         const prevWind = prevW?.windSpeedMax || 0;
 
         const wDesc =
           w && w.weatherCode !== undefined
-            ? getWeatherDescription(w.weatherCode, w.precipitation, w.sunshineDuration, d.date)
+            ? getWeatherDescription(w.weatherCode, w.precipitation, w.sunshineDuration, d.date, cam)
             : null;
 
         let causeBadge: OpportunityLossDay['causeBadge'] = '📅 オフピーク・誘客穴場日';

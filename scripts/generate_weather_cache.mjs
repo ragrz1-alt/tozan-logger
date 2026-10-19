@@ -5,161 +5,276 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 気象庁アメダス観測点（利尻島）
-const KUTSUGATA_LAT = 45.1870;
-const KUTSUGATA_LON = 141.1410;
-const MOTODOMARI_LAT = 45.2442;
-const MOTODOMARI_LON = 141.2339;
+// 気象庁アメダス公式観測所番号（宗谷地方 prec_no=11）
+// 沓形 (block_no=0002): 降水量・気温・風速・風向・日照時間・積雪
+// 本泊 (block_no=1512 / 利尻空港): 降水量・気温・風速・風向 (※日照計なし)
+const PREC_NO = '11';
+const BLOCK_KUTSUGATA = '0002';
+const BLOCK_MOTODOMARI = '1512';
 
-// 日別データのパーサーヘルパー
-const parseDailyDataIntoResult = (data, result) => {
-  if (data && data.daily && data.daily.time) {
-    for (let i = 0; i < data.daily.time.length; i++) {
-      const date = data.daily.time[i];
-      const sunshineSec = data.daily.sunshine_duration ? data.daily.sunshine_duration[i] : undefined;
-      const sunshineHours = sunshineSec !== undefined && sunshineSec !== null
-        ? Math.round((sunshineSec / 3600) * 10) / 10
-        : undefined;
+const DIR_TO_DEG = {
+  '北': 0,
+  '北北東': 22.5,
+  '北東': 45,
+  '東北東': 67.5,
+  '東': 90,
+  '東南東': 112.5,
+  '南東': 135,
+  '南南東': 157.5,
+  '南': 180,
+  '南南西': 202.5,
+  '南西': 225,
+  '西南西': 247.5,
+  '西': 270,
+  '西北西': 292.5,
+  '北西': 315,
+  '北北西': 337.5,
+};
 
-      const rawPrecip = data.daily.precipitation_sum[i] || 0;
-      const precipThreshold = (sunshineHours && sunshineHours >= 4.0) ? 3.5 : 1.5;
-      const precip = rawPrecip < precipThreshold ? 0 : Math.round(rawPrecip * 10) / 10;
-      result[date] = {
-        date,
-        tempMax: data.daily.temperature_2m_max[i] || 0,
-        tempMin: data.daily.temperature_2m_min[i] || 0,
-        precipitation: precip,
-        weatherCode: data.daily.weather_code[i] !== null ? data.daily.weather_code[i] : 1,
-        windSpeedMax: data.daily.wind_speed_10m_max[i] || 0,
-        windDirection: data.daily.wind_direction_10m_dominant[i] || 0,
-        sunshineDuration: sunshineHours,
-        isHeavyRain: precip >= 20.0
+/**
+ * 気象庁セル文字列から数値を厳密に抽出する
+ * - '--' (降水なし) は isPrecip=true のとき 0.0 として扱う
+ * - '///', '×', '' (欠測・未観測) は null を返す
+ * - '14.5 )' や '8.2 ]' (準正常値) は数値部分を抽出する
+ */
+function parseJmaNumber(raw, isPrecip = false) {
+  if (!raw) return isPrecip ? 0 : null;
+  const s = raw.replace(/\s+/g, '');
+  if (s === '--') return isPrecip ? 0 : null;
+  if (s.includes('///') || s.includes('×') || s === '') return null;
+  const m = s.match(/-?\d+(\.\d+)?/);
+  if (!m) return isPrecip ? 0 : null;
+  return parseFloat(m[0]);
+}
+
+function parseJmaWindDir(raw) {
+  if (!raw) return { text: '不明', deg: 0 };
+  const clean = raw.replace(/[)\]\s#]/g, '').trim();
+  if (clean in DIR_TO_DEG) {
+    return { text: clean, deg: DIR_TO_DEG[clean] };
+  }
+  return { text: clean || '不明', deg: 0 };
+}
+
+/**
+ * 実測アメダス値（降水量・最大1時間降水量・日照時間）から互換用WMO天気コードを算出する
+ */
+function deriveWeatherCodeFromAmedas(precip, maxHourlyPrecip, sunshine) {
+  const p = precip || 0;
+  const p1h = maxHourlyPrecip || 0;
+  if (p >= 20.0 || p1h >= 10.0) return 65; // 大雨・豪雨
+  // 夜間通り雨救済: 0.5〜4.0mm程度の降水があっても日中5.0時間以上晴れている場合は晴れ一時雨(1)
+  if (p >= 3.0) {
+    if (sunshine !== null && sunshine !== undefined && sunshine >= 5.0 && p < 6.0) {
+      return 2; // 日中晴れ＋一時通り雨
+    }
+    return 61; // 雨
+  }
+  if (p >= 1.0 && (sunshine === null || sunshine === undefined || sunshine < 4.0)) {
+    return 61; // 小雨・雨天
+  }
+  if (sunshine !== null && sunshine !== undefined) {
+    if (sunshine >= 8.0) return 0; // 快晴
+    if (sunshine >= 4.0) return 1; // 晴れ
+    if (p >= 0.5) return 51; // 曇り一時微雨
+    return 3; // 曇り
+  }
+  return p >= 1.0 ? 61 : 3;
+}
+
+/**
+ * 指定された年・月・観測所(block_no)の気象庁アメダス日別実測テーブルを取得・パースする
+ */
+async function fetchJmaMonthlyStation(blockNo, year, month, hasSunshine) {
+  const url = `https://www.data.jma.go.jp/stats/etrn/view/daily_a1.php?prec_no=${PREC_NO}&block_no=${blockNo}&year=${year}&month=${month}&day=&view=`;
+  const map = {};
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return map;
+    const html = await res.text();
+    const rows = html.split('<tr class=').slice(4);
+    const mStr = String(month).padStart(2, '0');
+
+    for (const r of rows) {
+      const tds = r
+        .split('<td')
+        .slice(1)
+        .map(s =>
+          s
+            .replace(/^[^>]*>/, '')
+            .split('</td>')[0]
+            .replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;/g, '')
+            .trim()
+        );
+      if (tds.length < 16 || !/^\d+$/.test(tds[0])) continue;
+
+      const dayNum = parseInt(tds[0], 10);
+      if (dayNum < 1 || dayNum > 31) continue;
+      const dateStr = `${year}-${mStr}-${String(dayNum).padStart(2, '0')}`;
+
+      const precip = parseJmaNumber(tds[1], true);
+      const maxHourlyPrecip = parseJmaNumber(tds[2], true);
+      const tempAvg = parseJmaNumber(tds[4], false);
+      const tempMax = parseJmaNumber(tds[5], false);
+      const tempMin = parseJmaNumber(tds[6], false);
+      const windSpeedMax = parseJmaNumber(tds[10], false);
+      const windDirObj = parseJmaWindDir(tds[11]);
+      const sunshine = hasSunshine ? parseJmaNumber(tds[15], false) : null;
+
+      // 未来日などで全項目が未観測(null)の行はスキップ
+      if (tempMax === null && tempMin === null && tempAvg === null && windSpeedMax === null) {
+        continue;
+      }
+
+      map[dateStr] = {
+        precipitation: precip ?? 0,
+        maxHourlyPrecip: maxHourlyPrecip ?? 0,
+        tempMax: tempMax ?? tempAvg ?? 0,
+        tempMin: tempMin ?? tempAvg ?? 0,
+        windSpeedMax: windSpeedMax ?? 0,
+        windDirection: windDirObj.deg,
+        windDirectionText: windDirObj.text,
+        sunshineDuration: sunshine !== null ? sunshine : undefined,
       };
     }
+  } catch (err) {
+    console.warn(`[Warn] JMA fetch failed (${blockNo}, ${year}-${month}):`, err.message);
   }
-};
-
-const fetchSingleLocationWeather = async (lat, lon, startYear, endYear) => {
-  const result = {};
-  const todayStr = new Date().toISOString().substring(0, 10);
-
-  // 年単位・期間ごとに堅牢に分割フェッチ
-  for (let year = startYear; year <= endYear; year++) {
-    const startDate = `${year}-01-01`;
-    let endDate = `${year}-12-31`;
-    if (endDate > todayStr) {
-      endDate = todayStr;
-    }
-    if (startDate > todayStr) break;
-
-    const url = year >= 2017
-      ? `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,wind_speed_10m_max,wind_direction_10m_dominant,sunshine_duration&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`
-      : `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code,wind_speed_10m_max,wind_direction_10m_dominant,sunshine_duration&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-
-    console.log(`[Fetch] (${lat}, ${lon}) Year: ${year} -> ${startDate} to ${endDate}`);
-    try {
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        parseDailyDataIntoResult(data, result);
-      } else {
-        console.warn(`[Warn] Failed to fetch year ${year} (status: ${res.status})`);
-      }
-    } catch (err) {
-      console.warn(`[Warn] Error fetching year ${year}:`, err.message);
-    }
-
-    // レート制限防止のための小休止
-    await new Promise(resolve => setTimeout(resolve, 300));
-  }
-
-  return result;
-};
+  return map;
+}
 
 async function generateWeatherCache() {
-  console.log('=== 利尻山 (沓形×本泊) 気象データ自動生成スクリプト ===');
+  console.log('=== 利尻山 (気象庁アメダス実測: 沓形×本泊) 気象データ自動生成スクリプト ===');
 
   const outputDir = path.join(__dirname, '../public/data');
   const outputPath = path.join(outputDir, 'weather-daily.json');
 
   let existingData = {};
-  let startYear = 2010;
-  const currentYear = new Date().getFullYear();
+  const startYear = 2010;
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
 
   if (fs.existsSync(outputPath)) {
     try {
       existingData = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
-      const dates = Object.keys(existingData).sort();
-      if (dates.length > 0) {
-        const lastDate = dates[dates.length - 1];
-        startYear = parseInt(lastDate.substring(0, 4), 10);
-        console.log(`既存キャッシュあり。最新データ日付: ${lastDate}。${startYear}年以降のデータを差分取得します。`);
-      }
-    } catch (e) {
-      console.warn('キャッシュの読み込みに失敗したため、全件取得します。');
+    } catch {
+      console.warn('既存キャッシュの読み込みに失敗したため、新規生成します。');
     }
-  } else {
-    console.log(`対象期間: ${startYear}年 〜 ${currentYear}年`);
   }
 
-  console.log('1. 沓形 (Kutsugata) の気象データを取得中...');
-  const kutsugata = await fetchSingleLocationWeather(KUTSUGATA_LAT, KUTSUGATA_LON, startYear, currentYear);
+  // 取得が必要な (year, month) のリストを作成
+  // - 既に source === 'jma_amedas' で保存済みの過去月はスキップして0秒化
+  // - 当月および前月は最新の実測値を反映するため常に再取得
+  const tasks = [];
+  for (let y = startYear; y <= currentYear; y++) {
+    const maxM = y === currentYear ? currentMonth : 12;
+    for (let m = 1; m <= maxM; m++) {
+      const mStr = String(m).padStart(2, '0');
+      const sampleDate = `${y}-${mStr}-15`;
+      const isRecentMonth =
+        (y === currentYear && m >= currentMonth - 1) ||
+        (y === currentYear - 1 && currentMonth === 1 && m === 12);
 
-  console.log('2. 本泊 (Motodomari) の気象データを取得中...');
-  const motodomari = await fetchSingleLocationWeather(MOTODOMARI_LAT, MOTODOMARI_LON, startYear, currentYear);
+      const alreadyJma =
+        existingData[sampleDate] &&
+        existingData[sampleDate].source === 'jma_amedas' &&
+        existingData[sampleDate].kutsugata !== undefined;
 
-  console.log('3. 両地点のデータをクロス分析して合算中...');
-  const allDates = new Set([...Object.keys(kutsugata), ...Object.keys(motodomari)]);
+      if (!alreadyJma || isRecentMonth) {
+        tasks.push({ year: y, month: m });
+      }
+    }
+  }
+
+  console.log(`取得対象月数: ${tasks.length} ヶ月分 (沓形・本泊 アメダス実測値)`);
+
   const combined = { ...existingData };
 
-  const sortedDates = Array.from(allDates).sort();
-  for (const date of sortedDates) {
-    const k = kutsugata[date];
-    const m = motodomari[date];
-    if (k && m) {
-      const kPrecip = k.precipitation || 0;
-      const mPrecip = m.precipitation || 0;
-      const precip = Math.round(Math.max(kPrecip, mPrecip) * 10) / 10;
-      // 登山適日を正しく評価するため、日照時間は両地点の「より長い方(良い方)」を採用
-      const sunshine = (k.sunshineDuration !== undefined && m.sunshineDuration !== undefined)
-        ? Math.max(k.sunshineDuration, m.sunshineDuration)
-        : (k.sunshineDuration ?? m.sunshineDuration);
+  // 6ヶ月分ずつ並列バッチ取得（JMAサーバーへの負荷を抑えつつ高速取得）
+  const BATCH_SIZE = 6;
+  for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+    const chunk = tasks.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      chunk.map(async ({ year, month }) => {
+        const [kMap, mMap] = await Promise.all([
+          fetchJmaMonthlyStation(BLOCK_KUTSUGATA, year, month, true),
+          fetchJmaMonthlyStation(BLOCK_MOTODOMARI, year, month, false),
+        ]);
+        return { year, month, kMap, mMap };
+      })
+    );
 
-      let mergedCode = Math.max(k.weatherCode, m.weatherCode);
-      if (precip >= 20) {
-        mergedCode = 65;
-      } else if (precip < 3.0) {
-        mergedCode = Math.min(k.weatherCode, m.weatherCode);
+    for (const { kMap, mMap } of results) {
+      const allDates = new Set([...Object.keys(kMap), ...Object.keys(mMap)]);
+      for (const date of allDates) {
+        const k = kMap[date];
+        const m = mMap[date];
+        if (k && m) {
+          const precip = Math.round(Math.max(k.precipitation, m.precipitation) * 10) / 10;
+          const maxHourlyPrecip = Math.round(Math.max(k.maxHourlyPrecip || 0, m.maxHourlyPrecip || 0) * 10) / 10;
+          const sunshine = k.sunshineDuration; // 沓形アメダスの実測日照時間
+          const strongerWind = m.windSpeedMax > k.windSpeedMax ? m : k;
+          const weatherCode = deriveWeatherCodeFromAmedas(precip, maxHourlyPrecip, sunshine);
+
+          combined[date] = {
+            date,
+            tempMax: Math.round(((k.tempMax + m.tempMax) / 2) * 10) / 10,
+            tempMin: Math.round(((k.tempMin + m.tempMin) / 2) * 10) / 10,
+            precipitation: precip,
+            maxHourlyPrecip,
+            weatherCode,
+            windSpeedMax: Math.max(k.windSpeedMax, m.windSpeedMax),
+            windDirection: strongerWind.windDirection,
+            sunshineDuration: sunshine,
+            isHeavyRain: precip >= 20.0 || maxHourlyPrecip >= 10.0,
+            source: 'jma_amedas',
+            kutsugata: k,
+            motodomari: m,
+          };
+        } else {
+          const single = k || m;
+          const precip = single.precipitation || 0;
+          const maxHourlyPrecip = single.maxHourlyPrecip || 0;
+          const sunshine = k ? k.sunshineDuration : undefined;
+          combined[date] = {
+            date,
+            tempMax: single.tempMax,
+            tempMin: single.tempMin,
+            precipitation: precip,
+            maxHourlyPrecip,
+            weatherCode: deriveWeatherCodeFromAmedas(precip, maxHourlyPrecip, sunshine),
+            windSpeedMax: single.windSpeedMax,
+            windDirection: single.windDirection,
+            sunshineDuration: sunshine,
+            isHeavyRain: precip >= 20.0 || maxHourlyPrecip >= 10.0,
+            source: 'jma_amedas',
+            kutsugata: k || undefined,
+            motodomari: m || undefined,
+          };
+        }
       }
-
-      combined[date] = {
-        date,
-        tempMax: Math.round(((k.tempMax + m.tempMax) / 2) * 10) / 10,
-        tempMin: Math.round(((k.tempMin + m.tempMin) / 2) * 10) / 10,
-        precipitation: precip,
-        weatherCode: mergedCode,
-        windSpeedMax: Math.max(k.windSpeedMax, m.windSpeedMax),
-        windDirection: k.windDirection,
-        sunshineDuration: sunshine,
-        isHeavyRain: precip >= 20.0
-      };
-    } else {
-      combined[date] = k || m;
     }
+
+    if ((i + BATCH_SIZE) % 24 === 0 || i + BATCH_SIZE >= tasks.length) {
+      console.log(`進捗: ${Math.min(i + BATCH_SIZE, tasks.length)} / ${tasks.length} ヶ月完了`);
+    }
+    await new Promise(r => setTimeout(r, 120));
   }
 
-  const recordCount = Object.keys(combined).length;
-  console.log(`生成完了: 合計 ${recordCount} 日分の気象データを統合しました。`);
+  // 日付順にソートして保存
+  const sortedCombined = {};
+  for (const d of Object.keys(combined).sort()) {
+    sortedCombined[d] = combined[d];
+  }
 
-  // 出力ディレクトリ準備
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  fs.writeFileSync(outputPath, JSON.stringify(combined), 'utf-8');
-
-  console.log(`✅ 保存完了: ${outputPath}`);
-  console.log('これで誰がアクセスしても通信0秒の瞬時読み込みが可能になります！');
+  fs.writeFileSync(outputPath, JSON.stringify(sortedCombined), 'utf-8');
+  console.log(`✅ 保存完了: 合計 ${Object.keys(sortedCombined).length} 日分のアメダス実測気象データを統合しました (${outputPath})`);
 }
 
 generateWeatherCache().catch(err => {

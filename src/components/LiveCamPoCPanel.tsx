@@ -1,29 +1,29 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Sun, RefreshCw, Database, CheckCircle2, Trash2, Download, Play, Square, Calendar, Eye } from 'lucide-react';
+import { Sun, RefreshCw, Database, CheckCircle2, Trash2, Download, Play, Square, Calendar, Eye, Cloud } from 'lucide-react';
 import {
   type ImageAnalysis,
   evaluateDailyCameraVisibility,
-  notifyCameraAnalysisUpdated,
+  cleanupObsoleteLocalStorageCaches,
+  persistCameraAnalysisResults,
 } from '../hooks/useCameraAnalysis';
-
-interface WeatherData {
-  date: string;
-  tempMax: number;
-  tempMin: number;
-  precipitation: number;
-  weatherCode: number;
-  windSpeedMax: number;
-  windDirection: number;
-  sunshineDuration: number;
-  isHeavyRain: boolean;
-}
+import { loadCameraAnalysisFromFirestore } from '../utils/firebaseStorage';
+import type { WeatherData } from '../utils/weatherApi';
 
 const LOCATIONS = [
   { id: 'oshidomari', name: '鴛泊(北)' },
   { id: 'kutsugata', name: '沓形(西)' },
   { id: 'senposhi', name: '仙法志(南)' },
 ];
-const TIMES = ['05', '08', '11', '14', '17'];
+// 2時間おき・7回 (05, 07, 09, 11, 13, 15, 17時 × 3地点 ＝ 計21枚/日)
+const TIMES = ['05', '07', '09', '11', '13', '15', '17'];
+
+// 7回解析フォーマットで解析完了しているかの判定ヘルパー
+function isDayAnalyzed7Slots(records?: ImageAnalysis[]): boolean {
+  if (!records || records.length === 0) return false;
+  const hasOk = records.some(c => c.status === 'ok');
+  const has7Slot = records.some(c => c.fileName.startsWith('07_') || c.fileName.startsWith('09_'));
+  return hasOk && has7Slot;
+}
 
 // レート制限 (500 RPD / 15 RPM) に最適化されたモデルチェーン
 const CAMERA_MODELS = [
@@ -81,6 +81,7 @@ export const LiveCamPoCPanel: React.FC = () => {
   const [isLoadingWeather, setIsLoadingWeather] = useState(true);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{
     current: number;
     total: number;
@@ -90,11 +91,14 @@ export const LiveCamPoCPanel: React.FC = () => {
   const stopRequestedRef = useRef<boolean>(false);
 
   const [analysisResults, setAnalysisResults] = useState<Record<string, ImageAnalysis[]>>({});
+  const analysisResultsRef = useRef<Record<string, ImageAnalysis[]>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/data/weather-daily.json')
+    cleanupObsoleteLocalStorageCaches();
+
+    fetch(`/data/weather-daily.json?t=${Date.now()}`)
       .then(res => res.json())
       .then(data => {
         setWeatherMap(data);
@@ -105,32 +109,52 @@ export const LiveCamPoCPanel: React.FC = () => {
         setIsLoadingWeather(false);
       });
 
-    const isCleared = localStorage.getItem('tozan_weather_analysis_cleared') === 'true';
-    const cached = localStorage.getItem('tozan_weather_analysis_cache');
-    const localData = cached ? JSON.parse(cached) : {};
+    const initCameraResults = async () => {
+      const isClearedLocal = localStorage.getItem('tozan_weather_analysis_cleared') === 'true';
+      let localData: Record<string, ImageAnalysis[]> = {};
+      try {
+        const cached = localStorage.getItem('tozan_weather_analysis_cache');
+        if (cached) localData = JSON.parse(cached);
+      } catch {}
 
-    if (isCleared) {
-      setAnalysisResults(localData);
-      return;
-    }
-
-    fetch(`/cams/analysis_results.json?t=${Date.now()}`)
-      .then(res => res.json())
-      .then(data => {
-        setAnalysisResults({ ...data, ...localData });
-      })
-      .catch(() => {
+      if (Object.keys(localData).length > 0) {
+        analysisResultsRef.current = localData;
         setAnalysisResults(localData);
-      });
+      }
+
+      const [staticData, cloudPayload] = await Promise.all([
+        isClearedLocal
+          ? Promise.resolve({} as Record<string, ImageAnalysis[]>)
+          : fetch(`/cams/analysis_results.json?t=${Date.now()}`)
+              .then(r => (r.ok ? r.json() : {}))
+              .catch(() => ({} as Record<string, ImageAnalysis[]>)),
+        loadCameraAnalysisFromFirestore(),
+      ]);
+
+      const cloudRecords = (cloudPayload?.records as Record<string, ImageAnalysis[]>) || {};
+      const merged: Record<string, ImageAnalysis[]> = cloudPayload?.cleared
+        ? { ...cloudRecords, ...localData }
+        : { ...staticData, ...cloudRecords, ...localData };
+
+      analysisResultsRef.current = merged;
+      setAnalysisResults(merged);
+      try {
+        if (Object.keys(merged).length > 0) {
+          localStorage.setItem('tozan_weather_analysis_cache', JSON.stringify(merged));
+        }
+      } catch {}
+    };
+
+    initCameraResults();
   }, []);
 
   const currentWeather = weatherMap[selectedDate];
   const currentResults = analysisResults[selectedDate];
   const dailySummary = useMemo(() => evaluateDailyCameraVisibility(currentResults), [currentResults]);
 
-  // 解析済み日数のカウント
+  // 解析済み日数のカウント (7回フォーマット完了日)
   const analyzedDaysCount = useMemo(() => {
-    return availableDates.filter(d => analysisResults[d] && analysisResults[d].some(c => c.status === 'ok')).length;
+    return availableDates.filter(d => isDayAnalyzed7Slots(analysisResults[d])).length;
   }, [availableDates, analysisResults]);
 
   // 選択範囲内のサマリー統計
@@ -143,7 +167,7 @@ export const LiveCamPoCPanel: React.FC = () => {
 
     datesInRange.forEach(d => {
       const res = analysisResults[d];
-      if (!res || !res.some(c => c.status === 'ok')) return;
+      if (!isDayAnalyzed7Slots(res)) return;
       analyzedInRange++;
       const evalRes = evaluateDailyCameraVisibility(res);
       if (evalRes.mountainCategory === 'clear') clearDays++;
@@ -318,20 +342,17 @@ export const LiveCamPoCPanel: React.FC = () => {
     throw lastErr || new Error('すべてのAIモデルで解析に失敗しました。');
   };
 
-  const saveDateResults = (dateStr: string, dateResults: ImageAnalysis[]) => {
-    setAnalysisResults(prev => {
-      const updated = { ...prev, [dateStr]: dateResults };
-      try {
-        const cached = localStorage.getItem('tozan_weather_analysis_cache');
-        const localData = cached ? JSON.parse(cached) : {};
-        localData[dateStr] = dateResults;
-        localStorage.setItem('tozan_weather_analysis_cache', JSON.stringify(localData));
-        notifyCameraAnalysisUpdated();
-      } catch (storageErr) {
-        console.warn('localStorageへの保存エラー:', storageErr);
-      }
-      return updated;
-    });
+  const saveDateResults = async (dateStr: string, dateResults: ImageAnalysis[]): Promise<boolean> => {
+    const updated = { ...analysisResultsRef.current, [dateStr]: dateResults };
+    analysisResultsRef.current = updated;
+    setAnalysisResults(updated);
+    setIsSyncingCloud(true);
+    try {
+      const cloudOk = await persistCameraAnalysisResults(updated, false);
+      return cloudOk;
+    } finally {
+      setIsSyncingCloud(false);
+    }
   };
 
   // 単日解析の実行
@@ -341,8 +362,12 @@ export const LiveCamPoCPanel: React.FC = () => {
     setStatusMsg(null);
     try {
       const { results, usedModel } = await analyzeSingleDateCore(selectedDate);
-      saveDateResults(selectedDate, results);
-      setStatusMsg(`✅ ${selectedDate} の高精度雲量・山頂視界解析が完了しました！（使用モデル: ${usedModel}）`);
+      const cloudOk = await saveDateResults(selectedDate, results);
+      setStatusMsg(
+        `✅ ${selectedDate} の7時間帯（21枚）雲量・山頂視界解析が完了し、${
+          cloudOk ? 'クラウド(Firestore)へ自動永久保存されました！' : 'ローカルキャッシュへ保存されました。'
+        }（使用モデル: ${usedModel}）`
+      );
     } catch (err: any) {
       setErrorMsg(err.message);
     } finally {
@@ -360,10 +385,10 @@ export const LiveCamPoCPanel: React.FC = () => {
     const candidates = availableDates.filter(d => d >= rangeStart && d <= rangeEnd);
     const targetList = overwriteExisting
       ? candidates
-      : candidates.filter(d => !analysisResults[d] || !analysisResults[d].some(c => c.status === 'ok'));
+      : candidates.filter(d => !isDayAnalyzed7Slots(analysisResultsRef.current[d]));
 
     if (targetList.length === 0) {
-      setStatusMsg('指定範囲内の日付はすべて解析済みです。再解析する場合は「解析済みの日も新ルールで上書き再解析する」にチェックを入れてください。');
+      setStatusMsg('指定範囲内の日付はすべて7回フォーマットで解析済みです。再解析する場合は「解析済みの日も新ルールで上書き再解析する」にチェックを入れてください。');
       return;
     }
 
@@ -377,7 +402,7 @@ export const LiveCamPoCPanel: React.FC = () => {
     try {
       for (let i = 0; i < targetList.length; i++) {
         if (stopRequestedRef.current) {
-          setStatusMsg(`⏸️ ユーザー操作により一括解析を中断しました。（${completedCount} / ${targetList.length} 日完了）`);
+          setStatusMsg(`⏸️ ユーザー操作により一括解析を中断しました。（${completedCount} / ${targetList.length} 日完了・クラウド自動保存済）`);
           break;
         }
 
@@ -391,7 +416,7 @@ export const LiveCamPoCPanel: React.FC = () => {
         });
 
         const { results, usedModel } = await analyzeSingleDateCore(dateStr);
-        saveDateResults(dateStr, results);
+        await saveDateResults(dateStr, results);
         completedCount++;
 
         setBatchProgress({
@@ -408,10 +433,10 @@ export const LiveCamPoCPanel: React.FC = () => {
       }
 
       if (!stopRequestedRef.current) {
-        setStatusMsg(`🎉 指定範囲（${completedCount}日間）の一括AI解析がすべて完了しました！右上の「JSON保存」からファイル書き出しも可能です。`);
+        setStatusMsg(`🎉 指定範囲（${completedCount}日間・各日7回21枚）の一括AI解析が完了し、すべてクラウド(Firestore)へ自動永久保存されました！`);
       }
     } catch (err: any) {
-      setErrorMsg(`一括解析中にエラーが発生しました (${ completedCount }日完了時点): ${err.message}`);
+      setErrorMsg(`一括解析中にエラーが発生しました (${completedCount}日完了時点・完了分はクラウド自動保存済): ${err.message}`);
     } finally {
       setIsAnalyzing(false);
       setBatchProgress(null);
@@ -420,19 +445,20 @@ export const LiveCamPoCPanel: React.FC = () => {
   };
 
   // 全解析データの完全クリア
-  const handleClearAllAnalysis = () => {
+  const handleClearAllAnalysis = async () => {
     if (
       !window.confirm(
-        '現在保持しているすべての雲量・視界解析データをクリア（初期化）しますか？\nクリア後、新しい高精度プロンプトで1日単位または期間一括で再解析できます。'
+        '現在保持しているすべての雲量・視界解析データ（クラウド保存分含む）をクリア（初期化）しますか？\nクリア後、新しい7時間帯（21枚）高精度プロンプトで再解析できます。'
       )
     ) {
       return;
     }
-    localStorage.removeItem('tozan_weather_analysis_cache');
-    localStorage.setItem('tozan_weather_analysis_cleared', 'true');
+    analysisResultsRef.current = {};
     setAnalysisResults({});
-    notifyCameraAnalysisUpdated();
-    setStatusMsg('🗑️ 既存の雲量解析データをすべてクリアしました。新しいプロンプトルールで再解析を実行してください。');
+    setIsSyncingCloud(true);
+    await persistCameraAnalysisResults({}, true);
+    setIsSyncingCloud(false);
+    setStatusMsg('🗑️ 既存の雲量解析データをクラウド・ローカルともにすべてクリアしました。');
   };
 
   // analysis_results.json としてダウンロード保存
@@ -445,7 +471,7 @@ export const LiveCamPoCPanel: React.FC = () => {
     a.download = 'analysis_results.json';
     a.click();
     URL.revokeObjectURL(url);
-    setStatusMsg('💾 analysis_results.json をダウンロードしました。public/cams/analysis_results.json に配置すると永続反映されます。');
+    setStatusMsg('💾 バックアップ用 analysis_results.json をダウンロードしました。（※普段の運用はクラウド自動保存だけで完結します）');
   };
 
   const applyQuickRange = (start: string, end: string) => {
@@ -555,11 +581,27 @@ export const LiveCamPoCPanel: React.FC = () => {
                   color: '#10b981',
                 }}
               >
-                新・山頂ピーク厳格判定ルール適用済 ({analyzedDaysCount} / {availableDates.length}日 解析済)
+                2時間おき7回(21枚)厳格判定 ({analyzedDaysCount} / {availableDates.length}日 解析済)
+              </span>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '999px',
+                  backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                  color: '#2563eb',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                }}
+              >
+                <Cloud size={13} />
+                {isSyncingCloud ? 'クラウド自動保存中...' : 'クラウド自動永久保存 ON (保存操作不要)'}
               </span>
             </div>
             <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-              Google AI Studioのレート制限（Flash Lite: 500回/日・15回/分）に最適化。期間（範囲）指定での一括連続解析やデータクリア・JSON出力に対応しています。
+              05・07・09・11・13・15・17時の計7回（21枚/日）を一括解析し、完了と同時にCloud Firestoreへ自動永久保存します（別タブや別端末でも消えません）。
             </p>
           </div>
         </div>
@@ -581,10 +623,10 @@ export const LiveCamPoCPanel: React.FC = () => {
               fontSize: '0.85rem',
               cursor: isAnalyzing ? 'not-allowed' : 'pointer',
             }}
-            title="現在の解析結果を analysis_results.json としてダウンロードします"
+            title="バックアップとして analysis_results.json をダウンロードします"
           >
             <Download size={16} />
-            <span>JSON書き出し保存</span>
+            <span>バックアップJSON出力</span>
           </button>
 
           <button
@@ -914,10 +956,10 @@ export const LiveCamPoCPanel: React.FC = () => {
             }}
           >
             {availableDates.map(d => {
-              const hasOk = analysisResults[d] && analysisResults[d].some(c => c.status === 'ok');
+              const hasOk = isDayAnalyzed7Slots(analysisResults[d]);
               return (
                 <option key={d} value={d}>
-                  {d} {hasOk ? '✓ 解析済' : '（未解析）'}
+                  {d} {hasOk ? '✓ 解析済(7回)' : '（未解析）'}
                 </option>
               );
             })}
@@ -942,15 +984,15 @@ export const LiveCamPoCPanel: React.FC = () => {
             }}
           >
             <RefreshCw size={15} className={isAnalyzing && !batchProgress ? 'animate-spin' : ''} />
-            <span>この1日だけ再解析 (15枚)</span>
+            <span>この1日だけ解析 (7回・21枚)</span>
           </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {currentResults && currentResults.some(c => c.status === 'ok') ? (
+          {isDayAnalyzed7Slots(currentResults) ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem' }}>
               <span style={{ color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <CheckCircle2 size={16} /> 解析済
+                <CheckCircle2 size={16} /> 解析済 (クラウド同期済)
               </span>
               <span>|</span>
               <span>
@@ -1007,25 +1049,31 @@ export const LiveCamPoCPanel: React.FC = () => {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 1fr) 3fr', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 1fr) 3fr', gap: '1.5rem' }}>
         {/* 気象データ（マクロ）パネル */}
         <div style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px', height: 'fit-content' }}>
           <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Sun size={18} style={{ color: '#f59e0b' }} />
-            麓の気象庁データ ({selectedDate})
+            アメダス実測データ ({selectedDate})
           </h4>
           {currentWeather ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.88rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>最高気温</span>
-                <strong>{currentWeather.tempMax}℃</strong>
+                <span style={{ color: 'var(--text-secondary)' }}>最高 / 最低気温</span>
+                <strong>{currentWeather.tempMax}℃ / {currentWeather.tempMin}℃</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>降水量</span>
+                <span style={{ color: 'var(--text-secondary)' }}>日降水量 (最大)</span>
                 <strong style={{ color: currentWeather.precipitation > 0 ? '#3b82f6' : 'inherit' }}>
                   {currentWeather.precipitation} mm
                 </strong>
               </div>
+              {currentWeather.kutsugata && currentWeather.motodomari && (
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-secondary)', padding: '0.45rem 0.6rem', borderRadius: '6px', lineHeight: 1.5 }}>
+                  <div>・<strong>本泊(北):</strong> 降水 {currentWeather.motodomari.precipitation}mm / 最高 {currentWeather.motodomari.tempMax}℃ / 風 {currentWeather.motodomari.windSpeedMax}m/s({currentWeather.motodomari.windDirectionText || getWindDirString(currentWeather.motodomari.windDirection)})</div>
+                  <div>・<strong>沓形(西):</strong> 降水 {currentWeather.kutsugata.precipitation}mm / 最高 {currentWeather.kutsugata.tempMax}℃ / 風 {currentWeather.kutsugata.windSpeedMax}m/s({currentWeather.kutsugata.windDirectionText || getWindDirString(currentWeather.kutsugata.windDirection)})</div>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>最大風速</span>
                 <strong>{currentWeather.windSpeedMax} m/s</strong>
@@ -1037,8 +1085,8 @@ export const LiveCamPoCPanel: React.FC = () => {
                 </strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>日照時間</span>
-                <strong>{currentWeather.sunshineDuration} 時間</strong>
+                <span style={{ color: 'var(--text-secondary)' }}>日照時間 (沓形実測)</span>
+                <strong>{currentWeather.sunshineDuration ?? '-'} 時間</strong>
               </div>
             </div>
           ) : (

@@ -27,7 +27,7 @@ async function fileToGenerativePart(filePath, mimeType) {
 }
 
 const LOCATIONS = ['oshidomari', 'kutsugata', 'senposhi'];
-const TIMES = ['05', '08', '11', '14', '17'];
+const TIMES = ['05', '07', '09', '11', '13', '15', '17'];
 
 // レート制限 (500 RPD / 15 RPM) に最適化されたモデルフォールバックチェーン
 const CAMERA_MODELS = [

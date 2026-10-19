@@ -17,7 +17,7 @@ interface ChartProps {
 }
 
 export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, cameraAnalysis = {}, onSelectDate }) => {
-  // Merge weather data into daily data
+  // Merge weather data into daily data (アメダス実測 × 3方向カメラ7回 ハイブリッド判定)
   const mergedDailyData = dailyData.map(d => {
     const weather = weatherData[d.date];
     const camData = cameraAnalysis[d.date] || [];
@@ -27,38 +27,52 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, cameraAna
     const mountainCategory = camSummary.mountainCategory;
 
     const wDesc = weather && weather.weatherCode !== undefined
-      ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration, d.date)
+      ? getWeatherDescription(weather.weatherCode, weather.precipitation, weather.sunshineDuration, d.date, camData)
       : null;
-    let category = weather && weather.weatherCode !== undefined
-      ? getWeatherCategory(weather.weatherCode, weather.precipitation, weather.sunshineDuration, d.date)
+    const category = weather && weather.weatherCode !== undefined
+      ? getWeatherCategory(weather.weatherCode, weather.precipitation, weather.sunshineDuration, d.date, camData)
       : 'Unknown';
 
-    // 麓は晴れだが山がガスの場合など、色分けのカスタマイズ
+    // 麓は晴れだが山頂がガス・雲隠れの場合は「オレンジ枠線＋淡色塗り（白抜き風）」で視覚的に区別
     let barColor = getWeatherCategoryColor(category);
-    if (category === 'Sunny' && mountainCategory === 'clear') {
-      barColor = '#f59e0b'; // 本当の快晴（オレンジ）
-    } else if (category === 'Sunny' && mountainCategory === 'foggy') {
-      barColor = '#94a3b8'; // 麓は晴れ・山頂ガス（くすんだグレー）
+    let barStroke = barColor;
+    let barStrokeWidth = 0;
+
+    if (category === 'Sunny') {
+      if (mountainCategory === 'clear') {
+        barColor = '#f59e0b'; // 麓も晴れ × 山頂も快晴（濃いオレンジ塗りつぶし）
+        barStroke = '#d97706';
+      } else if (mountainCategory === 'foggy' || mountainCategory === 'cloudy') {
+        barColor = 'rgba(251, 191, 36, 0.28)'; // 麓は晴れ × 山頂雲隠れ・ガス（オレンジ枠線・中空風）
+        barStroke = '#f59e0b';
+        barStrokeWidth = 2;
+      }
     }
 
     return {
       ...d,
       displayDate: format(parseISO(d.date), 'M/d (E)', { locale: ja }),
       tempMax: weather ? weather.tempMax : null,
+      tempMin: weather ? weather.tempMin : null,
       weatherCode: weather ? weather.weatherCode : null,
       weatherCategory: category,
       mountainCategory,
+      avgCloudCover: camSummary.avgCloudCover,
       weatherText: wDesc ? `${wDesc.emoji} ${wDesc.text}` : '',
       precipitation: weather ? weather.precipitation : null,
       sunshineDuration: weather ? weather.sunshineDuration : null,
       windSpeedMax: weather ? weather.windSpeedMax : null,
       windDirection: weather && weather.windDirection !== undefined ? getWindDirection(weather.windDirection) : null,
+      kutsugata: weather?.kutsugata || null,
+      motodomari: weather?.motodomari || null,
       color: barColor,
+      strokeColor: barStroke,
+      strokeWidth: barStrokeWidth,
     };
   });
 
-  // 極端な大雨・荒天日 (日降水量 20mm以上)
-  const heavyRainDays = mergedDailyData.filter(d => d.precipitation && d.precipitation >= 20.0);
+  // 極端な大雨・荒天日 (日降水量 20mm以上 または HeavyRain判定)
+  const heavyRainDays = mergedDailyData.filter(d => d.weatherCategory === 'HeavyRain' || (d.precipitation && d.precipitation >= 20.0));
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -66,32 +80,41 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, cameraAna
       return (
         <div className="chart-tooltip">
           <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>{label}</p>
-          {data.precipitation && data.precipitation >= 20 && (
+          {data.weatherCategory === 'HeavyRain' && (
             <p style={{ color: '#ef4444', fontWeight: 'bold', margin: '4px 0', fontSize: '0.85rem' }}>
               ⚠️ 大雨・荒天アラート日 (降水 {data.precipitation} mm)
             </p>
           )}
           {data.weatherText && (
-            <div style={{ marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              <p style={{ margin: '2px 0', color: 'var(--text-primary)', fontWeight: 600 }}>麓の天候: {data.weatherText}</p>
+            <div style={{ marginBottom: '8px', fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+              <p style={{ margin: '2px 0', color: 'var(--text-primary)', fontWeight: 700 }}>
+                島の天候判定: {data.weatherText}
+              </p>
               
               {data.mountainCategory && data.mountainCategory !== 'unknown' && (
-                <p style={{ margin: '4px 0', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', backgroundColor: data.mountainCategory === 'clear' ? 'rgba(245, 158, 11, 0.15)' : data.mountainCategory === 'foggy' ? 'rgba(148, 163, 184, 0.2)' : 'rgba(203, 213, 225, 0.15)', color: data.mountainCategory === 'clear' ? '#d97706' : data.mountainCategory === 'foggy' ? '#64748b' : '#94a3b8', fontWeight: 700, fontSize: '0.85rem' }}>
-                  🏔 山頂: {data.mountainCategory === 'clear' ? '快晴 (Clear)' : data.mountainCategory === 'foggy' ? 'ガス (Foggy)' : '曇り (Cloudy)'}
+                <p style={{ margin: '4px 0', padding: '2px 6px', borderRadius: '4px', display: 'inline-block', backgroundColor: data.mountainCategory === 'clear' ? 'rgba(245, 158, 11, 0.15)' : data.mountainCategory === 'foggy' ? 'rgba(148, 163, 184, 0.2)' : 'rgba(203, 213, 225, 0.15)', color: data.mountainCategory === 'clear' ? '#d97706' : data.mountainCategory === 'foggy' ? '#64748b' : '#475569', fontWeight: 700, fontSize: '0.82rem' }}>
+                  📷 3方向カメラ山頂視界: {data.mountainCategory === 'clear' ? '🏔️ 山頂快晴 (Clear)' : data.mountainCategory === 'foggy' ? '🌫️ 山体ガス (Foggy)' : '☁️ 山頂雲隠れ (Cloudy)'}
+                  {data.avgCloudCover !== null && data.avgCloudCover !== undefined ? ` / 平均雲量 ${data.avgCloudCover}` : ''}
                 </p>
               )}
 
               <p style={{ margin: '2px 0' }}>
-                ☀️ 日照時間: {data.sunshineDuration !== undefined && data.sunshineDuration !== null ? `${data.sunshineDuration} 時間 (※気象モデル推計)` : '-'}
+                ☀️ 日照時間: {data.sunshineDuration !== undefined && data.sunshineDuration !== null ? `${data.sunshineDuration} 時間 (沓形アメダス実測)` : '-'}
               </p>
-              <p style={{ margin: '2px 0' }}>☔ 降水量: {data.precipitation} mm</p>
-              <p style={{ margin: '2px 0' }}>💨 風: {data.windDirection} {data.windSpeedMax} m/s</p>
+              <p style={{ margin: '2px 0' }}>☔ 降水量(最大): {data.precipitation} mm</p>
+              <p style={{ margin: '2px 0' }}>💨 最大風速: {data.windDirection} {data.windSpeedMax} m/s</p>
+              {data.kutsugata && data.motodomari && (
+                <div style={{ marginTop: '4px', padding: '4px 6px', backgroundColor: 'rgba(148, 163, 184, 0.12)', borderRadius: '4px', fontSize: '0.78rem' }}>
+                  <div>・本泊(北): 降水 {data.motodomari.precipitation}mm / 最高 {data.motodomari.tempMax}℃ / 風 {data.motodomari.windSpeedMax}m/s({data.motodomari.windDirectionText})</div>
+                  <div>・沓形(西): 降水 {data.kutsugata.precipitation}mm / 最高 {data.kutsugata.tempMax}℃ / 風 {data.kutsugata.windSpeedMax}m/s({data.kutsugata.windDirectionText})</div>
+                </div>
+              )}
             </div>
           )}
           {payload.map((entry: any, index: number) => {
             if (entry.value === null || entry.value === undefined) return null;
             return (
-              <p key={index} style={{ color: entry.color, margin: '4px 0' }}>
+              <p key={index} style={{ color: entry.color === 'rgba(251, 191, 36, 0.28)' ? '#d97706' : entry.color, fontWeight: 700, margin: '4px 0' }}>
                 {entry.name}: {entry.value} {entry.name.includes('気温') ? '℃' : '人'}
               </p>
             );
@@ -132,10 +155,10 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, cameraAna
     <div>
       <div className="card">
         <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span>📊 日別入山者数 ＆ 天候</span>
+          <span>📊 日別入山者数 ＆ 天候（アメダス実測 × 3方向カメラハイブリッド判定）</span>
         </h2>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-          💡 グラフの棒（バー）をクリックすると、その日の「詳細な時間帯別グラフと気象データ内訳」が表示されます。
+          💡 グラフの棒（バー）をクリックすると、その日の「詳細な時間帯別グラフと本泊・沓形アメダス実測内訳」が表示されます。
         </p>
 
         {/* 棒グラフの色に対応する天候凡例バー (カラーバッジ) */}
@@ -153,28 +176,28 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, cameraAna
           boxShadow: 'var(--shadow-sm)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-            <span>🎨 棒グラフ天候カラー凡例:</span>
+            <span>🎨 棒グラフ天候カラー凡例 (アメダス×カメラ):</span>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.1rem', fontSize: '0.83rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.1rem', fontSize: '0.82rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#fbbf24', display: 'inline-block', boxShadow: '0 0 4px rgba(251, 191, 36, 0.4)' }} />
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>晴れ</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>☀️ 晴れ (山頂快晴/好天)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: 'rgba(251, 191, 36, 0.28)', border: '2px solid #f59e0b', display: 'inline-block' }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>🌤️ 麓晴れ・山頂笠雲/ガス (カメラ判定時)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#94a3b8', display: 'inline-block', boxShadow: '0 0 4px rgba(148, 163, 184, 0.4)' }} />
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>曇り</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>☁️ 曇り (日照4h未満・無降水)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#3b82f6', display: 'inline-block', boxShadow: '0 0 4px rgba(59, 130, 246, 0.4)' }} />
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>雨・雪</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>☔ 雨 (3mm以上 / 小雨曇天)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#ef4444', display: 'inline-block', boxShadow: '0 0 4px rgba(239, 68, 68, 0.4)' }} />
-              <span style={{ fontWeight: 600, color: '#ef4444' }}>⚠️ 大雨・荒天 (20mm以上)</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#10b981', display: 'inline-block', boxShadow: '0 0 4px rgba(16, 185, 129, 0.4)' }} />
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>気象未取得・標準</span>
+              <span style={{ fontWeight: 600, color: '#ef4444' }}>🚨 大雨・荒天 (日20mm / 1時間10mm以上)</span>
             </div>
           </div>
         </div>
@@ -200,7 +223,12 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, cameraAna
                 }}
               >
                 {mergedDailyData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.color}
+                    stroke={entry.strokeColor}
+                    strokeWidth={entry.strokeWidth || 0}
+                  />
                 ))}
               </Bar>
             </ComposedChart>
