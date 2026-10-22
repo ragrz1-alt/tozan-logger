@@ -85,6 +85,66 @@ function deriveWeatherCodeFromAmedas(precip, maxHourlyPrecip, sunshine) {
 /**
  * 指定された年・月・観測所(block_no)の気象庁アメダス日別実測テーブルを取得・パースする
  */
+
+const BOSAI_KUTSUGATA = '11151';
+const BOSAI_MOTODOMARI = '11091';
+const DIRS_16 = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+
+async function fetchJmaBosaiDailyStation(bosaiCode, dateStr, hasSunshine) {
+  const ymd = dateStr.replace(/-/g, '');
+  const blocks = ['00', '03', '06', '09', '12', '15', '18', '21'];
+  const urls = blocks.map(b => `https://www.jma.go.jp/bosai/amedas/data/point/${bosaiCode}/${ymd}_${b}.json`);
+  const resList = await Promise.all(
+    urls.map(u => fetch(u).then(r => (r.ok ? r.json() : null)).catch(() => null))
+  );
+  let precipSum = 0;
+  let maxHourlyPrecip = 0;
+  let tempMax = -Infinity;
+  let tempMin = Infinity;
+  let windSpeedMax = 0;
+  let windDirAtMax = 0;
+  let sunSum = 0;
+  let count = 0;
+
+  for (const j of resList) {
+    if (!j) continue;
+    for (const [k, v] of Object.entries(j)) {
+      const t = v.temp?.[0];
+      if (t !== null && t !== undefined) {
+        if (t > tempMax) tempMax = t;
+        if (t < tempMin) tempMin = t;
+        count++;
+      }
+      const w = v.wind?.[0];
+      if (w !== null && w !== undefined && w > windSpeedMax) {
+        windSpeedMax = w;
+        const d16 = v.windDirection?.[0] || 0;
+        windDirAtMax = (d16 * 22.5) % 360;
+      }
+      if (k.endsWith('0000')) {
+        const p1h = v.precipitation1h?.[0] || 0;
+        precipSum += p1h;
+        if (p1h > maxHourlyPrecip) maxHourlyPrecip = p1h;
+        if (hasSunshine && v.sun1h?.[0] !== null && v.sun1h?.[0] !== undefined) {
+          sunSum += v.sun1h[0];
+        }
+      }
+    }
+  }
+  if (count === 0) return null;
+  const idx = Math.round((windDirAtMax % 360) / 22.5) % 16;
+  return {
+    precipitation: Math.round(precipSum * 10) / 10,
+    maxHourlyPrecip: Math.round(maxHourlyPrecip * 10) / 10,
+    tempMax: Math.round(tempMax * 10) / 10,
+    tempMin: Math.round(tempMin * 10) / 10,
+    windSpeedMax: Math.round(windSpeedMax * 10) / 10,
+    windDirection: windDirAtMax,
+    windDirectionText: DIRS_16[idx],
+    sunshineDuration: hasSunshine ? Math.round(sunSum * 10) / 10 : undefined,
+  };
+}
+
 async function fetchJmaMonthlyStation(blockNo, year, month, hasSunshine) {
   const url = `https://www.data.jma.go.jp/stats/etrn/view/daily_a1.php?prec_no=${PREC_NO}&block_no=${blockNo}&year=${year}&month=${month}&day=&view=`;
   const map = {};
@@ -261,6 +321,41 @@ async function generateWeatherCache() {
       console.log(`進捗: ${Math.min(i + BATCH_SIZE, tasks.length)} / ${tasks.length} ヶ月完了`);
     }
     await new Promise(r => setTimeout(r, 120));
+  }
+
+  // 直近10日間について、JMA etrn が404等の場合でも JMA 防災アメダスJSON API (bosai/amedas) から最新実測値を補完
+  const jstNow = new Date(Date.now() + 9 * 3600 * 1000);
+  for (let offset = 10; offset >= 0; offset--) {
+    const dt = new Date(jstNow);
+    dt.setUTCDate(dt.getUTCDate() - offset);
+    const dStr = dt.toISOString().split('T')[0];
+    if (!combined[dStr] || combined[dStr].source !== 'jma_amedas' || offset <= 2) {
+      const [k, m] = await Promise.all([
+        fetchJmaBosaiDailyStation(BOSAI_KUTSUGATA, dStr, true),
+        fetchJmaBosaiDailyStation(BOSAI_MOTODOMARI, dStr, false),
+      ]);
+      if (k && m) {
+        const precip = Math.round(Math.max(k.precipitation, m.precipitation) * 10) / 10;
+        const maxHourlyPrecip = Math.round(Math.max(k.maxHourlyPrecip || 0, m.maxHourlyPrecip || 0) * 10) / 10;
+        const sunshine = k.sunshineDuration;
+        const strongerWind = m.windSpeedMax > k.windSpeedMax ? m : k;
+        combined[dStr] = {
+          date: dStr,
+          tempMax: Math.round(((k.tempMax + m.tempMax) / 2) * 10) / 10,
+          tempMin: Math.round(((k.tempMin + m.tempMin) / 2) * 10) / 10,
+          precipitation: precip,
+          maxHourlyPrecip,
+          weatherCode: deriveWeatherCodeFromAmedas(precip, maxHourlyPrecip, sunshine),
+          windSpeedMax: Math.max(k.windSpeedMax, m.windSpeedMax),
+          windDirection: strongerWind.windDirection,
+          sunshineDuration: sunshine,
+          isHeavyRain: precip >= 20.0 || maxHourlyPrecip >= 10.0,
+          source: 'jma_amedas',
+          kutsugata: k,
+          motodomari: m,
+        };
+      }
+    }
   }
 
   // 日付順にソートして保存

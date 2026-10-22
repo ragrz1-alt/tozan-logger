@@ -159,6 +159,76 @@ const loadStaticDailyWeatherCache = async (): Promise<Record<string, WeatherData
 /**
  * 気象庁公式「過去の気象データ検索 (daily_a1.php)」から指定年月のアメダス実測データを直接取得する
  */
+/**
+ * 気象庁公式 防災アメダスJSON API (bosai/amedas) から指定日の日別実測集計を取得する
+ * ※ weather-daily.json ビルド後に追加された新しい日付（直近10日以内）をブラウザ側でリアルタイム補完する
+ */
+async function fetchJmaBosaiDailyStationBrowser(
+  bosaiCode: string,
+  dateStr: string,
+  hasSunshine: boolean
+): Promise<StationDailyWeather | null> {
+  try {
+    const diffDays = (Date.now() - new Date(dateStr + 'T00:00:00+09:00').getTime()) / (1000 * 3600 * 24);
+    if (diffDays < -1 || diffDays > 11) return null;
+
+    const ymd = dateStr.replace(/-/g, '');
+    const blocks = ['00', '03', '06', '09', '12', '15', '18', '21'];
+    const urls = blocks.map(b => `https://www.jma.go.jp/bosai/amedas/data/point/${bosaiCode}/${ymd}_${b}.json`);
+    const resList = await Promise.all(
+      urls.map(u => fetch(u).then(r => (r.ok ? r.json() : null)).catch(() => null))
+    );
+
+    let precipSum = 0;
+    let maxHourlyPrecip = 0;
+    let tempMax = -Infinity;
+    let tempMin = Infinity;
+    let windSpeedMax = 0;
+    let windDirAtMax = 0;
+    let sunSum = 0;
+    let count = 0;
+
+    for (const j of resList) {
+      if (!j) continue;
+      for (const [k, v] of Object.entries<any>(j)) {
+        const t = v.temp?.[0];
+        if (t !== null && t !== undefined) {
+          if (t > tempMax) tempMax = t;
+          if (t < tempMin) tempMin = t;
+          count++;
+        }
+        const w = v.wind?.[0];
+        if (w !== null && w !== undefined && w > windSpeedMax) {
+          windSpeedMax = w;
+          const d16 = v.windDirection?.[0] || 0;
+          windDirAtMax = (d16 * 22.5) % 360;
+        }
+        if (k.endsWith('0000')) {
+          const p1h = v.precipitation1h?.[0] || 0;
+          precipSum += p1h;
+          if (p1h > maxHourlyPrecip) maxHourlyPrecip = p1h;
+          if (hasSunshine && v.sun1h?.[0] !== null && v.sun1h?.[0] !== undefined) {
+            sunSum += v.sun1h[0];
+          }
+        }
+      }
+    }
+    if (count === 0) return null;
+    return {
+      precipitation: Math.round(precipSum * 10) / 10,
+      maxHourlyPrecip: Math.round(maxHourlyPrecip * 10) / 10,
+      tempMax: Math.round(tempMax * 10) / 10,
+      tempMin: Math.round(tempMin * 10) / 10,
+      windSpeedMax: Math.round(windSpeedMax * 10) / 10,
+      windDirection: windDirAtMax,
+      windDirectionText: getWindDirectionText(windDirAtMax),
+      sunshineDuration: hasSunshine ? Math.round(sunSum * 10) / 10 : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchJmaMonthlyStationBrowser(
   blockNo: string,
   year: number,
@@ -232,9 +302,43 @@ export const fetchWeatherData = async (
   endDate: string
 ): Promise<Record<string, WeatherData>> => {
   const staticCache = await loadStaticDailyWeatherCache();
-  const todayStr = new Date().toISOString().substring(0, 10);
+  const todayStr = new Date(Date.now() + 9 * 3600 * 1000).toISOString().substring(0, 10);
   const safeEnd = endDate > todayStr ? todayStr : endDate;
   const dates = getDatesInRange(startDate, safeEnd);
+
+  // 未取得または source !== 'jma_amedas' の直近日付を JMA 防災アメダスJSON API (CORS対応) から優先補完
+  const needBosaiDates = dates.filter(d => !staticCache[d] || staticCache[d].source !== 'jma_amedas');
+  if (needBosaiDates.length > 0) {
+    await Promise.all(
+      needBosaiDates.map(async date => {
+        const [k, mo] = await Promise.all([
+          fetchJmaBosaiDailyStationBrowser(BOSAI_KUTSUGATA, date, true),
+          fetchJmaBosaiDailyStationBrowser(BOSAI_MOTODOMARI, date, false),
+        ]);
+        if (k && mo) {
+          const precip = Math.round(Math.max(k.precipitation, mo.precipitation) * 10) / 10;
+          const maxHourlyPrecip = Math.round(Math.max(k.maxHourlyPrecip || 0, mo.maxHourlyPrecip || 0) * 10) / 10;
+          const sunshine = k.sunshineDuration;
+          const strongerWind = mo.windSpeedMax > k.windSpeedMax ? mo : k;
+          staticCache[date] = {
+            date,
+            tempMax: Math.round(((k.tempMax + mo.tempMax) / 2) * 10) / 10,
+            tempMin: Math.round(((k.tempMin + mo.tempMin) / 2) * 10) / 10,
+            precipitation: precip,
+            maxHourlyPrecip,
+            weatherCode: deriveWeatherCodeFromAmedas(precip, maxHourlyPrecip, sunshine),
+            windSpeedMax: Math.max(k.windSpeedMax, mo.windSpeedMax),
+            windDirection: strongerWind.windDirection,
+            sunshineDuration: sunshine,
+            isHeavyRain: precip >= 20.0 || maxHourlyPrecip >= 10.0,
+            source: 'jma_amedas',
+            kutsugata: k,
+            motodomari: mo,
+          };
+        }
+      })
+    );
+  }
 
   // 未取得の日付がある月だけ JMA アメダスから差分取得してインメモリキャッシュを補完
   const missingDates = dates.filter(d => !staticCache[d]);

@@ -7,7 +7,8 @@ import {
   persistCameraAnalysisResults,
 } from '../hooks/useCameraAnalysis';
 import { loadCameraAnalysisFromFirestore } from '../utils/firebaseStorage';
-import type { WeatherData } from '../utils/weatherApi';
+import { fetchWeatherData, type WeatherData } from '../utils/weatherApi';
+import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
 
 const LOCATIONS = [
   { id: 'oshidomari', name: '鴛泊(北)' },
@@ -67,13 +68,29 @@ function generateDateList(startStr: string, endStr: string): string[] {
   return list;
 }
 
-export const LiveCamPoCPanel: React.FC = () => {
-  // 全対象期間 (2026-07-28 〜 2026-10-19)
-  const availableDates = useMemo(() => generateDateList('2026-07-28', '2026-10-19'), []);
+function getTodayJstStr(): string {
+  const jst = new Date(Date.now() + 9 * 3600 * 1000);
+  return jst.toISOString().split('T')[0];
+}
 
-  const [selectedDate, setSelectedDate] = useState<string>('2026-08-01');
-  const [rangeStart, setRangeStart] = useState<string>('2026-08-01');
-  const [rangeEnd, setRangeEnd] = useState<string>('2026-08-31');
+export const LiveCamPoCPanel: React.FC = () => {
+  const [latestEndDate, setLatestEndDate] = useState<string>(() => {
+    const today = getTodayJstStr();
+    return today >= '2026-07-28' ? today : '2026-10-22';
+  });
+
+  // 全対象期間 (2026-07-28 〜 最新キャプチャ日/今日)
+  const availableDates = useMemo(() => generateDateList('2026-07-28', latestEndDate), [latestEndDate]);
+
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const today = getTodayJstStr();
+    return today >= '2026-07-28' ? today : '2026-10-22';
+  });
+  const [rangeStart, setRangeStart] = useState<string>('2026-10-01');
+  const [rangeEnd, setRangeEnd] = useState<string>(() => {
+    const today = getTodayJstStr();
+    return today >= '2026-07-28' ? today : '2026-10-22';
+  });
   const [overwriteExisting, setOverwriteExisting] = useState<boolean>(false);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3.5-flash-lite');
 
@@ -98,16 +115,37 @@ export const LiveCamPoCPanel: React.FC = () => {
   useEffect(() => {
     cleanupObsoleteLocalStorageCaches();
 
-    fetch(`/data/weather-daily.json?t=${Date.now()}`)
-      .then(res => res.json())
-      .then(data => {
-        setWeatherMap(data);
-        setIsLoadingWeather(false);
-      })
-      .catch(err => {
+    const initDatesAndWeather = async () => {
+      let maxDate = getTodayJstStr();
+      try {
+        let hRes = await fetch(getHistoryJsonUrl());
+        if (!hRes.ok) {
+          hRes = await fetch('/cams/history.json?t=' + Date.now());
+        }
+        if (hRes.ok) {
+          const hData = await hRes.json();
+          const hDates = Object.keys(hData?.records || {}).sort();
+          if (hDates.length > 0) {
+            const lastH = hDates[hDates.length - 1];
+            if (lastH > maxDate) maxDate = lastH;
+          }
+        }
+      } catch {}
+
+      setLatestEndDate(maxDate);
+      setRangeEnd(prev => (prev < maxDate ? maxDate : prev));
+
+      try {
+        const wData = await fetchWeatherData(45.178, 141.242, '2026-07-28', maxDate);
+        setWeatherMap(wData);
+      } catch (err) {
         console.error('Weather load error:', err);
+      } finally {
         setIsLoadingWeather(false);
-      });
+      }
+    };
+
+    initDatesAndWeather();
 
     const initCameraResults = async () => {
       const isClearedLocal = localStorage.getItem('tozan_weather_analysis_cleared') === 'true';
@@ -189,13 +227,19 @@ export const LiveCamPoCPanel: React.FC = () => {
   ): Promise<{ fileName: string; data: string; mimeType: string; isMissing: boolean }> => {
     const fileName = url.split('/').pop() || '';
     try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        return { fileName, data: '', mimeType: '', isMissing: true };
-      }
-      const blob = await res.blob();
-      if (blob.type.includes('html')) {
-        return { fileName, data: '', mimeType: '', isMissing: true };
+      let res = await fetch(url);
+      let blob = res.ok ? await res.blob() : null;
+      if (!res.ok || !blob || blob.type.includes('html')) {
+        // GitHub Pages CDN (リアルタイム自動キャプチャ保存先) へフォールバック
+        const cdnUrl = getCamImageUrl(url);
+        res = await fetch(cdnUrl);
+        if (!res.ok) {
+          return { fileName, data: '', mimeType: '', isMissing: true };
+        }
+        blob = await res.blob();
+        if (blob.type.includes('html')) {
+          return { fileName, data: '', mimeType: '', isMissing: true };
+        }
       }
       return new Promise(resolve => {
         const reader = new FileReader();
@@ -714,8 +758,9 @@ export const LiveCamPoCPanel: React.FC = () => {
             { label: '8月後半 (8/16〜8/31)', start: '2026-08-16', end: '2026-08-31' },
             { label: '8月すべて (31日間)', start: '2026-08-01', end: '2026-08-31' },
             { label: '9月すべて (30日間)', start: '2026-09-01', end: '2026-09-30' },
-            { label: '10月 (10/1〜10/19)', start: '2026-10-01', end: '2026-10-19' },
-            { label: '全期間 (7/28〜10/19・計84日)', start: '2026-07-28', end: '2026-10-19' },
+            { label: `10月 (10/1〜${latestEndDate.slice(5).replace('-', '/')})`, start: '2026-10-01', end: latestEndDate },
+            { label: `未解析分 (10/20〜${latestEndDate.slice(5).replace('-', '/')})`, start: '2026-10-20', end: latestEndDate },
+            { label: `全期間 (7/28〜${latestEndDate.slice(5).replace('-', '/')}・計${availableDates.length}日)`, start: '2026-07-28', end: latestEndDate },
           ].map(q => {
             const isSelected = rangeStart === q.start && rangeEnd === q.end;
             return (
@@ -1163,7 +1208,14 @@ export const LiveCamPoCPanel: React.FC = () => {
                             alt={loc.name}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             onError={e => {
-                              (e.target as any).style.display = 'none';
+                              const imgEl = e.currentTarget;
+                              const cdnUrl = getCamImageUrl(imageUrl);
+                              if (imgEl.src !== cdnUrl && !imgEl.dataset.triedCdn) {
+                                imgEl.dataset.triedCdn = 'true';
+                                imgEl.src = cdnUrl;
+                              } else {
+                                imgEl.style.display = 'none';
+                              }
                             }}
                           />
                         )}
