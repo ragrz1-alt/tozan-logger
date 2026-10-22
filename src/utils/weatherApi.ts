@@ -96,7 +96,7 @@ function deriveWeatherCodeFromAmedas(
   return p >= 1.0 ? 61 : 3;
 }
 
-const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_amedas_v1';
+const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_amedas_v3';
 
 // Convert wind direction degrees (0-360) to 16 compass points
 export const getWindDirection = (degree: number) => {
@@ -478,7 +478,7 @@ export interface HourlyWeatherData {
 }
 
 /**
- * 気象庁公式「1時間ごとの値 (hourly_a1.php)」から指定日のアメダス時間別実測データを取得する
+ * 気象庁公式「1時間ごとの値 (hourly_a1.php)」から指定日のアメダス時間別実測データを取得する（第1優先）
  */
 async function fetchJmaHourlyStation(
   blockNo: string,
@@ -505,7 +505,10 @@ async function fetchJmaHourlyStation(
   const result: Record<string, any> = {};
 
   try {
-    const res = await fetch(url);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
     if (!res.ok) return result;
     const html = await res.text();
     const rows = html.split('<tr class=').slice(3);
@@ -526,7 +529,6 @@ async function fetchJmaHourlyStation(
 
       const hrNum = parseInt(tds[0], 10); // 1 to 24
       if (hrNum < 1 || hrNum > 24) continue;
-      // JMAの1時〜24時を UIの "00:00"〜"23:00" (または1時->"01:00", 24時->"00:00" / "23:00") にマッピング
       const hourIndex = hrNum === 24 ? 0 : hrNum;
       const hourKey = `${String(hourIndex).padStart(2, '0')}:00`;
 
@@ -548,7 +550,7 @@ async function fetchJmaHourlyStation(
       };
     }
   } catch {
-    // ignore error
+    // JMAサーバーメンテナンスや404/タイムアウト時はフォールバックへ移行
   }
   return result;
 }
@@ -575,11 +577,286 @@ function getHourlyDescriptionFromAmedas(
     : { code: 3, text: '曇り', emoji: '☁️' };
 }
 
+/**
+ * 利尻島アメダス地点（沓形・本泊）から1地点の時間別気象データを取得（JMAサーバー停止時の第2優先）
+ */
+interface StationHourlyRaw {
+  temp: number;
+  precipitation: number;
+  windSpeed: number;
+  windDirection: number;
+  windDirectionText: string;
+  weatherCode: number;
+  sunshine?: number;
+}
+
+const fetchSingleLocationHourlyWeather = async (
+  lat: number,
+  lon: number,
+  dateStr: string
+): Promise<Record<string, StationHourlyRaw>> => {
+  try {
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const isPast = dateStr < todayStr;
+
+    const archiveJma = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const archiveFallback = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const forecastJma = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const forecastFallback = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+
+    const urlsToTry = isPast
+      ? [archiveJma, archiveFallback, forecastJma, forecastFallback]
+      : [forecastJma, forecastFallback, archiveJma, archiveFallback];
+
+    let data: any = null;
+    for (const url of urlsToTry) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const json = await response.json();
+          if (
+            json.hourly &&
+            Array.isArray(json.hourly.temperature_2m) &&
+            json.hourly.temperature_2m.some((v: any) => v !== null && v !== undefined)
+          ) {
+            data = json;
+            break;
+          }
+        }
+      } catch {
+        // 次のURLへフォールバック
+      }
+    }
+
+    if (!data || !data.hourly || !data.hourly.time) {
+      return {};
+    }
+
+    const result: Record<string, StationHourlyRaw> = {};
+    for (let i = 0; i < data.hourly.time.length; i++) {
+      const timeStr = data.hourly.time[i]; // e.g. "2026-06-25T06:00"
+      const hourPart = timeStr.split('T')[1] || `${String(i).padStart(2, '0')}:00`;
+      const code = data.hourly.weather_code?.[i] ?? 3;
+      const rawPrecip = data.hourly.precipitation?.[i] ?? 0;
+      const precip = rawPrecip < 0.2 ? 0 : Math.round(rawPrecip * 10) / 10;
+      const windSpeed = Math.round((data.hourly.wind_speed_10m?.[i] ?? 0) * 10) / 10;
+      const windDeg = data.hourly.wind_direction_10m?.[i];
+
+      result[hourPart] = {
+        temp: Math.round((data.hourly.temperature_2m?.[i] ?? 0) * 10) / 10,
+        precipitation: precip,
+        weatherCode: code,
+        windSpeed,
+        windDirection: windDeg ?? 0,
+        windDirectionText: getWindDirectionText(windDeg),
+      };
+    }
+    return result;
+  } catch (error) {
+    console.error('Error fetching hourly weather station:', error);
+    return {};
+  }
+};
+
+function getHourlyDescription(
+  code: number,
+  precip: number,
+  hourIndex: number
+): { code: number; text: string; emoji: string } {
+  if (precip >= 10.0) return { code: 65, text: '強い雨', emoji: '🚨' };
+  if (precip >= 1.0) return { code: 61, text: '雨', emoji: '☔' };
+  if (precip >= 0.5) return { code: 51, text: '小雨', emoji: '🌧️' };
+
+  const isNight = hourIndex < 5 || hourIndex >= 19;
+  if (code === 0) {
+    return { code: 0, text: isNight ? '快晴(夜)' : '快晴', emoji: isNight ? '🌙' : '☀️' };
+  }
+  if (code === 1 || code === 2) {
+    return { code: 1, text: isNight ? '晴れ(夜)' : '晴れ', emoji: isNight ? '🌙' : '⛅' };
+  }
+  if (isNight && precip === 0) {
+    return { code: 2, text: '夜間(無降水)', emoji: '🌙' };
+  }
+  if (code >= 51 && code <= 67) {
+    return { code: 61, text: '雨', emoji: '☔' };
+  }
+  return { code: 3, text: '曇り', emoji: '☁️' };
+}
+
+/**
+ * Open-Meteoの1時間推計データを、気象庁アメダス日別実測データ（weather-daily.json）に完全整合するよう補正する
+ * これにより、モーダル上部の日別実測サマリー（最高気温・総降水量・最大風速・実測日照時間）と24時間テーブルの矛盾をゼロにする
+ */
+function calibrateHourlyWithDailyAmedas(
+  hoursMap: Record<string, HourlyWeatherData>,
+  dailyActual?: WeatherData
+): Record<string, HourlyWeatherData> {
+  if (!dailyActual) return hoursMap;
+
+  const hourKeys: string[] = [];
+  for (let i = 0; i < 24; i++) {
+    const k = `${String(i).padStart(2, '0')}:00`;
+    if (hoursMap[k]) hourKeys.push(k);
+  }
+  if (hourKeys.length === 0) return hoursMap;
+
+  // 1. 気温の線形キャリブレーション（日最高・日最低をアメダス実測値に一致させる）
+  const temps = hourKeys.map(k => hoursMap[k].temp);
+  const rawMinT = Math.min(...temps);
+  const rawMaxT = Math.max(...temps);
+  const targetMinT = dailyActual.tempMin;
+  const targetMaxT = dailyActual.tempMax;
+
+  // 2. 降水量のキャリブレーション（日降水量をアメダス実測値に一致させる）
+  const rawPrecips = hourKeys.map(k => hoursMap[k].precipitation || 0);
+  const rawPrecipSum = rawPrecips.reduce((a, b) => a + b, 0);
+  const targetPrecipSum = dailyActual.precipitation || 0;
+  const max1hCap = dailyActual.maxHourlyPrecip && dailyActual.maxHourlyPrecip > 0
+    ? dailyActual.maxHourlyPrecip
+    : targetPrecipSum;
+
+  // 3. 風速のキャリブレーション（最大風速をアメダス実測最大風速に整合させる）
+  const rawWinds = hourKeys.map(k => hoursMap[k].windSpeed || 0);
+  const rawMaxWind = Math.max(...rawWinds);
+  const targetMaxWind = dailyActual.windSpeedMax || 0;
+
+  // 4. 日照時間に基づく日中（05:00〜18:00）の晴天時間枠の割り当て
+  const daytimeKeys = hourKeys.filter(k => {
+    const h = parseInt(k.split(':')[0], 10);
+    return h >= 5 && h <= 18;
+  });
+
+  hourKeys.forEach(k => {
+    const item = hoursMap[k];
+
+    // 気温補正
+    if (rawMaxT > rawMinT && targetMaxT >= targetMinT) {
+      const ratio = (item.temp - rawMinT) / (rawMaxT - rawMinT);
+      item.temp = Math.round((targetMinT + ratio * (targetMaxT - targetMinT)) * 10) / 10;
+    } else if (targetMaxT >= targetMinT) {
+      item.temp = Math.round(((targetMaxT + targetMinT) / 2) * 10) / 10;
+    }
+
+    // 降水量補正
+    if (targetPrecipSum === 0) {
+      item.precipitation = 0;
+    } else if (rawPrecipSum > 0) {
+      const scaled = item.precipitation * (targetPrecipSum / rawPrecipSum);
+      const clamped = Math.min(scaled, max1hCap);
+      item.precipitation = clamped < 0.2 ? 0 : Math.round(clamped * 10) / 10;
+    }
+
+    // 風速補正
+    if (rawMaxWind > 0 && targetMaxWind > 0) {
+      item.windSpeed = Math.round(item.windSpeed * (targetMaxWind / rawMaxWind) * 10) / 10;
+    }
+  });
+
+  // もし実測で降水があるのに全時間帯が0mmになった場合、最も雲が厚い時間帯に実測降水を割り当てる
+  const afterPrecipSum = hourKeys.reduce((acc, k) => acc + (hoursMap[k].precipitation || 0), 0);
+  if (targetPrecipSum >= 0.5 && afterPrecipSum === 0) {
+    const sortedByCloud = [...hourKeys].sort((a, b) => (hoursMap[b].weatherCode || 0) - (hoursMap[a].weatherCode || 0));
+    if (sortedByCloud[0]) {
+      hoursMap[sortedByCloud[0]].precipitation = Math.min(targetPrecipSum, max1hCap || targetPrecipSum);
+    }
+  }
+
+  // 日照時間（sunshineDuration）との整合性補正
+  const sunHours = dailyActual.sunshineDuration;
+  const sunnyHourSet = new Set<string>();
+  if (sunHours !== undefined && sunHours !== null) {
+    const targetSunnyCount = Math.min(daytimeKeys.length, Math.round(sunHours));
+    if (targetSunnyCount > 0) {
+      // 降水がなく、元のweatherCodeが小さい（晴れに近い）日中時間を優先してtargetSunnyCount枠選ぶ
+      const candidates = daytimeKeys
+        .filter(k => (hoursMap[k].precipitation || 0) < 0.5)
+        .sort((a, b) => {
+          const ca = hoursMap[a].weatherCode ?? 3;
+          const cb = hoursMap[b].weatherCode ?? 3;
+          if (ca !== cb) return ca - cb;
+          // 昼12時に近い方を優先
+          const ha = Math.abs(parseInt(a, 10) - 12);
+          const hb = Math.abs(parseInt(b, 10) - 12);
+          return ha - hb;
+        });
+      candidates.slice(0, targetSunnyCount).forEach(k => sunnyHourSet.add(k));
+    }
+  }
+
+  // 各時間帯の天気ラベル・絵文字を再算出
+  hourKeys.forEach(k => {
+    const item = hoursMap[k];
+    const hourNum = parseInt(k.split(':')[0], 10);
+    const shortHour = String(hourNum).padStart(2, '0');
+    const isNight = hourNum < 5 || hourNum >= 19;
+
+    let effectiveCode = item.weatherCode;
+    if (item.precipitation >= 10.0) {
+      effectiveCode = 65;
+    } else if (item.precipitation >= 1.0) {
+      effectiveCode = 61;
+    } else if (item.precipitation >= 0.5) {
+      effectiveCode = 51;
+    } else if (!isNight && sunHours !== undefined && sunHours !== null) {
+      if (sunnyHourSet.has(k)) {
+        effectiveCode = sunHours >= 8.0 && item.weatherCode === 0 ? 0 : 1;
+      } else {
+        effectiveCode = 3; // 日照がなかった日中時間帯は曇り
+      }
+    } else if (isNight && item.precipitation === 0) {
+      effectiveCode = 2; // 夜間無降水
+    }
+
+    const desc = getHourlyDescription(effectiveCode, item.precipitation, hourNum);
+    item.weatherCode = desc.code;
+    item.weatherText = desc.text;
+    item.weatherEmoji = desc.emoji;
+
+    hoursMap[k] = item;
+    hoursMap[shortHour] = item;
+  });
+
+  return hoursMap;
+}
+
 // インメモリの時間別キャッシュ
 const hourlyMemoryCache: Record<string, Record<string, HourlyWeatherData>> = {};
 
+const getHourlyWeatherCache = (): Record<string, Record<string, HourlyWeatherData>> => {
+  try {
+    // 旧バージョンの肥大化キャッシュがあれば掃除
+    localStorage.removeItem('tozan_weather_hourly_amedas_v1');
+    localStorage.removeItem('tozan_weather_hourly_amedas_v2');
+    const saved = localStorage.getItem(HOURLY_WEATHER_CACHE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveHourlyWeatherCache = (cache: Record<string, Record<string, HourlyWeatherData>>) => {
+  try {
+    // localStorageの5MB上限を絶対に圧迫しないよう、直近参照した最大30日分のみ保持する
+    const keys = Object.keys(cache);
+    if (keys.length > 30) {
+      const trimmed: Record<string, Record<string, HourlyWeatherData>> = {};
+      keys.slice(-30).forEach(k => {
+        trimmed[k] = cache[k];
+      });
+      localStorage.setItem(HOURLY_WEATHER_CACHE_KEY, JSON.stringify(trimmed));
+    } else {
+      localStorage.setItem(HOURLY_WEATHER_CACHE_KEY, JSON.stringify(cache));
+    }
+  } catch (err) {
+    console.warn('Failed to save hourly weather cache:', err);
+  }
+};
+
 /**
- * 気象庁アメダス「沓形 (0002) × 本泊 (1512)」の時間別実測データを取得して返します。
+ * 利尻島「沓形 × 本泊」の時間帯別気象データを返します。
+ * 1. 気象庁アメダス時間別実測テーブル (hourly_a1.php) を最優先で試行
+ * 2. 気象庁サーバー停止・404時は Open-Meteo (JMA MSM) から24時間データを取得し、
+ *    同梱済みの気象庁アメダス日別実測データ (weather-daily.json) で厳密にキャリブレーションして返却
  */
 export const fetchHourlyWeatherData = async (
   _lat: number,
@@ -590,50 +867,125 @@ export const fetchHourlyWeatherData = async (
     return hourlyMemoryCache[dateStr];
   }
 
-  const [kutsugata, motodomari] = await Promise.all([
+  const localCache = getHourlyWeatherCache();
+  if (localCache[dateStr] && Object.keys(localCache[dateStr]).length >= 24) {
+    hourlyMemoryCache[dateStr] = localCache[dateStr];
+    return localCache[dateStr];
+  }
+
+  // Step 1: 気象庁アメダス公式時間別テーブル (hourly_a1.php) を試行
+  const [jmaKutsugata, jmaMotodomari] = await Promise.all([
     fetchJmaHourlyStation(BLOCK_KUTSUGATA, dateStr, true),
     fetchJmaHourlyStation(BLOCK_MOTODOMARI, dateStr, false),
   ]);
 
-  const allHours = new Set([...Object.keys(kutsugata), ...Object.keys(motodomari)]);
+  const jmaHours = new Set([...Object.keys(jmaKutsugata), ...Object.keys(jmaMotodomari)]);
   const combined: Record<string, HourlyWeatherData> = {};
 
-  allHours.forEach(hour => {
-    const k = kutsugata[hour];
-    const m = motodomari[hour];
-    const hourNum = parseInt(hour.split(':')[0], 10);
+  if (jmaHours.size >= 12) {
+    jmaHours.forEach(hour => {
+      const k = jmaKutsugata[hour];
+      const m = jmaMotodomari[hour];
+      const hourNum = parseInt(hour.split(':')[0], 10);
+      const hourPart = `${String(hourNum).padStart(2, '0')}:00`;
+      const shortHour = String(hourNum).padStart(2, '0');
 
+      let item: HourlyWeatherData;
+      if (k && m) {
+        const precip = Math.round(Math.max(k.precipitation, m.precipitation) * 10) / 10;
+        const sunshine = k.sunshine;
+        const desc = getHourlyDescriptionFromAmedas(precip, sunshine, hourNum);
+        const strongerWind = m.windSpeed > k.windSpeed ? m : k;
+
+        item = {
+          hour: hourPart,
+          temp: Math.round(((k.temp + m.temp) / 2) * 10) / 10,
+          precipitation: precip,
+          sunshine,
+          weatherCode: desc.code,
+          weatherText: desc.text,
+          weatherEmoji: desc.emoji,
+          windSpeed: Math.max(k.windSpeed, m.windSpeed),
+          windDirection: strongerWind.windDirection,
+          windDirectionText: strongerWind.windDirectionText,
+          kutsugata: k,
+          motodomari: m,
+        };
+      } else {
+        const single = (k || m)!;
+        const precip = single.precipitation || 0;
+        const sunshine = k ? k.sunshine : undefined;
+        const desc = getHourlyDescriptionFromAmedas(precip, sunshine, hourNum);
+
+        item = {
+          hour: hourPart,
+          temp: single.temp,
+          precipitation: precip,
+          sunshine,
+          weatherCode: desc.code,
+          weatherText: desc.text,
+          weatherEmoji: desc.emoji,
+          windSpeed: single.windSpeed,
+          windDirection: single.windDirection,
+          windDirectionText: single.windDirectionText,
+          kutsugata: k,
+          motodomari: m,
+        };
+      }
+
+      combined[hourPart] = item;
+      combined[shortHour] = item;
+    });
+
+    hourlyMemoryCache[dateStr] = combined;
+    localCache[dateStr] = combined;
+    saveHourlyWeatherCache(localCache);
+    return combined;
+  }
+
+  // Step 2: JMA時間別ページが404/メンテナンス等の場合、Open-Meteo (JMA MSM) + アメダス日別実測キャリブレーション
+  const [omKutsugata, omMotodomari, staticDailyCache] = await Promise.all([
+    fetchSingleLocationHourlyWeather(KUTSUGATA_LAT, KUTSUGATA_LON, dateStr),
+    fetchSingleLocationHourlyWeather(MOTODOMARI_LAT, MOTODOMARI_LON, dateStr),
+    loadStaticDailyWeatherCache(),
+  ]);
+
+  const allHours = new Set([...Object.keys(omKutsugata), ...Object.keys(omMotodomari)]);
+  allHours.forEach(hour => {
+    const k = omKutsugata[hour];
+    const m = omMotodomari[hour];
+    const hourNum = parseInt(hour.split(':')[0], 10);
+    const hourPart = `${String(hourNum).padStart(2, '0')}:00`;
+    const shortHour = String(hourNum).padStart(2, '0');
+
+    let item: HourlyWeatherData;
     if (k && m) {
       const precip = Math.round(Math.max(k.precipitation, m.precipitation) * 10) / 10;
-      const sunshine = k.sunshine;
-      const desc = getHourlyDescriptionFromAmedas(precip, sunshine, hourNum);
       const strongerWind = m.windSpeed > k.windSpeed ? m : k;
+      const code = precip >= 1.0 ? 61 : (k.weatherCode > m.weatherCode ? k.weatherCode : m.weatherCode);
+      const desc = getHourlyDescription(code, precip, hourNum);
 
-      combined[hour] = {
-        hour,
+      item = {
+        hour: hourPart,
         temp: Math.round(((k.temp + m.temp) / 2) * 10) / 10,
         precipitation: precip,
-        sunshine,
         weatherCode: desc.code,
         weatherText: desc.text,
         weatherEmoji: desc.emoji,
-        windSpeed: Math.max(k.windSpeed, m.windSpeed),
+        windSpeed: Math.round(Math.max(k.windSpeed, m.windSpeed) * 10) / 10,
         windDirection: strongerWind.windDirection,
         windDirectionText: strongerWind.windDirectionText,
         kutsugata: k,
         motodomari: m,
       };
-    } else if (k || m) {
+    } else {
       const single = (k || m)!;
-      const precip = single.precipitation || 0;
-      const sunshine = k ? k.sunshine : undefined;
-      const desc = getHourlyDescriptionFromAmedas(precip, sunshine, hourNum);
+      const desc = getHourlyDescription(single.weatherCode, single.precipitation, hourNum);
 
-      combined[hour] = {
-        hour,
+      item = {
+        hour: hourPart,
         temp: single.temp,
-        precipitation: precip,
-        sunshine,
+        precipitation: single.precipitation,
         weatherCode: desc.code,
         weatherText: desc.text,
         weatherEmoji: desc.emoji,
@@ -644,10 +996,19 @@ export const fetchHourlyWeatherData = async (
         motodomari: m,
       };
     }
+
+    combined[hourPart] = item;
+    combined[shortHour] = item;
   });
+
+  // 気象庁アメダス日別実測データ (weather-daily.json) で24時間データを厳密補正
+  const dailyActual = staticDailyCache[dateStr];
+  calibrateHourlyWithDailyAmedas(combined, dailyActual);
 
   if (Object.keys(combined).length > 0) {
     hourlyMemoryCache[dateStr] = combined;
+    localCache[dateStr] = combined;
+    saveHourlyWeatherCache(localCache);
   }
 
   return combined;

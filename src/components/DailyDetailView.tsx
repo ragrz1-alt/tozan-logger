@@ -58,7 +58,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const hw = hourlyWeather && hourlyWeather[label];
+      const hw = hourlyWeather && (hourlyWeather[label] || hourlyWeather[label.substring(0, 2)]);
       return (
         <div className="chart-tooltip">
           <p style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '1rem' }}>{label}時台</p>
@@ -482,9 +482,8 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
             </thead>
             <tbody>
               {displayHours.map((h, i) => {
-                const hw = hourlyWeather && hourlyWeather[h.hour];
-                const hwDesc = hw ? getWeatherDescription(hw.weatherCode, hw.precipitation) : null;
                 const hrStr = h.hour.substring(0, 2);
+                const hw = hourlyWeather && (hourlyWeather[h.hour] || hourlyWeather[hrStr]);
                 const hrRecords = camHistory?.records?.[details.dateStr]?.[hrStr];
                 const hasCamRecord = !!hrRecords && Object.keys(hrRecords).length > 0;
 
@@ -492,7 +491,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                   <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: i % 2 === 0 ? 'var(--bg-primary)' : 'transparent' }}>
                     <td style={{ padding: '0.55rem 0.6rem', fontWeight: 600 }}>{h.hour}</td>
                     <td style={{ padding: '0.55rem 0.6rem' }}>
-                      {hwDesc ? `${hwDesc.emoji} ${hwDesc.text}` : hw ? `${hw.weatherEmoji} ${hw.weatherText}` : '-'}
+                      {hw ? `${hw.weatherEmoji || ''} ${hw.weatherText || ''}`.trim() || '-' : '-'}
                     </td>
                     <td style={{ padding: '0.55rem 0.6rem', color: 'var(--text-secondary)' }}>
                       {hw ? `${hw.temp}℃ / ${hw.precipitation}mm` : '-'}

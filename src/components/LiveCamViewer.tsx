@@ -83,7 +83,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
     return !!dateRecords[hr] && Object.keys(dateRecords[hr]).length > 0;
   };
 
-  const currentHourWeather = hourlyWeather?.[selectedHour] || hourlyWeather?.[parseInt(selectedHour, 10).toString()];
+  const currentHourWeather = hourlyWeather?.[selectedHour] || hourlyWeather?.[`${selectedHour.padStart(2, '0')}:00`] || hourlyWeather?.[parseInt(selectedHour, 10).toString()];
 
   // 時間選択のデフォルト調整 (該当日の12時をデフォルト優先。なければ日中12時に近い記録ある時間を優先、それもなければ12時)
   useEffect(() => {
