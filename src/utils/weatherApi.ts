@@ -96,7 +96,9 @@ function deriveWeatherCodeFromAmedas(
   return p >= 1.0 ? 61 : 3;
 }
 
-const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_amedas_v3';
+const BOSAI_KUTSUGATA = '11151';
+const BOSAI_MOTODOMARI = '11091';
+const HOURLY_WEATHER_CACHE_KEY = 'tozan_weather_hourly_amedas_v4';
 
 // Convert wind direction degrees (0-360) to 16 compass points
 export const getWindDirection = (degree: number) => {
@@ -480,6 +482,73 @@ export interface HourlyWeatherData {
 /**
  * 気象庁公式「1時間ごとの値 (hourly_a1.php)」から指定日のアメダス時間別実測データを取得する（第1優先）
  */
+/**
+ * 気象庁公式 防災アメダスJSON API (bosai/amedas) から指定日の1時間実測値を取得する
+ * ※ CORS許可(Access-Control-Allow-Origin: *)されており、直近約10日間の100%純粋なアメダス1時間実測値を取得可能
+ */
+async function fetchJmaBosaiHourlyStation(
+  bosaiCode: string,
+  dateStr: string,
+  hasSunshine: boolean
+): Promise<
+  Record<
+    string,
+    {
+      temp: number;
+      precipitation: number;
+      windSpeed: number;
+      windDirection: number;
+      windDirectionText: string;
+      sunshine?: number;
+    }
+  >
+> {
+  const result: Record<string, any> = {};
+  try {
+    const diffDays = (Date.now() - new Date(dateStr + 'T00:00:00+09:00').getTime()) / (1000 * 3600 * 24);
+    if (diffDays < -1 || diffDays > 11) return result;
+
+    const ymd = dateStr.replace(/-/g, '');
+    const blocks = ['00', '03', '06', '09', '12', '15', '18', '21'];
+    const urls = blocks.map(b => `https://www.jma.go.jp/bosai/amedas/data/point/${bosaiCode}/${ymd}_${b}.json`);
+    const responses = await Promise.all(
+      urls.map(u =>
+        fetch(u)
+          .then(r => (r.ok ? r.json() : null))
+          .catch(() => null)
+      )
+    );
+
+    for (const json of responses) {
+      if (!json) continue;
+      for (const [timeKey, val] of Object.entries<any>(json)) {
+        if (!timeKey.endsWith('0000')) continue;
+        const hh = timeKey.slice(8, 10) + ':00';
+        const temp = val.temp?.[0];
+        const precip = val.precipitation1h?.[0];
+        const wind = val.wind?.[0];
+        const windDir16 = val.windDirection?.[0];
+        const sun1h = hasSunshine ? val.sun1h?.[0] : undefined;
+
+        if (temp === null && wind === null) continue;
+        const deg = windDir16 ? (windDir16 * 22.5) % 360 : 0;
+
+        result[hh] = {
+          temp: temp ?? 0,
+          precipitation: precip ?? 0,
+          windSpeed: wind ?? 0,
+          windDirection: deg,
+          windDirectionText: windDir16 ? getWindDirectionText(deg) : '静穏',
+          sunshine: sun1h !== null && sun1h !== undefined ? sun1h : undefined,
+        };
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return result;
+}
+
 async function fetchJmaHourlyStation(
   blockNo: string,
   dateStr: string,
@@ -599,10 +668,10 @@ const fetchSingleLocationHourlyWeather = async (
     const todayStr = new Date().toISOString().substring(0, 10);
     const isPast = dateStr < todayStr;
 
-    const archiveJma = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-    const archiveFallback = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-    const forecastJma = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
-    const forecastFallback = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const archiveJma = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,sunshine_duration&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const archiveFallback = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,sunshine_duration&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const forecastJma = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,sunshine_duration&models=jma_msm&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
+    const forecastFallback = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,sunshine_duration&timezone=Asia%2FTokyo&wind_speed_unit=ms`;
 
     const urlsToTry = isPast
       ? [archiveJma, archiveFallback, forecastJma, forecastFallback]
@@ -641,6 +710,10 @@ const fetchSingleLocationHourlyWeather = async (
       const precip = rawPrecip < 0.2 ? 0 : Math.round(rawPrecip * 10) / 10;
       const windSpeed = Math.round((data.hourly.wind_speed_10m?.[i] ?? 0) * 10) / 10;
       const windDeg = data.hourly.wind_direction_10m?.[i];
+      const sunSec = data.hourly.sunshine_duration?.[i];
+      const sunshine = sunSec !== undefined && sunSec !== null
+        ? Math.round((sunSec / 3600) * 10) / 10
+        : undefined;
 
       result[hourPart] = {
         temp: Math.round((data.hourly.temperature_2m?.[i] ?? 0) * 10) / 10,
@@ -649,6 +722,7 @@ const fetchSingleLocationHourlyWeather = async (
         windSpeed,
         windDirection: windDeg ?? 0,
         windDirectionText: getWindDirectionText(windDeg),
+        sunshine,
       };
     }
     return result;
@@ -752,10 +826,22 @@ function calibrateHourlyWithDailyAmedas(
     }
   });
 
-  // もし実測で降水があるのに全時間帯が0mmになった場合、最も雲が厚い時間帯に実測降水を割り当てる
+  // もし実測で降水があるのに全時間帯が0mmになった場合、日照がない(sunshine<=0.1)曇天・夜間時間帯のうち最も雲が厚い時間帯に実測降水を割り当てる
+  // ※ 日中快晴の時間帯（例: 2026-09-23 15:00 のような日照1.0hの晴天時）には絶対に雨を割り当てない
   const afterPrecipSum = hourKeys.reduce((acc, k) => acc + (hoursMap[k].precipitation || 0), 0);
   if (targetPrecipSum >= 0.5 && afterPrecipSum === 0) {
-    const sortedByCloud = [...hourKeys].sort((a, b) => (hoursMap[b].weatherCode || 0) - (hoursMap[a].weatherCode || 0));
+    const noSunHours = hourKeys.filter(k => (hoursMap[k].sunshine ?? 0) <= 0.1);
+    const pool = noSunHours.length > 0 ? noSunHours : hourKeys;
+    const sortedByCloud = [...pool].sort((a, b) => {
+      const cb = hoursMap[b].weatherCode ?? 0;
+      const ca = hoursMap[a].weatherCode ?? 0;
+      if (cb !== ca) return cb - ca;
+      const hb = parseInt(b, 10);
+      const ha = parseInt(a, 10);
+      const nightB = (hb >= 19 || hb < 5) ? 1 : 0;
+      const nightA = (ha >= 19 || ha < 5) ? 1 : 0;
+      return nightB - nightA;
+    });
     if (sortedByCloud[0]) {
       hoursMap[sortedByCloud[0]].precipitation = Math.min(targetPrecipSum, max1hCap || targetPrecipSum);
     }
@@ -827,6 +913,7 @@ const getHourlyWeatherCache = (): Record<string, Record<string, HourlyWeatherDat
     // 旧バージョンの肥大化キャッシュがあれば掃除
     localStorage.removeItem('tozan_weather_hourly_amedas_v1');
     localStorage.removeItem('tozan_weather_hourly_amedas_v2');
+    localStorage.removeItem('tozan_weather_hourly_amedas_v3');
     const saved = localStorage.getItem(HOURLY_WEATHER_CACHE_KEY);
     return saved ? JSON.parse(saved) : {};
   } catch {
@@ -873,11 +960,19 @@ export const fetchHourlyWeatherData = async (
     return localCache[dateStr];
   }
 
-  // Step 1: 気象庁アメダス公式時間別テーブル (hourly_a1.php) を試行
-  const [jmaKutsugata, jmaMotodomari] = await Promise.all([
-    fetchJmaHourlyStation(BLOCK_KUTSUGATA, dateStr, true),
-    fetchJmaHourlyStation(BLOCK_MOTODOMARI, dateStr, false),
+  // Step 1A: 直近10日間は気象庁防災アメダスJSON API (CORS対応・100%アメダス1時間実測値) を最優先で取得
+  let [jmaKutsugata, jmaMotodomari] = await Promise.all([
+    fetchJmaBosaiHourlyStation(BOSAI_KUTSUGATA, dateStr, true),
+    fetchJmaBosaiHourlyStation(BOSAI_MOTODOMARI, dateStr, false),
   ]);
+
+  // Step 1B: 10日以前の日付は気象庁過去データ検索 (hourly_a1.php) を試行
+  if (Object.keys(jmaKutsugata).length < 12 && Object.keys(jmaMotodomari).length < 12) {
+    [jmaKutsugata, jmaMotodomari] = await Promise.all([
+      fetchJmaHourlyStation(BLOCK_KUTSUGATA, dateStr, true),
+      fetchJmaHourlyStation(BLOCK_MOTODOMARI, dateStr, false),
+    ]);
+  }
 
   const jmaHours = new Set([...Object.keys(jmaKutsugata), ...Object.keys(jmaMotodomari)]);
   const combined: Record<string, HourlyWeatherData> = {};
@@ -962,14 +1057,15 @@ export const fetchHourlyWeatherData = async (
     if (k && m) {
       const precip = Math.round(Math.max(k.precipitation, m.precipitation) * 10) / 10;
       const strongerWind = m.windSpeed > k.windSpeed ? m : k;
-      const code = precip >= 1.0 ? 61 : (k.weatherCode > m.weatherCode ? k.weatherCode : m.weatherCode);
-      const desc = getHourlyDescription(code, precip, hourNum);
+      const rawCode = precip >= 1.0 ? 61 : (k.weatherCode > m.weatherCode ? k.weatherCode : m.weatherCode);
+      const desc = getHourlyDescription(rawCode, precip, hourNum);
 
       item = {
         hour: hourPart,
         temp: Math.round(((k.temp + m.temp) / 2) * 10) / 10,
         precipitation: precip,
-        weatherCode: desc.code,
+        sunshine: k.sunshine,
+        weatherCode: rawCode,
         weatherText: desc.text,
         weatherEmoji: desc.emoji,
         windSpeed: Math.round(Math.max(k.windSpeed, m.windSpeed) * 10) / 10,
@@ -986,7 +1082,8 @@ export const fetchHourlyWeatherData = async (
         hour: hourPart,
         temp: single.temp,
         precipitation: single.precipitation,
-        weatherCode: desc.code,
+        sunshine: k ? k.sunshine : undefined,
+        weatherCode: single.weatherCode,
         weatherText: desc.text,
         weatherEmoji: desc.emoji,
         windSpeed: single.windSpeed,
