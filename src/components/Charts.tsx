@@ -164,40 +164,41 @@ export const Charts: React.FC<ChartProps> = ({ dailyData, weatherData, cameraAna
         {/* 棒グラフの色に対応する天候凡例バー (カラーバッジ) */}
         <div style={{
           display: 'flex',
-          flexWrap: 'wrap',
+          flexWrap: 'nowrap',
           alignItems: 'center',
-          justifyContent: 'space-between',
           gap: '1rem',
-          padding: '0.85rem 1.25rem',
+          padding: '0.65rem 1.1rem',
           backgroundColor: 'var(--bg-primary)',
           border: '1px solid var(--border-color)',
           borderRadius: 'var(--radius-md)',
           marginBottom: '1.25rem',
-          boxShadow: 'var(--shadow-sm)'
+          boxShadow: 'var(--shadow-sm)',
+          overflowX: 'auto',
+          whiteSpace: 'nowrap'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-            <span>🎨 棒グラフ天候カラー凡例 (アメダス×カメラ):</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', flexShrink: 0 }}>
+            <span>🎨 天候カラー凡例:</span>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1.1rem', fontSize: '0.82rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#fbbf24', display: 'inline-block', boxShadow: '0 0 4px rgba(251, 191, 36, 0.4)' }} />
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>☀️ 晴れ (山頂快晴/好天)</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.82rem', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'default' }} title="快晴 / 好天 (山頂視界良好)">
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#fbbf24', display: 'inline-block', boxShadow: '0 0 4px rgba(251, 191, 36, 0.4)', flexShrink: 0 }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>☀️ 晴れ</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: 'rgba(251, 191, 36, 0.28)', border: '2px solid #f59e0b', display: 'inline-block' }} />
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>🌤️ 麓晴れ・山頂笠雲/ガス (カメラ判定時)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'default' }} title="麓晴れ・山頂笠雲/ガス (カメラ判定時)">
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: 'rgba(251, 191, 36, 0.28)', border: '2px solid #f59e0b', display: 'inline-block', boxSizing: 'border-box', flexShrink: 0 }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>🌤️ 麓晴れ・山頂ガス</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#94a3b8', display: 'inline-block', boxShadow: '0 0 4px rgba(148, 163, 184, 0.4)' }} />
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>☁️ 曇り (日照4h未満・無降水)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'default' }} title="日照4h未満・無降水">
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#94a3b8', display: 'inline-block', boxShadow: '0 0 4px rgba(148, 163, 184, 0.4)', flexShrink: 0 }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>☁️ 曇り</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#3b82f6', display: 'inline-block', boxShadow: '0 0 4px rgba(59, 130, 246, 0.4)' }} />
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>☔ 雨 (3mm以上 / 小雨曇天)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'default' }} title="日降水量3mm以上 または 小雨曇天">
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#3b82f6', display: 'inline-block', boxShadow: '0 0 4px rgba(59, 130, 246, 0.4)', flexShrink: 0 }} />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>☔ 雨</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#ef4444', display: 'inline-block', boxShadow: '0 0 4px rgba(239, 68, 68, 0.4)' }} />
-              <span style={{ fontWeight: 600, color: '#ef4444' }}>🚨 大雨・荒天 (日20mm / 1時間10mm以上)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'default' }} title="日降水量20mm以上 または 最大1時間10mm以上">
+              <span style={{ width: '13px', height: '13px', borderRadius: '3px', backgroundColor: '#ef4444', display: 'inline-block', boxShadow: '0 0 4px rgba(239, 68, 68, 0.4)', flexShrink: 0 }} />
+              <span style={{ fontWeight: 600, color: '#ef4444' }}>🚨 大雨・荒天</span>
             </div>
           </div>
         </div>
