@@ -5,6 +5,9 @@ import {
 } from '../utils/firebaseStorage';
 
 export type CameraId = 'oshidomari' | 'ferry' | 'himenuma' | 'kutsugata' | 'otadomari' | 'senposhi';
+export type SeasonMode = 'summer' | 'winter_bc';
+export type BcFieldStatus = 'alpine_clear' | 'mid_mountain_ok' | 'treeline_only' | 'whiteout';
+export type SnowLineStatus = 'none' | 'summit_cap' | 'mid_slope' | 'full_snow';
 
 export interface ImageAnalysis {
   fileName: string;
@@ -12,11 +15,15 @@ export interface ImageAnalysis {
   summit_visible?: boolean;
   cloud_cover: number;
   visibility: 'clear' | 'cloudy' | 'foggy' | 'missing';
+  visible_elevation_m?: number; // 1700 | 1000 | 500 | 0
+  bc_field_status?: BcFieldStatus;
+  snow_line?: SnowLineStatus;
   reason: string;
   status?: string;
 }
 
 export interface DailyCameraSummary {
+  seasonMode: SeasonMode;
   mountainCategory: 'clear' | 'cloudy' | 'foggy' | 'unknown';
   clearCount: number;
   cloudyCount: number;
@@ -27,6 +34,162 @@ export interface DailyCameraSummary {
   avgCloudCover: number | null;
   morningClearAfternoonFoggy: boolean;
   byCamera: Record<CameraId, 'clear' | 'cloudy' | 'foggy' | 'unknown'>;
+  // 標高別視界・冬山BC拡張サマリー
+  maxVisibleElevationM: number | null;
+  avgVisibleElevationM: number | null;
+  coreTimeElevationM: number | null; // 09〜13時コアタイムの最高視界高度
+  dominantBcStatus: BcFieldStatus | 'unknown';
+  dominantSnowLine: SnowLineStatus;
+  byCameraElevation: Record<CameraId, number | null>;
+  eastAspectEstimatedElevationM: number | null; // 東面（アフトロマナイ沢）推定視界高度
+}
+
+/**
+ * 日付文字列 (YYYY-MM-DD) から季節分析モードを判定する
+ * - 5月〜10月: 'summer' (🏔️ 夏山・観光分析モード)
+ * - 11月〜4月: 'winter_bc' (🎿 冬山・BC分析モード)
+ */
+export function getSeasonModeForDate(dateStr?: string): SeasonMode {
+  if (!dateStr) return 'summer';
+  const parts = dateStr.split('-');
+  const month = parseInt(parts[1] || '7', 10);
+  if ([11, 12, 1, 2, 3, 4].includes(month)) {
+    return 'winter_bc';
+  }
+  return 'summer';
+}
+
+/**
+ * 季節・月ごとの目的に合わせたAI解析対象時間帯（2時間おき）を返す
+ * - 5〜8月（極昼・盛夏期）: 03, 05, 07, 09, 11, 13, 15, 17, 19 (9回) ※2026-10-28以前の過去日は05〜17
+ * - 9〜10月（秋山・紅葉期）: 05, 07, 09, 11, 13, 15, 17 (7回)
+ * - 11〜2月（初冬・厳冬BC期）: 07, 09, 11, 13, 15 (5回: 暗闇ノイズを除外しBC行動帯に集中)
+ * - 3〜4月（春山・残雪BC期）: 05, 07, 09, 11, 13, 15, 17 (7回)
+ */
+export function getTargetHoursForDate(dateStr?: string): string[] {
+  if (!dateStr) return ['05', '07', '09', '11', '13', '15', '17'];
+  // 2026-10-28より前の既存アーカイブ期間は05〜17時の7スロット記録
+  if (dateStr < '2026-10-28') {
+    return ['05', '07', '09', '11', '13', '15', '17'];
+  }
+  const month = parseInt(dateStr.split('-')[1] || '10', 10);
+  if ([5, 6, 7, 8].includes(month)) {
+    return ['03', '05', '07', '09', '11', '13', '15', '17', '19'];
+  }
+  if ([11, 12, 1, 2].includes(month)) {
+    return ['07', '09', '11', '13', '15'];
+  }
+  return ['05', '07', '09', '11', '13', '15', '17'];
+}
+
+/**
+ * 1枚の解析結果から「推定視界高度 (0/500/1000/1700m)」「BCフィールド判定」「冠雪ライン」を取得する
+ * （過去の解析済みデータに対しても、視界・理由テキストから後方互換で自動推定する）
+ */
+export function getEffectiveElevation(cam: ImageAnalysis): {
+  elevationM: number;
+  bcStatus: BcFieldStatus;
+  snowLine: SnowLineStatus;
+} {
+  let elevationM = cam.visible_elevation_m;
+  let bcStatus = cam.bc_field_status;
+
+  if (typeof elevationM !== 'number' || !bcStatus) {
+    if (cam.visibility === 'clear' && cam.summit_visible !== false) {
+      elevationM = 1700;
+      bcStatus = 'alpine_clear';
+    } else if (cam.visibility === 'cloudy') {
+      const r = cam.reason || '';
+      if (r.includes('山麓のみ') || r.includes('裾野のみ') || r.includes('下部のみ')) {
+        elevationM = 500;
+        bcStatus = 'treeline_only';
+      } else {
+        elevationM = 1000;
+        bcStatus = 'mid_mountain_ok';
+      }
+    } else {
+      const r = cam.reason || '';
+      if (r.includes('裾野') || r.includes('山麓') || r.includes('森林帯')) {
+        elevationM = 500;
+        bcStatus = 'treeline_only';
+      } else {
+        elevationM = 0;
+        bcStatus = 'whiteout';
+      }
+    }
+  }
+
+  let snowLine: SnowLineStatus = cam.snow_line || 'none';
+  if (!cam.snow_line && cam.reason) {
+    if (cam.reason.includes('全面積雪') || cam.reason.includes('山麓まで雪')) {
+      snowLine = 'full_snow';
+    } else if (cam.reason.includes('中腹まで雪') || cam.reason.includes('中腹まで冠雪')) {
+      snowLine = 'mid_slope';
+    } else if (cam.reason.includes('冠雪') || cam.reason.includes('雪化粧') || cam.reason.includes('積雪')) {
+      snowLine = 'summit_cap';
+    }
+  }
+
+  return { elevationM, bcStatus, snowLine };
+}
+
+/**
+ * 標高数値 (0〜1700m) から BCフィールドランクへ変換するヘルパー
+ */
+export function elevationToBcStatus(elevM: number | null): BcFieldStatus | 'unknown' {
+  if (elevM === null || elevM < 0) return 'unknown';
+  if (elevM >= 1500) return 'alpine_clear';
+  if (elevM >= 800) return 'mid_mountain_ok';
+  if (elevM >= 300) return 'treeline_only';
+  return 'whiteout';
+}
+
+/**
+ * カメラが存在しない「東面（アフトロマナイ沢方面）」の視界高度を
+ * 南東（オタドマリ沼＝ヤムナイ沢）と北東（姫沼＝オチュウシナイ沢／冬季休止時はフェリー・本泊）から推定する
+ */
+export function estimateEastAspectElevation(
+  byCamElev: Record<CameraId, number | null>,
+  windDirectionDeg?: number
+): { elevationM: number | null; bcStatus: BcFieldStatus | 'unknown'; note: string } {
+  const seElev = byCamElev.otadomari;
+  const neElev =
+    byCamElev.himenuma !== null
+      ? byCamElev.himenuma
+      : byCamElev.ferry !== null
+      ? byCamElev.ferry
+      : byCamElev.oshidomari;
+
+  const candidates = [seElev, neElev].filter((v): v is number => v !== null);
+  if (candidates.length === 0) {
+    return { elevationM: null, bcStatus: 'unknown', note: '周辺カメラ記録なし' };
+  }
+
+  // 西〜北西風 (240°〜330°) の時は東面（アフトロマナイ沢）が風下リーサイドになるため、南東・北東の良好側を採用
+  const isWestNorthwestWind =
+    typeof windDirectionDeg === 'number' && windDirectionDeg >= 240 && windDirectionDeg <= 330;
+
+  let rawElev: number;
+  if (candidates.length === 2) {
+    rawElev = isWestNorthwestWind
+      ? Math.max(candidates[0], candidates[1])
+      : Math.round((candidates[0] + candidates[1]) / 2);
+  } else {
+    rawElev = candidates[0];
+  }
+
+  // 4段階 (1700 / 1000 / 500 / 0) に丸める
+  const snapped = rawElev >= 1450 ? 1700 : rawElev >= 750 ? 1000 : rawElev >= 250 ? 500 : 0;
+  const note =
+    byCamElev.himenuma !== null
+      ? '北東(姫沼・オチュウシナイ沢)＋南東(オタドマリ・ヤムナイ沢)から算出'
+      : '北(鴛泊港)＋南東(オタドマリ・ヤムナイ沢)から補完算出';
+
+  return {
+    elevationM: snapped,
+    bcStatus: elevationToBcStatus(snapped),
+    note,
+  };
 }
 
 /**
@@ -38,7 +201,6 @@ export function cleanupObsoleteLocalStorageCaches(): void {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k) continue;
-      // サーバー同梱の weather-daily.json があるため、1MB超のローカル日別気象キャッシュは不要
       if (
         k.startsWith('tozan_weather_daily_cache_') ||
         k.startsWith('tozan_weather_hourly_cache_v')
@@ -59,7 +221,6 @@ export async function persistCameraAnalysisResults(
   updatedMap: Record<string, ImageAnalysis[]>,
   isCleared = false
 ): Promise<boolean> {
-  // 1. まず不要な気象キャッシュを掃除してから localStorage に保存
   cleanupObsoleteLocalStorageCaches();
   try {
     if (isCleared) {
@@ -81,16 +242,20 @@ export async function persistCameraAnalysisResults(
 
   notifyCameraAnalysisUpdated();
 
-  // 2. Cloud Firestore に自動保存（月別ドキュメント分割により1MB上限を永久回避）
   const cloudOk = await saveCameraAnalysisToFirestore(updatedMap);
   return cloudOk;
 }
 
 /**
- * 1日分のカメラAI解析配列（7回×3〜6地点）から、
- * その日の山頂視界・雲量・日差しサマリーを厳密に評価する共通関数
+ * 1日分のカメラAI解析配列から、
+ * その日の山頂視界・雲量・日差し・標高別視界上限（BC視界）・東面推定を厳密に評価する共通関数
  */
-export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyCameraSummary {
+export function evaluateDailyCameraVisibility(
+  camData?: ImageAnalysis[],
+  dateStr?: string,
+  windDirectionDeg?: number
+): DailyCameraSummary {
+  const seasonMode = getSeasonModeForDate(dateStr);
   const defaultByCam: DailyCameraSummary['byCamera'] = {
     oshidomari: 'unknown',
     ferry: 'unknown',
@@ -99,9 +264,18 @@ export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyC
     otadomari: 'unknown',
     senposhi: 'unknown',
   };
+  const defaultByCamElev: DailyCameraSummary['byCameraElevation'] = {
+    oshidomari: null,
+    ferry: null,
+    himenuma: null,
+    kutsugata: null,
+    otadomari: null,
+    senposhi: null,
+  };
 
   if (!camData || camData.length === 0) {
     return {
+      seasonMode,
       mountainCategory: 'unknown',
       clearCount: 0,
       cloudyCount: 0,
@@ -112,6 +286,13 @@ export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyC
       avgCloudCover: null,
       morningClearAfternoonFoggy: false,
       byCamera: defaultByCam,
+      maxVisibleElevationM: null,
+      avgVisibleElevationM: null,
+      coreTimeElevationM: null,
+      dominantBcStatus: 'unknown',
+      dominantSnowLine: 'none',
+      byCameraElevation: defaultByCamElev,
+      eastAspectEstimatedElevationM: null,
     };
   }
 
@@ -120,6 +301,7 @@ export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyC
   );
   if (validCams.length === 0) {
     return {
+      seasonMode,
       mountainCategory: 'unknown',
       clearCount: 0,
       cloudyCount: 0,
@@ -130,11 +312,19 @@ export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyC
       avgCloudCover: null,
       morningClearAfternoonFoggy: false,
       byCamera: defaultByCam,
+      maxVisibleElevationM: null,
+      avgVisibleElevationM: null,
+      coreTimeElevationM: null,
+      dominantBcStatus: 'unknown',
+      dominantSnowLine: 'none',
+      byCameraElevation: defaultByCamElev,
+      eastAspectEstimatedElevationM: null,
     };
   }
 
   const cams: CameraId[] = ['oshidomari', 'ferry', 'himenuma', 'kutsugata', 'otadomari', 'senposhi'];
   const byCamera: DailyCameraSummary['byCamera'] = { ...defaultByCam };
+  const byCameraElevation: DailyCameraSummary['byCameraElevation'] = { ...defaultByCamElev };
 
   cams.forEach(cam => {
     const cData = validCams.filter(c => c.fileName.includes(`_${cam}.jpg`));
@@ -148,6 +338,13 @@ export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyC
     } else {
       byCamera[cam] = 'cloudy';
     }
+
+    // カメラごとの日中の代表的な視界高度（上位平均または最高到達視界高度）
+    const elevs = cData.map(c => getEffectiveElevation(c).elevationM).sort((a, b) => b - a);
+    // 上位半分の平均をその斜面の有効視界高度とし、4段階にスナップ
+    const topHalf = elevs.slice(0, Math.max(1, Math.ceil(elevs.length / 2)));
+    const avgTop = topHalf.reduce((s, v) => s + v, 0) / topHalf.length;
+    byCameraElevation[cam] = avgTop >= 1450 ? 1700 : avgTop >= 750 ? 1000 : avgTop >= 250 ? 500 : 0;
   });
 
   const camValues = Object.values(byCamera);
@@ -172,9 +369,40 @@ export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyC
   );
   const avgCloudCover = Math.round((totalCloud / validCams.length) * 10) / 10;
 
-  // 朝（05, 07, 08, 09時）にclearがあり、昼〜午後（11, 13, 14, 15時）がほぼfoggy/cloudyに悪化した日を検知
+  // 標高視界・積雪ラインの集計
+  const allElevInfos = validCams.map(c => getEffectiveElevation(c));
+  const maxVisibleElevationM = Math.max(...allElevInfos.map(e => e.elevationM));
+  const avgVisibleElevationM = Math.round(
+    allElevInfos.reduce((s, e) => s + e.elevationM, 0) / allElevInfos.length
+  );
+
+  // コアタイム（09, 11, 13時）の視界高度
+  const coreCams = validCams.filter(
+    c => c.fileName.startsWith('09_') || c.fileName.startsWith('11_') || c.fileName.startsWith('13_')
+  );
+  const coreTimeElevationM =
+    coreCams.length > 0
+      ? Math.max(...coreCams.map(c => getEffectiveElevation(c).elevationM))
+      : maxVisibleElevationM;
+
+  const dominantBcStatus = elevationToBcStatus(coreTimeElevationM ?? maxVisibleElevationM);
+
+  // 冠雪ラインの代表値
+  const snowOrder: SnowLineStatus[] = ['full_snow', 'mid_slope', 'summit_cap', 'none'];
+  let dominantSnowLine: SnowLineStatus = 'none';
+  for (const s of snowOrder) {
+    if (allElevInfos.some(e => e.snowLine === s)) {
+      dominantSnowLine = s;
+      break;
+    }
+  }
+
+  const eastEst = estimateEastAspectElevation(byCameraElevation, windDirectionDeg);
+
+  // 朝（03, 05, 07, 08, 09時）にclearがあり、昼〜午後（11, 13, 14, 15時）がほぼfoggy/cloudyに悪化した日を検知
   const morningCams = validCams.filter(
     c =>
+      c.fileName.startsWith('03_') ||
       c.fileName.startsWith('05_') ||
       c.fileName.startsWith('07_') ||
       c.fileName.startsWith('08_') ||
@@ -194,6 +422,7 @@ export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyC
   const morningClearAfternoonFoggy = morningHasClear && afternoonAllBad;
 
   return {
+    seasonMode,
     mountainCategory,
     clearCount,
     cloudyCount,
@@ -204,6 +433,13 @@ export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyC
     avgCloudCover,
     morningClearAfternoonFoggy,
     byCamera,
+    maxVisibleElevationM,
+    avgVisibleElevationM,
+    coreTimeElevationM,
+    dominantBcStatus,
+    dominantSnowLine,
+    byCameraElevation,
+    eastAspectEstimatedElevationM: eastEst.elevationM,
   };
 }
 
@@ -227,12 +463,10 @@ export const useCameraAnalysis = () => {
       if (cached) localData = JSON.parse(cached);
     } catch {}
 
-    // 1. まずローカルデータがあれば即時反映
     if (Object.keys(localData).length > 0) {
       setAnalysisResults(localData);
     }
 
-    // 2. 静的JSON と Cloud Firestore を並列ロードしてマージ
     const [staticData, cloudPayload] = await Promise.all([
       isClearedLocal
         ? Promise.resolve({} as Record<string, ImageAnalysis[]>)
@@ -250,7 +484,6 @@ export const useCameraAnalysis = () => {
     setAnalysisResults(merged);
     setIsLoading(false);
 
-    // クラウドから取得した最新データをローカルキャッシュにも同期しておく
     if (Object.keys(merged).length > 0) {
       try {
         localStorage.setItem('tozan_weather_analysis_cache', JSON.stringify(merged));

@@ -5,7 +5,12 @@ import { ja } from 'date-fns/locale';
 import * as JapaneseHolidays from 'japanese-holidays';
 import { isEntryEnter, type LogEntry } from './logParser';
 import { getWeatherCategory, getWeatherDescription, type WeatherData } from './weatherApi';
-import { evaluateDailyCameraVisibility, type ImageAnalysis, type CameraId } from '../hooks/useCameraAnalysis';
+import {
+  evaluateDailyCameraVisibility,
+  getEffectiveElevation,
+  type ImageAnalysis,
+  type CameraId,
+} from '../hooks/useCameraAnalysis';
 
 export interface AIAnalysisRequest {
   year: string;
@@ -91,6 +96,8 @@ export interface HourlyCameraVisibilityStat {
   hourSlot: string; // '05:00' | '07:00' | '09:00' | '11:00' | '13:00' | '15:00' | '17:00'
   sampleCount: number;
   summitClearRate: number; // 山頂快晴率 (%)
+  midMountainOrAboveRate: number; // 中腹1000m以上視界確立率 (%)
+  avgVisibleElevationM: number; // 平均視界上限高度 (m)
   sunnyRate: number; // 日差し・青空率 (%)
   foggyRate: number; // ガス不可視率 (%)
   avgCloudCover: number; // 平均雲量 (0.0〜10.0)
@@ -101,6 +108,8 @@ export interface CameraDirectionTotalStat {
   camLabel: string;
   sampleCount: number;
   summitClearRate: number;
+  midMountainOrAboveRate: number; // 中腹1000m以上視界確立率 (%)
+  avgVisibleElevationM: number; // 平均視界上限高度 (m)
   sunnyRate: number;
   foggyRate: number;
   avgCloudCover: number;
@@ -553,32 +562,32 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
   const GOLDEN_SLOTS = ['05', '07', '09', '11', '13', '15', '17'] as const;
   const slotBuckets: Record<
     string,
-    { total: number; clear: number; sunny: number; foggy: number; cloudSum: number }
+    { total: number; clear: number; midOrAbove: number; elevSum: number; sunny: number; foggy: number; cloudSum: number }
   > = {};
   GOLDEN_SLOTS.forEach(s => {
-    slotBuckets[s] = { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 };
+    slotBuckets[s] = { total: 0, clear: 0, midOrAbove: 0, elevSum: 0, sunny: 0, foggy: 0, cloudSum: 0 };
   });
 
   // 提案C: 最大6地点カメラ全体集計 ＆ 風向別×方角別カメラ非対称集計バケット
   const CAM_DIRS: { id: CameraId; label: string; isCore: boolean }[] = [
-    { id: 'oshidomari', label: '北：鴛泊(本泊)', isCore: true },
-    { id: 'ferry', label: '北：鴛泊港(フェリー)', isCore: false },
-    { id: 'himenuma', label: '北東：姫沼', isCore: false },
-    { id: 'kutsugata', label: '西：沓形', isCore: true },
-    { id: 'otadomari', label: '南東：オタドマリ沼', isCore: false },
-    { id: 'senposhi', label: '南：仙法志', isCore: true },
+    { id: 'oshidomari', label: '北：鴛泊(長官・ポン山)', isCore: true },
+    { id: 'ferry', label: '北：鴛泊港(北稜俯瞰)', isCore: false },
+    { id: 'himenuma', label: '北東：姫沼(オチュウシナイ沢)', isCore: false },
+    { id: 'kutsugata', label: '西：沓形(三眺山)', isCore: true },
+    { id: 'otadomari', label: '南東：オタドマリ(ヤムナイ沢)', isCore: false },
+    { id: 'senposhi', label: '南：仙法志(南稜)', isCore: true },
   ];
 
   const dirTotalsMap: Record<
     CameraId,
-    { total: number; clear: number; sunny: number; foggy: number; cloudSum: number }
+    { total: number; clear: number; midOrAbove: number; elevSum: number; sunny: number; foggy: number; cloudSum: number }
   > = {
-    oshidomari: { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 },
-    ferry: { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 },
-    himenuma: { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 },
-    kutsugata: { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 },
-    otadomari: { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 },
-    senposhi: { total: 0, clear: 0, sunny: 0, foggy: 0, cloudSum: 0 },
+    oshidomari: { total: 0, clear: 0, midOrAbove: 0, elevSum: 0, sunny: 0, foggy: 0, cloudSum: 0 },
+    ferry: { total: 0, clear: 0, midOrAbove: 0, elevSum: 0, sunny: 0, foggy: 0, cloudSum: 0 },
+    himenuma: { total: 0, clear: 0, midOrAbove: 0, elevSum: 0, sunny: 0, foggy: 0, cloudSum: 0 },
+    kutsugata: { total: 0, clear: 0, midOrAbove: 0, elevSum: 0, sunny: 0, foggy: 0, cloudSum: 0 },
+    otadomari: { total: 0, clear: 0, midOrAbove: 0, elevSum: 0, sunny: 0, foggy: 0, cloudSum: 0 },
+    senposhi: { total: 0, clear: 0, midOrAbove: 0, elevSum: 0, sunny: 0, foggy: 0, cloudSum: 0 },
   };
 
   const WIND_GROUPS = [
@@ -695,6 +704,8 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
         const isSunny = c.is_sunny === true || isClear || (c.cloud_cover >= 0 && c.cloud_cover <= 4);
         const isFoggy = c.visibility === 'foggy';
         const cloud = c.cloud_cover >= 0 ? c.cloud_cover : 5;
+        const elevM = getEffectiveElevation(c).elevationM;
+        const isMidOrAbove = elevM >= 1000;
 
         // 7時間帯スロットへの割り当て
         const targetSlots: string[] = [];
@@ -713,6 +724,8 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
           if (sb) {
             sb.total++;
             if (isClear) sb.clear++;
+            if (isMidOrAbove) sb.midOrAbove++;
+            sb.elevSum += elevM;
             if (isSunny) sb.sunny++;
             if (isFoggy) sb.foggy++;
             sb.cloudSum += cloud;
@@ -738,6 +751,8 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
           const dt = dirTotalsMap[camDir];
           dt.total++;
           if (isClear) dt.clear++;
+          if (isMidOrAbove) dt.midOrAbove++;
+          dt.elevSum += elevM;
           if (isSunny) dt.sunny++;
           if (isFoggy) dt.foggy++;
           dt.cloudSum += cloud;
@@ -885,6 +900,8 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
       hourSlot: `${s}:00`,
       sampleCount: total,
       summitClearRate: total > 0 ? Math.round((sb.clear / total) * 100) : 0,
+      midMountainOrAboveRate: total > 0 ? Math.round((sb.midOrAbove / total) * 100) : 0,
+      avgVisibleElevationM: total > 0 ? Math.round(sb.elevSum / total) : 0,
       sunnyRate: total > 0 ? Math.round((sb.sunny / total) * 100) : 0,
       foggyRate: total > 0 ? Math.round((sb.foggy / total) * 100) : 0,
       avgCloudCover: total > 0 ? Math.round((sb.cloudSum / total) * 10) / 10 : 0,
@@ -909,6 +926,8 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
       camLabel: cd.label,
       sampleCount: dt.total,
       summitClearRate: dt.total > 0 ? Math.round((dt.clear / dt.total) * 100) : 0,
+      midMountainOrAboveRate: dt.total > 0 ? Math.round((dt.midOrAbove / dt.total) * 100) : 0,
+      avgVisibleElevationM: dt.total > 0 ? Math.round(dt.elevSum / dt.total) : 0,
       sunnyRate: dt.total > 0 ? Math.round((dt.sunny / dt.total) * 100) : 0,
       foggyRate: dt.total > 0 ? Math.round((dt.foggy / dt.total) * 100) : 0,
       avgCloudCover: dt.total > 0 ? Math.round((dt.cloudSum / dt.total) * 10) / 10 : 0,

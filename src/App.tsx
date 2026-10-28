@@ -9,7 +9,7 @@ import { StakeholderAnalytics } from './components/StakeholderAnalytics';
 import { parseLogFile, aggregateData, getDailyDetails, type LogEntry, type CourseId } from './utils/logParser';
 import { fetchWeatherData, fetchHourlyWeatherData, type WeatherData, type HourlyWeatherData } from './utils/weatherApi';
 import { saveLogsToDB, loadLogsFromDB, clearLogsFromDB } from './utils/storage';
-import { Trash2, Calendar as CalendarIcon, Cloud, CloudDownload, CloudUpload, Key, Database, Mountain, Compass, Layers, PlusCircle, X, Lock, Unlock, Eye, RefreshCw, Video, Info, BarChart3, Terminal } from 'lucide-react';
+import { Trash2, Calendar as CalendarIcon, Cloud, CloudDownload, CloudUpload, Key, Database, Mountain, Compass, Layers, PlusCircle, X, Lock, Unlock, Eye, RefreshCw, Video, Info, BarChart3, Sparkles } from 'lucide-react';
 import { FirebaseModal } from './components/FirebaseModal';
 import { AdminModal } from './components/AdminModal';
 import { SystemInfoModal } from './components/SystemInfoModal';
@@ -54,9 +54,6 @@ function App() {
     localStorage.removeItem('tozan_admin_unlocked');
     setIsAdmin(false);
     setShowDataManagement(false);
-    if (selectedCourse === ('poc' as any)) {
-      setSelectedCourse('oshidomari');
-    }
   };
 
   // Date filtering
@@ -909,6 +906,31 @@ function App() {
 
                 <button
                   onClick={() => {
+                    setSelectedCourse('poc');
+                    setSelectedDate(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.65rem 1.45rem',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    borderRadius: '10px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    backgroundColor: selectedCourse === 'poc' ? '#8b5cf6' : 'transparent',
+                    color: selectedCourse === 'poc' ? '#ffffff' : 'var(--text-primary)',
+                    boxShadow: selectedCourse === 'poc' ? '0 2px 8px rgba(139, 92, 246, 0.35)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Sparkles size={18} style={{ color: selectedCourse === 'poc' ? '#ffffff' : '#8b5cf6' }} />
+                  <span>山頂視界・雲量AI</span>
+                </button>
+
+                <button
+                  onClick={() => {
                     setSelectedCourse('analytics');
                     setSelectedDate(null);
                   }}
@@ -931,33 +953,6 @@ function App() {
                   <BarChart3 size={18} />
                   <span>利用解析</span>
                 </button>
-
-                {isAdmin && (
-                  <button
-                    onClick={() => {
-                      setSelectedCourse('poc' as any);
-                      setSelectedDate(null);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.65rem 1.45rem',
-                      fontWeight: 700,
-                      fontSize: '0.95rem',
-                      borderRadius: '10px',
-                      border: '1px dashed #8b5cf6',
-                      cursor: 'pointer',
-                      backgroundColor: selectedCourse === ('poc' as any) ? '#8b5cf6' : 'rgba(139, 92, 246, 0.08)',
-                      color: selectedCourse === ('poc' as any) ? '#ffffff' : '#8b5cf6',
-                      boxShadow: selectedCourse === ('poc' as any) ? '0 2px 8px rgba(139, 92, 246, 0.35)' : 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Terminal size={18} />
-                    <span>🧪 PoC 実証実験室 [管理者専用]</span>
-                  </button>
-                )}
               </div>
             </div>
 
@@ -1226,7 +1221,7 @@ function App() {
             {selectedCourse === 'cameras' ? (
               <LiveCamArchivePage />
             ) : selectedCourse === 'poc' ? (
-              <LiveCamPoCPanel />
+              <LiveCamPoCPanel isAdmin={isAdmin} />
             ) : selectedCourse === 'now' ? (
               <RishiriNowPanel />
             ) : selectedCourse === 'analytics' ? (

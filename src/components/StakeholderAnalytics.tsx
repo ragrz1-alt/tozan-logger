@@ -1215,7 +1215,8 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                         formatter={(val: any, name: any) => [`${val}%`, name]}
                       />
                       <Legend />
-                      <Bar dataKey="summitClearRate" fill="#10b981" name="🏔️ 山頂快晴率 (%)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="summitClearRate" fill="#10b981" name="🏔️ 山頂快晴率 (1700m) (%)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="midMountainOrAboveRate" fill="#3b82f6" name="🎿 中腹1000m+視界率 (%)" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="sunnyRate" fill="#f59e0b" name="☀️ 日差し・青空率 (%)" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="foggyRate" fill="#94a3b8" name="🌫️ ガス不可視率 (%)" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -1266,15 +1267,15 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                           📷 {cd.camLabel} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>({cd.sampleCount}枚)</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '1.35rem', fontWeight: 900, color: '#10b981' }}>
-                            山頂快晴 {cd.summitClearRate}%
+                          <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#10b981' }}>
+                            🏔️山頂快晴 {cd.summitClearRate}%
                           </span>
-                          <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 700 }}>
-                            ☀️日差し {cd.sunnyRate}%
+                          <span style={{ fontSize: '0.82rem', color: '#2563eb', fontWeight: 800 }}>
+                            🎿1000m+視界 {cd.midMountainOrAboveRate}%
                           </span>
                         </div>
-                        <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                          平均雲量: <strong>{cd.avgCloudCover}</strong> / 10 ｜ ガス不可視率: {cd.foggyRate}%
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                          📏平均視界上限: <strong>約{cd.avgVisibleElevationM}m</strong> ｜ ☀️日差し {cd.sunnyRate}% ｜ 平均雲量 <strong>{cd.avgCloudCover}</strong>
                         </div>
                       </div>
                     ))}
