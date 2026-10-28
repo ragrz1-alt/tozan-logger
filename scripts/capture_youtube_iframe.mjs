@@ -3,52 +3,71 @@
  * (Playwright 仮想ドメイン iframe 埋め込み + HTML5 <video> -> <canvas> 直接キャプチャ)
  *
  * 使い方:
- *   node scripts/capture_youtube_iframe.mjs <videoId> <outputPath>
+ *   node scripts/capture_youtube_iframe.mjs <videoId> <outputPath> [proxyUrl]
  */
 
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
+import net from 'net';
 
-const [, , videoId, outputPath] = process.argv;
+const [, , videoId, outputPath, cliProxy] = process.argv;
 
 if (!videoId || !outputPath) {
-  console.error('Usage: node scripts/capture_youtube_iframe.mjs <videoId> <outputPath>');
+  console.error('Usage: node scripts/capture_youtube_iframe.mjs <videoId> <outputPath> [proxyUrl]');
   process.exit(1);
 }
 
-async function captureYouTubeLiveFrame(vid, outFile) {
+function checkLocalPort(port, host = '127.0.0.1', timeoutMs = 600) {
+  return new Promise(resolve => {
+    const socket = new net.Socket();
+    let done = false;
+    const finish = ok => {
+      if (!done) {
+        done = true;
+        socket.destroy();
+        resolve(ok);
+      }
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+    socket.connect(port, host);
+  });
+}
+
+async function tryCaptureOnce(vid, outFile, proxyServer) {
   let browser;
   try {
     const launchArgs = [
-      '--headless=new',
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--use-gl=swiftshader',
       '--autoplay-policy=no-user-gesture-required',
       '--disable-blink-features=AutomationControlled',
       '--mute-audio',
     ];
 
+    const launchOpts = {
+      headless: true,
+      args: launchArgs,
+      ...(proxyServer ? { proxy: { server: proxyServer } } : {}),
+    };
+
     try {
       browser = await chromium.launch({
+        ...launchOpts,
         channel: 'chrome',
-        headless: true,
-        args: launchArgs,
       });
     } catch {
-      browser = await chromium.launch({
-        headless: true,
-        args: launchArgs,
-      });
+      browser = await chromium.launch(launchOpts);
     }
 
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
       userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       locale: 'ja-JP',
     });
 
@@ -87,10 +106,9 @@ async function captureYouTubeLiveFrame(vid, outFile) {
     let lastDiag = {};
 
     if (frame) {
-      await frame.waitForSelector('video, .ytp-large-play-button', { timeout: 15000 }).catch(() => {});
+      await frame.waitForSelector('video, .ytp-large-play-button, .ytp-error', { timeout: 15000 }).catch(() => {});
 
-      for (let attempt = 0; attempt < 30; attempt++) {
-        // 初回および数回おきにPlaywrightのネイティブクリックでも再生トリガーを送る（Linux CIでのautoplay制限突破）
+      for (let attempt = 0; attempt < 26; attempt++) {
         if (attempt === 1 || attempt === 5 || attempt === 10) {
           try {
             const playBtn = await frame.$('.ytp-large-play-button');
@@ -103,7 +121,9 @@ async function captureYouTubeLiveFrame(vid, outFile) {
         }
 
         const state = await frame.evaluate(() => {
-          // 1. YouTube内部プレーヤーAPIおよび大再生ボタンを駆動
+          const errEl = document.querySelector('.ytp-error-content-wrap-reason, .ytp-error');
+          const errText = errEl ? (errEl.textContent || '').trim().slice(0, 120) : '';
+
           const mp = document.getElementById('movie_player');
           if (mp && typeof mp.mute === 'function') mp.mute();
           if (mp && typeof mp.playVideo === 'function') {
@@ -120,7 +140,7 @@ async function captureYouTubeLiveFrame(vid, outFile) {
 
           const v = document.querySelector('video');
           if (!v) {
-            return { ready: false, diag: { hasVideo: false } };
+            return { ready: false, fatalError: !!errText, diag: { hasVideo: false, errText } };
           }
           if (v.paused) {
             v.muted = true;
@@ -135,7 +155,12 @@ async function captureYouTubeLiveFrame(vid, outFile) {
             currentTime: v.currentTime,
             paused: v.paused,
             src: v.src ? 'set' : 'empty',
+            errText,
           };
+
+          if (errText && v.readyState === 0) {
+            return { ready: false, fatalError: true, diag };
+          }
 
           if (v.readyState >= 2 && v.videoWidth > 0) {
             const canvas = document.createElement('canvas');
@@ -146,7 +171,6 @@ async function captureYouTubeLiveFrame(vid, outFile) {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(v, 0, 0, targetW, targetH);
 
-            // 真っ黒フレーム（デコード直前の空フレーム）でないか中央・4点の輝度を確認
             const samplePoints = [
               [200, 120],
               [400, 225],
@@ -172,12 +196,15 @@ async function captureYouTubeLiveFrame(vid, outFile) {
               }
             }
           }
-          return { ready: false, diag };
+          return { ready: false, fatalError: false, diag };
         });
 
         lastDiag = state.diag || {};
         if (state.ready && state.dataUrl) {
           dataUrl = state.dataUrl;
+          break;
+        }
+        if (state.fatalError && attempt >= 4) {
           break;
         }
         await page.waitForTimeout(500);
@@ -189,7 +216,10 @@ async function captureYouTubeLiveFrame(vid, outFile) {
     await browser.close();
 
     if (!dataUrl) {
-      console.error(`[PLAYWRIGHT_CANVAS] Failed to extract frame for ${vid}. Last state:`, JSON.stringify(lastDiag));
+      console.error(
+        `[PLAYWRIGHT_CANVAS] Failed (${proxyServer || 'direct'}) for ${vid}. Last state:`,
+        JSON.stringify(lastDiag)
+      );
       return false;
     }
 
@@ -202,7 +232,9 @@ async function captureYouTubeLiveFrame(vid, outFile) {
 
     fs.mkdirSync(path.dirname(outFile), { recursive: true });
     fs.writeFileSync(outFile, buffer);
-    console.log(`[PLAYWRIGHT_CANVAS] Captured ${vid} -> ${outFile} (${buffer.length} bytes)`);
+    console.log(
+      `[PLAYWRIGHT_CANVAS] Captured ${vid} (${proxyServer || 'direct'}) -> ${outFile} (${buffer.length} bytes)`
+    );
     return true;
   } catch (err) {
     if (browser) {
@@ -210,9 +242,26 @@ async function captureYouTubeLiveFrame(vid, outFile) {
         await browser.close();
       } catch {}
     }
-    console.error(`[PLAYWRIGHT_CANVAS] Error for ${vid}:`, err.message);
+    console.error(`[PLAYWRIGHT_CANVAS] Error (${proxyServer || 'direct'}) for ${vid}:`, err.message);
     return false;
   }
+}
+
+async function captureYouTubeLiveFrame(vid, outFile) {
+  const candidates = [];
+  const envProxy = cliProxy || process.env.YOUTUBE_SOCKS_PROXY || process.env.YOUTUBE_PROXY;
+  if (envProxy) {
+    candidates.push(envProxy);
+  } else if (await checkLocalPort(40000)) {
+    candidates.push('socks5://127.0.0.1:40000');
+  }
+  candidates.push(null); // direct fallback
+
+  for (const proxy of candidates) {
+    const ok = await tryCaptureOnce(vid, outFile, proxy);
+    if (ok) return true;
+  }
+  return false;
 }
 
 const ok = await captureYouTubeLiveFrame(videoId, outputPath);

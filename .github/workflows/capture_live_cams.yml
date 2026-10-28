@@ -2,9 +2,19 @@ name: Capture Rishiri Live Cameras
 
 on:
   workflow_dispatch: # Cloudflare等の外部APIキックおよびGitHub画面からの手動実行に対応
+    inputs:
+      force:
+        description: '日照スケジュール外でも強制撮影する (true/false)'
+        required: false
+        default: 'false'
+      dry_run:
+        description: '撮影テストのみ行いコミット・プッシュしない (true/false)'
+        required: false
+        default: 'false'
   repository_dispatch: # 外部APIからのリポジトリディスパッチトリガーにも対応
   schedule:
-    - cron: '0 * * * *' # 毎時0分に実行（季節別日照スケジュール外はスクリプト内で高速スキップ）
+    - cron: '0 * * * *' # 毎時0分に実行（季節別日照スケジュール外は高速スキップ）
+
 permissions:
   contents: write
 
@@ -17,29 +27,87 @@ jobs:
   capture_cams:
     runs-on: ubuntu-latest
     steps:
+      - name: Check seasonal solar schedule (Fast nighttime skip)
+        id: solar_check
+        run: |
+          MONTH=$(TZ='Asia/Tokyo' date +'%-m')
+          HOUR=$(TZ='Asia/Tokyo' date +'%-H')
+          FORCE="${{ github.event.inputs.force }}"
+          if [ "$MONTH" -ge 5 ] && [ "$MONTH" -le 8 ]; then
+            START_H=3; END_H=21
+          elif [ "$MONTH" -eq 3 ] || [ "$MONTH" -eq 4 ] || [ "$MONTH" -eq 9 ] || [ "$MONTH" -eq 10 ]; then
+            START_H=4; END_H=18
+          else
+            START_H=6; END_H=17
+          fi
+          echo "Current JST: Month=$MONTH, Hour=$HOUR (Solar window: ${START_H}:00 - ${END_H}:00, force=$FORCE)"
+          if [ "$FORCE" = "true" ] || { [ "$HOUR" -ge "$START_H" ] && [ "$HOUR" -le "$END_H" ]; }; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "🌙 Nighttime outside solar schedule. Skipping heavy setup."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
+        if: steps.solar_check.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: steps.solar_check.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Set up Node.js (Playwright iframe Canvas抽出用)
+      - name: Set up Node.js (yt-dlp JS runtime & Playwright iframe Canvas抽出用)
+        if: steps.solar_check.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
-      - name: Install dependencies (yt-dlp, streamlink, Pillow, Playwright Chrome)
+      - name: Set up Cloudflare WARP Local Proxy (Bypass YouTube Datacenter IP Block)
+        if: steps.solar_check.outputs.should_run == 'true'
         run: |
-          pip install -U yt-dlp streamlink Pillow
+          set +e
+          curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+          sudo apt-get update -y
+          sudo apt-get install -y cloudflare-warp
+
+          sudo systemctl start warp-svc || true
+          sleep 2
+
+          warp-cli --accept-tos registration new 2>/dev/null || warp-cli --accept-tos register 2>/dev/null || true
+          warp-cli --accept-tos mode proxy 2>/dev/null || warp-cli --accept-tos set-mode proxy 2>/dev/null || true
+          warp-cli --accept-tos proxy port 40000 2>/dev/null || warp-cli --accept-tos set-proxy-port 40000 2>/dev/null || true
+          warp-cli --accept-tos connect 2>/dev/null || true
+
+          for i in {1..10}; do
+            if curl -fsS -m 5 -x http://127.0.0.1:40000 https://www.cloudflare.com/cdn-cgi/trace | grep -q "warp=on"; then
+              echo "✅ Cloudflare WARP Proxy (127.0.0.1:40000) is active!"
+              echo "YOUTUBE_PROXY=http://127.0.0.1:40000" >> "$GITHUB_ENV"
+              echo "YOUTUBE_SOCKS_PROXY=socks5://127.0.0.1:40000" >> "$GITHUB_ENV"
+              break
+            fi
+            sleep 1
+          done
+          set -e
+
+      - name: Install dependencies (yt-dlp, streamlink, Pillow, Playwright Chrome)
+        if: steps.solar_check.outputs.should_run == 'true'
+        run: |
+          pip install -U yt-dlp streamlink Pillow bgutil-ytdlp-pot-provider
           npm ci --prefer-offline --no-audit || npm install --no-audit
           npx playwright install --with-deps chrome
 
-      - name: Run live camera capture script (6 cameras + seasonal solar guard)
+      - name: Run live camera capture script (6 cameras + DVR backfill + seasonal solar guard)
+        if: steps.solar_check.outputs.should_run == 'true'
         run: |
-          python scripts/capture_live_cams.py --debug || true
+          EXTRA_FLAGS="--debug"
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            EXTRA_FLAGS="--debug --force"
+          fi
+          python scripts/capture_live_cams.py $EXTRA_FLAGS || true
           TODAY_JST=$(TZ='Asia/Tokyo' date +'%Y-%m-%d')
           mkdir -p /tmp/cams_backup_today
           cp -f "public/cams/$TODAY_JST/"*.jpg /tmp/cams_backup_today/ 2>/dev/null || true
@@ -47,6 +115,7 @@ jobs:
           ls -lh "public/cams/$TODAY_JST/"* 2>/dev/null || echo "夜間スキップまたは新規撮影なし"
 
       - name: Commit and push recorded screenshots (Conflict-Free Self-Healing)
+        if: steps.solar_check.outputs.should_run == 'true' && github.event.inputs.dry_run != 'true'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
