@@ -386,16 +386,25 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
   // 選択日のAI解析対象時間帯（5-8月: 9回, 9-10月・3-4月: 7回, 11-2月: 5回）
   const activeTimesForSelectedDate = useMemo(() => {
     const baseTimes = getTargetHoursForDate(selectedDate);
-    // すでに解析済みの結果に特定の時間帯が含まれている場合はそれも補完表示する
     const dayRes = analysisResults[selectedDate] || [];
+    const dayRec = historyRecords[selectedDate] || {};
     const existingHours = new Set<string>(baseTimes);
     dayRes.forEach(r => {
       if (r.status === 'ok' && r.fileName.length >= 2) {
         existingHours.add(r.fileName.slice(0, 2));
       }
     });
-    return Array.from(existingHours).sort();
-  }, [selectedDate, analysisResults]);
+    const todayStr = getTodayJstStr();
+    const currentJstHour = new Date(Date.now() + 9 * 3600 * 1000).getUTCHours();
+    return Array.from(existingHours)
+      .filter(hr => {
+        if (selectedDate === todayStr && parseInt(hr, 10) > currentJstHour && !dayRec[hr]) {
+          return false; // 当日のまだ到来していない未来の撮影時刻は除外
+        }
+        return true;
+      })
+      .sort();
+  }, [selectedDate, analysisResults, historyRecords]);
 
   const currentWeather = weatherMap[selectedDate];
   const currentResults = analysisResults[selectedDate];
@@ -2068,7 +2077,14 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
 
       {/* ===== 4. 時間帯別 カメラ画像＆AI判定一覧 ===== */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {activeTimesForSelectedDate.map(time => (
+        {activeTimesForSelectedDate.map(time => {
+          // 2026-10-28の13時以前（14時に6地点へ拡張する前）は記録済みの3地点のみ表示して不要な未記録枠を出さない
+          const locationsForSlot =
+            selectedDate === '2026-10-28' && parseInt(time, 10) <= 13
+              ? activeLocationsForSelectedDate.filter(l => l.isCore)
+              : activeLocationsForSelectedDate;
+
+          return (
           <div key={time}>
             <div
               style={{
@@ -2093,12 +2109,17 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
                 {time}:00
               </span>
               <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {selectedDate} {time}時台の視界・カメラ画像 ({activeLocationsForSelectedDate.length}地点)
+                {selectedDate} {time}時台の視界・カメラ画像 ({locationsForSlot.length}地点)
               </span>
+              {selectedDate === '2026-10-28' && parseInt(time, 10) <= 13 && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  ※本日14:00より6地点へ拡張（13時以前は3地点記録）
+                </span>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(265px, 1fr))', gap: '1rem' }}>
-              {activeLocationsForSelectedDate.map(loc => {
+              {locationsForSlot.map(loc => {
                 const fileName = `${time}_${loc.id}.jpg`;
                 const relPath = `cams/${selectedDate}/${fileName}`;
                 const cdnUrl = getCamImageUrl(relPath);
@@ -2284,7 +2305,8 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* 画像拡大モーダル */}

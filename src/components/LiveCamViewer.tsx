@@ -113,34 +113,40 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
     return !!dateRecords[hr] && Object.keys(dateRecords[hr]).some(k => k !== 'timestamp');
   };
 
-  // 選択日に実際に記録があるカメラ（または2026-10-28以降の6地点運用日）を判定
+  // 選択日・選択時間に実際に記録があるカメラ（または2026-10-28 14時以降の6地点運用）を判定
   const activeCameras = useMemo(() => {
-    const recordedCamIdsOnDate = new Set<string>();
-    Object.values(dateRecords).forEach(hrObj => {
-      if (hrObj && typeof hrObj === 'object') {
-        Object.keys(hrObj).forEach(k => {
-          if (k !== 'timestamp') recordedCamIdsOnDate.add(k);
-        });
-      }
-    });
-    const isSixCamEra = dateStr >= '2026-10-28' || recordedCamIdsOnDate.has('ferry') || recordedCamIdsOnDate.has('himenuma') || recordedCamIdsOnDate.has('otadomari');
-    if (isSixCamEra) {
-      return ALL_ARCHIVE_CAMERAS;
+    const hrObj = dateRecords[selectedHour] || {};
+    const recordedInHour = new Set<string>(Object.keys(hrObj).filter(k => k !== 'timestamp'));
+
+    // 2026-10-28の13時以前（6地点拡張前）や2026-10-27以前は3地点表示にして不要な「未撮影」枠を出さない
+    if (dateStr < '2026-10-28' || (dateStr === '2026-10-28' && parseInt(selectedHour, 10) <= 13 && !recordedInHour.has('ferry'))) {
+      return ALL_ARCHIVE_CAMERAS.filter(c => c.isCore || recordedInHour.has(c.id));
     }
-    return ALL_ARCHIVE_CAMERAS.filter(c => c.isCore || recordedCamIdsOnDate.has(c.id));
-  }, [dateStr, dateRecords]);
+    return ALL_ARCHIVE_CAMERAS;
+  }, [dateStr, dateRecords, selectedHour]);
 
   const currentHourWeather = hourlyWeather?.[selectedHour] || hourlyWeather?.[`${selectedHour.padStart(2, '0')}:00`] || hourlyWeather?.[parseInt(selectedHour, 10).toString()];
 
-  // 時間選択のデフォルト調整 (該当日の12時をデフォルト優先。なければ日中12時に近い記録ある時間を優先)
+  // 時間選択のデフォルト調整 (最も多くのカメラ地点が記録されている日中時間を最優先し、その次に12時に近い時間を優先)
   useEffect(() => {
     const preferredHours = [
-      '12', '11', '13', '10', '14', '09', '15', '08', '16', '07', '17',
+      '14', '15', '12', '11', '13', '10', '16', '09', '08', '07', '17',
       '06', '18', '05', '19', '04', '20', '03', '21', '02', '22', '01', '23', '00'
     ];
-    const avail = preferredHours.find(hr => hasRecordForHour(hr));
-    if (avail) {
-      setSelectedHour(avail);
+    let maxCamCount = 0;
+    HOURS.forEach(hr => {
+      const cnt = Object.keys(dateRecords[hr] || {}).filter(k => k !== 'timestamp').length;
+      if (cnt > maxCamCount) maxCamCount = cnt;
+    });
+    const bestAvail = preferredHours.find(hr => {
+      const cnt = Object.keys(dateRecords[hr] || {}).filter(k => k !== 'timestamp').length;
+      return cnt > 0 && cnt === maxCamCount;
+    });
+    const fallbackAvail = preferredHours.find(hr => hasRecordForHour(hr));
+    if (bestAvail) {
+      setSelectedHour(bestAvail);
+    } else if (fallbackAvail) {
+      setSelectedHour(fallbackAvail);
     } else {
       setSelectedHour('12');
     }

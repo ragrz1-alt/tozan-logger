@@ -336,7 +336,10 @@ export const LiveCamArchivePage: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px', backgroundColor: 'var(--border-color)' }}>
-                      {activeCamerasForDate.map(cam => {
+                      {(selectedDate === '2026-10-28' && parseInt(hr, 10) <= 13 && !hrRec.ferry
+                        ? activeCamerasForDate.filter(c => c.isCore)
+                        : activeCamerasForDate
+                      ).map(cam => {
                         const camPath = hrRec[cam.id];
                         return (
                           <div
