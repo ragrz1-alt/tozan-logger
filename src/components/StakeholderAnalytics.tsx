@@ -1215,9 +1215,9 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                         formatter={(val: any, name: any) => [`${val}%`, name]}
                       />
                       <Legend />
-                      <Bar dataKey="summitClearRate" fill="#10b981" name="🏔️ 山頂快晴率 (1700m) (%)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="midMountainOrAboveRate" fill="#3b82f6" name="🎿 中腹1000m+視界率 (%)" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="sunnyRate" fill="#f59e0b" name="☀️ 日差し・青空率 (%)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="summitClearRate" fill="#f59e0b" name="☀️ 山頂快晴率 (1700m) (%)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="midMountainOrAboveRate" fill="#10b981" name="🎿 中腹1000m+視界率 (%)" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="sunnyRate" fill="#fbbf24" name="🌤️ 日差し・青空率 (%)" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="foggyRate" fill="#94a3b8" name="🌫️ ガス不可視率 (%)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -1267,10 +1267,10 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                           📷 {cd.camLabel} <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>({cd.sampleCount}枚)</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#10b981' }}>
-                            🏔️山頂快晴 {cd.summitClearRate}%
+                          <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#d97706' }}>
+                            ☀️山頂快晴 {cd.summitClearRate}%
                           </span>
-                          <span style={{ fontSize: '0.82rem', color: '#2563eb', fontWeight: 800 }}>
+                          <span style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 800 }}>
                             🎿1000m+視界 {cd.midMountainOrAboveRate}%
                           </span>
                         </div>

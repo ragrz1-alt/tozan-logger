@@ -770,13 +770,15 @@ function App() {
               <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                padding: '0.35rem',
+                justifyContent: 'center',
+                padding: '0.3rem',
                 backgroundColor: 'var(--bg-secondary)',
                 borderRadius: '14px',
                 border: '1px solid var(--border-color)',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-                gap: '0.35rem',
-                flexWrap: 'wrap'
+                gap: '0.25rem',
+                flexWrap: 'wrap',
+                maxWidth: '100%'
               }}>
                 <button
                   onClick={() => {
@@ -786,21 +788,22 @@ function App() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.65rem 1.45rem',
+                    gap: '0.35rem',
+                    padding: '0.52rem 0.95rem',
                     fontWeight: 800,
-                    fontSize: '1rem',
+                    fontSize: '0.88rem',
                     borderRadius: '10px',
                     border: 'none',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     backgroundColor: selectedCourse === 'now' ? '#f59e0b' : 'rgba(245, 158, 11, 0.1)',
                     color: selectedCourse === 'now' ? '#ffffff' : '#f59e0b',
                     boxShadow: selectedCourse === 'now' ? '0 4px 12px rgba(245, 158, 11, 0.4)' : 'none',
                     transition: 'all 0.2s ease',
-                    marginRight: '1rem' // 独立させるためのマージン
+                    marginRight: '0.25rem'
                   }}
                 >
-                  <Cloud size={20} />
+                  <Cloud size={16} />
                   <span>🌤️ 利尻Now</span>
                 </button>
 
@@ -812,20 +815,21 @@ function App() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.65rem 1.45rem',
+                    gap: '0.35rem',
+                    padding: '0.52rem 0.9rem',
                     fontWeight: 700,
-                    fontSize: '0.95rem',
+                    fontSize: '0.88rem',
                     borderRadius: '10px',
                     border: 'none',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     backgroundColor: selectedCourse === 'oshidomari' ? '#10b981' : 'transparent',
                     color: selectedCourse === 'oshidomari' ? '#ffffff' : 'var(--text-primary)',
                     boxShadow: selectedCourse === 'oshidomari' ? '0 2px 8px rgba(16, 185, 129, 0.35)' : 'none',
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  <Mountain size={18} />
+                  <Mountain size={16} />
                   <span>鴛泊コース</span>
                 </button>
 
@@ -837,20 +841,21 @@ function App() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.65rem 1.45rem',
+                    gap: '0.35rem',
+                    padding: '0.52rem 0.9rem',
                     fontWeight: 700,
-                    fontSize: '0.95rem',
+                    fontSize: '0.88rem',
                     borderRadius: '10px',
                     border: 'none',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     backgroundColor: selectedCourse === 'kutsugata' ? '#3b82f6' : 'transparent',
                     color: selectedCourse === 'kutsugata' ? '#ffffff' : 'var(--text-primary)',
                     boxShadow: selectedCourse === 'kutsugata' ? '0 2px 8px rgba(59, 130, 246, 0.35)' : 'none',
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  <Compass size={18} />
+                  <Compass size={16} />
                   <span>沓形コース</span>
                 </button>
 
@@ -862,20 +867,21 @@ function App() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.65rem 1.45rem',
+                    gap: '0.35rem',
+                    padding: '0.52rem 0.9rem',
                     fontWeight: 700,
-                    fontSize: '0.95rem',
+                    fontSize: '0.88rem',
                     borderRadius: '10px',
                     border: 'none',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     backgroundColor: selectedCourse === 'all' ? '#6366f1' : 'transparent',
                     color: selectedCourse === 'all' ? '#ffffff' : 'var(--text-primary)',
                     boxShadow: selectedCourse === 'all' ? '0 2px 8px rgba(99, 102, 241, 0.35)' : 'none',
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  <Layers size={18} />
+                  <Layers size={16} />
                   <span>利尻山 全体合算</span>
                 </button>
 
@@ -887,20 +893,21 @@ function App() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.65rem 1.45rem',
+                    gap: '0.35rem',
+                    padding: '0.52rem 0.9rem',
                     fontWeight: 700,
-                    fontSize: '0.95rem',
+                    fontSize: '0.88rem',
                     borderRadius: '10px',
                     border: 'none',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     backgroundColor: selectedCourse === 'cameras' ? '#10b981' : 'transparent',
                     color: selectedCourse === 'cameras' ? '#ffffff' : 'var(--text-primary)',
                     boxShadow: selectedCourse === 'cameras' ? '0 2px 8px rgba(16, 185, 129, 0.35)' : 'none',
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  <Video size={18} />
+                  <Video size={16} />
                   <span>ライブカメラ状況確認</span>
                 </button>
 
@@ -912,20 +919,21 @@ function App() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.65rem 1.45rem',
+                    gap: '0.35rem',
+                    padding: '0.52rem 0.9rem',
                     fontWeight: 700,
-                    fontSize: '0.95rem',
+                    fontSize: '0.88rem',
                     borderRadius: '10px',
                     border: 'none',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     backgroundColor: selectedCourse === 'poc' ? '#8b5cf6' : 'transparent',
                     color: selectedCourse === 'poc' ? '#ffffff' : 'var(--text-primary)',
                     boxShadow: selectedCourse === 'poc' ? '0 2px 8px rgba(139, 92, 246, 0.35)' : 'none',
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  <Sparkles size={18} style={{ color: selectedCourse === 'poc' ? '#ffffff' : '#8b5cf6' }} />
+                  <Sparkles size={16} style={{ color: selectedCourse === 'poc' ? '#ffffff' : '#8b5cf6' }} />
                   <span>山頂視界・雲量AI</span>
                 </button>
 
@@ -937,20 +945,21 @@ function App() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.65rem 1.45rem',
+                    gap: '0.35rem',
+                    padding: '0.52rem 0.9rem',
                     fontWeight: 700,
-                    fontSize: '0.95rem',
+                    fontSize: '0.88rem',
                     borderRadius: '10px',
                     border: 'none',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     backgroundColor: selectedCourse === 'analytics' ? '#3b82f6' : 'transparent',
                     color: selectedCourse === 'analytics' ? '#ffffff' : 'var(--text-primary)',
                     boxShadow: selectedCourse === 'analytics' ? '0 2px 8px rgba(59, 130, 246, 0.35)' : 'none',
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  <BarChart3 size={18} />
+                  <BarChart3 size={16} />
                   <span>利用解析</span>
                 </button>
               </div>

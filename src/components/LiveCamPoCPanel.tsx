@@ -826,6 +826,21 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
         return (
           <span
             style={{
+              backgroundColor: '#f59e0b',
+              color: '#fff',
+              padding: '0.16rem 0.48rem',
+              borderRadius: '4px',
+              fontSize: '0.73rem',
+              fontWeight: 'bold',
+            }}
+          >
+            ☀️ 山頂快晴
+          </span>
+        );
+      case 'cloudy':
+        return (
+          <span
+            style={{
               backgroundColor: '#10b981',
               color: '#fff',
               padding: '0.16rem 0.48rem',
@@ -834,22 +849,7 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
               fontWeight: 'bold',
             }}
           >
-            🏔️ 山頂快晴
-          </span>
-        );
-      case 'cloudy':
-        return (
-          <span
-            style={{
-              backgroundColor: '#64748b',
-              color: '#fff',
-              padding: '0.16rem 0.48rem',
-              borderRadius: '4px',
-              fontSize: '0.73rem',
-              fontWeight: 'bold',
-            }}
-          >
-            ☁️ {summitVisible === false ? '山頂雲隠れ' : '曇り'}
+            ☁️ {summitVisible === false ? '山頂雲隠れ(中腹視認)' : '曇り'}
           </span>
         );
       case 'foggy':
@@ -892,16 +892,16 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
       return (
         <span
           style={{
-            backgroundColor: 'rgba(16, 185, 129, 0.14)',
-            color: '#059669',
-            border: '1px solid rgba(16, 185, 129, 0.35)',
+            backgroundColor: 'rgba(245, 158, 11, 0.16)',
+            color: '#d97706',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
             padding: '0.12rem 0.45rem',
             borderRadius: '4px',
             fontSize: '0.71rem',
             fontWeight: 700,
           }}
         >
-          📏 視界: 1700m (山頂まで◯)
+          ☀️ 視界: 1700m (山頂まで快晴)
         </span>
       );
     }
@@ -909,9 +909,9 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
       return (
         <span
           style={{
-            backgroundColor: 'rgba(59, 130, 246, 0.14)',
-            color: '#2563eb',
-            border: '1px solid rgba(59, 130, 246, 0.35)',
+            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+            color: '#059669',
+            border: '1px solid rgba(16, 185, 129, 0.35)',
             padding: '0.12rem 0.45rem',
             borderRadius: '4px',
             fontSize: '0.71rem',
@@ -926,9 +926,9 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
       return (
         <span
           style={{
-            backgroundColor: 'rgba(245, 158, 11, 0.14)',
-            color: '#d97706',
-            border: '1px solid rgba(245, 158, 11, 0.35)',
+            backgroundColor: 'rgba(59, 130, 246, 0.14)',
+            color: '#2563eb',
+            border: '1px solid rgba(59, 130, 246, 0.35)',
             padding: '0.12rem 0.45rem',
             borderRadius: '4px',
             fontSize: '0.71rem',
@@ -1877,9 +1877,9 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
               </span>
             </div>
             <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', fontSize: '0.73rem', fontWeight: 700 }}>
-              <span style={{ color: '#059669' }}>🏔️ 1700m: 山頂快晴</span>
-              <span style={{ color: '#2563eb' }}>🎿 1000m: 中腹バーン◯</span>
-              <span style={{ color: '#d97706' }}>🌲 500m: 森林帯のみ</span>
+              <span style={{ color: '#d97706' }}>☀️ 1700m: 山頂快晴</span>
+              <span style={{ color: '#059669' }}>🎿 1000m: 中腹バーン◯</span>
+              <span style={{ color: '#2563eb' }}>🌲 500m: 森林帯のみ</span>
               <span style={{ color: '#64748b' }}>🌫️ 0m: ガス・不可視</span>
             </div>
           </div>
@@ -1939,23 +1939,23 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
                       const { elevationM, bcStatus } = getEffectiveElevation(rec);
                       const bg =
                         bcStatus === 'alpine_clear'
-                          ? 'rgba(16, 185, 129, 0.16)'
+                          ? 'rgba(245, 158, 11, 0.16)'
                           : bcStatus === 'mid_mountain_ok'
-                          ? 'rgba(59, 130, 246, 0.14)'
+                          ? 'rgba(16, 185, 129, 0.15)'
                           : bcStatus === 'treeline_only'
-                          ? 'rgba(245, 158, 11, 0.14)'
+                          ? 'rgba(59, 130, 246, 0.14)'
                           : 'rgba(148, 163, 184, 0.15)';
                       const fg =
                         bcStatus === 'alpine_clear'
-                          ? '#059669'
-                          : bcStatus === 'mid_mountain_ok'
-                          ? '#2563eb'
-                          : bcStatus === 'treeline_only'
                           ? '#d97706'
+                          : bcStatus === 'mid_mountain_ok'
+                          ? '#059669'
+                          : bcStatus === 'treeline_only'
+                          ? '#2563eb'
                           : '#64748b';
                       const icon =
                         bcStatus === 'alpine_clear'
-                          ? '🏔️'
+                          ? '☀️'
                           : bcStatus === 'mid_mountain_ok'
                           ? '🎿'
                           : bcStatus === 'treeline_only'
