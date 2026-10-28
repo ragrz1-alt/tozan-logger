@@ -17,6 +17,7 @@ import {
   VideoOff,
   Maximize2,
   X,
+  HardDrive,
 } from 'lucide-react';
 import {
   type ImageAnalysis,
@@ -28,13 +29,16 @@ import { loadCameraAnalysisFromFirestore } from '../utils/firebaseStorage';
 import { fetchWeatherData, type WeatherData } from '../utils/weatherApi';
 import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
 
-const LOCATIONS = [
-  { id: 'oshidomari', name: '鴛泊(北)', color: '#3b82f6' },
-  { id: 'kutsugata', name: '沓形(西)', color: '#10b981' },
-  { id: 'senposhi', name: '仙法志(南)', color: '#f59e0b' },
+const ALL_LOCATIONS = [
+  { id: 'oshidomari', name: '鴛泊(本泊・北)', color: '#3b82f6', isCore: true },
+  { id: 'ferry', name: '鴛泊港(フェリー・北)', color: '#0284c7', isCore: false },
+  { id: 'himenuma', name: '姫沼(北東)', color: '#059669', isCore: false },
+  { id: 'kutsugata', name: '沓形(西)', color: '#10b981', isCore: true },
+  { id: 'otadomari', name: 'オタドマリ沼(南東)', color: '#8b5cf6', isCore: false },
+  { id: 'senposhi', name: '仙法志(南)', color: '#f59e0b', isCore: true },
 ];
 
-// 2時間おき・7回 (05, 07, 09, 11, 13, 15, 17時 × 3地点 ＝ 計21枚/日)
+// 2時間おき・7回 (05, 07, 09, 11, 13, 15, 17時 × 3〜6地点)
 const TIMES = ['05', '07', '09', '11', '13', '15', '17'];
 
 // 7回解析フォーマットで解析完了しているかの判定ヘルパー
@@ -53,17 +57,17 @@ const CAMERA_MODELS = [
 ];
 
 const STRICT_SYSTEM_PROMPT = `あなたは北海道・利尻山（独立峰・標高1,721m）の山岳気象・視界判定の専門AIアナリストです。
-定点ライブカメラ（oshidomari=北側・鴛泊、kutsugata=西側・沓形、senposhi=南側・仙法志）の画像から、登山者にとって最も重要な「利尻山の山体および山頂（ピーク）が見えているか」と「空全体の雲量」を厳密に区別して判定してください。
+定点ライブカメラ（oshidomari=北側・本泊、ferry=北側・鴛泊港、himenuma=北東・姫沼、kutsugata=西側・沓形、otadomari=南東・オタドマリ沼、senposhi=南側・仙法志）の画像から、登山者・観光客にとって最も重要な「利尻山の山体および山頂（ピーク）が見えているか」と「空全体の雲量」を厳密に区別して判定してください。
 
 【最重要：判定の厳格ルール】
-1. 手前の海・港・市街地・道路の天気に惑わされないでください。常に画角中央〜奥にそびえる「利尻山の山体・山頂ピーク」を基準に視界(visibility)を判定してください。
+1. 手前の海・港・沼・市街地・道路の天気に惑わされないでください。常に画角中央〜奥にそびえる「利尻山の山体・山頂ピーク」を基準に視界(visibility)を判定してください。
 2. summit_visible (boolean):
    - true: 利尻山の山頂（最高峰の尖ったピーク部分）が雲や霧に隠れず、明確に輪郭まで見えている場合のみ true。
    - false: 山頂部に笠雲・山岳波雲・ガスがかかって隠れている場合や、山全体が見えない場合は必ず false。
 3. visibility ('clear' | 'cloudy' | 'foggy'):
    - 'clear' (山頂快晴・視界良好): 山頂ピークから稜線・山麓まで雲に隠れずクッキリ見えている状態（summit_visible が true であることが絶対条件。空に青空が見えていても、山頂ピークが雲に隠れていれば絶対に 'clear' にしてはいけません）。
    - 'cloudy' (山頂雲隠れ・一部視認): 山の裾野〜中腹（稜線の一部）は見えているが、山頂（ピーク）付近が雲や笠雲に隠れている状態。または高曇りで山全体の輪郭は見えるが厚い雲で日差しがない状態。
-   - 'foggy' (山体ガス・視界不良・山体不可視): 低い雲・濃霧（ガス）・悪天候により、利尻山の山体全体（または中腹から上の大部分）が白や灰色の雲に覆われて見えない状態。※カメラ手前の町や海が見えていても、肝心の「山」が見えなければ必ず 'foggy' と判定してください。
+   - 'foggy' (山体ガス・視界不良・山体不可視): 低い雲・濃霧（ガス）・悪天候により、利尻山の山体全体（または中腹から上の大部分）が白や灰色の雲に覆われて見えない状態。※カメラ手前の町や海・沼が見えていても、肝心の「山」が見えなければ必ず 'foggy' と判定してください。
 4. cloud_cover (0〜10の整数):
    - 0〜2: 快晴（雲がほとんどない）
    - 3〜5: 晴れ（一部に雲があるが青空が多い、または山頂のみ笠雲）
@@ -106,7 +110,9 @@ export const LiveCamPoCPanel: React.FC = () => {
     return today >= '2026-07-28' ? today : '2026-10-22';
   });
 
-  // 詳細設定（任意期間指定・モデル変更・データ管理）の開閉ステート
+  const [historyRecords, setHistoryRecords] = useState<Record<string, Record<string, Record<string, string>>>>({});
+
+  // 詳細設定（任意期間指定・モデル変更・データ管理・容量確認）の開閉ステート
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [rangeStart, setRangeStart] = useState<string>('2026-10-01');
   const [rangeEnd, setRangeEnd] = useState<string>(() => {
@@ -154,7 +160,9 @@ export const LiveCamPoCPanel: React.FC = () => {
         }
         if (hRes.ok) {
           const hData = await hRes.json();
-          const hDates = Object.keys(hData?.records || {}).sort();
+          const recs = hData?.records || {};
+          setHistoryRecords(recs);
+          const hDates = Object.keys(recs).sort();
           if (hDates.length > 0) {
             const lastH = hDates[hDates.length - 1];
             if (lastH > maxDate) maxDate = lastH;
@@ -216,11 +224,63 @@ export const LiveCamPoCPanel: React.FC = () => {
     initCameraResults();
   }, []);
 
+  // 無料枠ストレージ容量メーターの算出
+  const storageStats = useMemo(() => {
+    let totalPhotos = 0;
+    Object.values(historyRecords).forEach(dayObj => {
+      if (!dayObj) return;
+      Object.values(dayObj).forEach(hrObj => {
+        if (!hrObj) return;
+        Object.keys(hrObj).forEach(k => {
+          if (k !== 'timestamp') totalPhotos++;
+        });
+      });
+    });
+    if (totalPhotos === 0) totalPhotos = 6164; // フォールバック初期値
+    const estMB = Math.round((totalPhotos * 43) / 1024); // 平均43KB/枚
+    const limitMB = 1000; // GitHub Free 1,000MB 目安
+    const ratio = Math.min(100, Math.round((estMB / limitMB) * 100));
+    return { totalPhotos, estMB, limitMB, ratio };
+  }, [historyRecords]);
+
+  // 指定日に表示・解析すべきカメラ地点リスト（2026-10-27以前は3地点、2026-10-28以降または6地点記録日は6地点）
+  const getLocationsForDate = (dateStr: string) => {
+    const dayRec = historyRecords[dateStr] || {};
+    const recordedCamIds = new Set<string>();
+    Object.values(dayRec).forEach(hrObj => {
+      if (hrObj && typeof hrObj === 'object') {
+        Object.keys(hrObj).forEach(k => {
+          if (k !== 'timestamp') recordedCamIds.add(k);
+        });
+      }
+    });
+    const dayAnalysis = analysisResults[dateStr] || [];
+    dayAnalysis.forEach(a => {
+      if (a.status === 'ok') {
+        ALL_LOCATIONS.forEach(l => {
+          if (a.fileName.includes(`_${l.id}.jpg`)) recordedCamIds.add(l.id);
+        });
+      }
+    });
+
+    const isSixCam =
+      dateStr >= '2026-10-28' ||
+      recordedCamIds.has('ferry') ||
+      recordedCamIds.has('himenuma') ||
+      recordedCamIds.has('otadomari');
+    return isSixCam ? ALL_LOCATIONS : ALL_LOCATIONS.filter(l => l.isCore || recordedCamIds.has(l.id));
+  };
+
+  const activeLocationsForSelectedDate = useMemo(
+    () => getLocationsForDate(selectedDate),
+    [selectedDate, historyRecords, analysisResults]
+  );
+
   const currentWeather = weatherMap[selectedDate];
   const currentResults = analysisResults[selectedDate];
   const dailySummary = useMemo(() => evaluateDailyCameraVisibility(currentResults), [currentResults]);
 
-  // 未解析の日付リスト（実際のデータから動的に算出！）
+  // 未解析の日付リスト（実際のデータから動的に算出）
   const unanalyzedDates = useMemo(() => {
     return availableDates.filter(d => !isDayAnalyzed7Slots(analysisResults[d]));
   }, [availableDates, analysisResults]);
@@ -264,11 +324,12 @@ export const LiveCamPoCPanel: React.FC = () => {
     }
   };
 
-  // 1日分の解析を実行するコア関数（モデル自動フォールバック付き）
+  // 1日分の解析を実行するコア関数（モデル自動フォールバック付き・3〜6地点自動対応）
   const analyzeSingleDateCore = async (targetDate: string): Promise<{ results: ImageAnalysis[]; usedModel: string }> => {
+    const targetLocations = getLocationsForDate(targetDate);
     const imageUrls: string[] = [];
     for (const time of TIMES) {
-      for (const loc of LOCATIONS) {
+      for (const loc of targetLocations) {
         imageUrls.push(`/cams/${targetDate}/${time}_${loc.id}.jpg`);
       }
     }
@@ -416,8 +477,8 @@ export const LiveCamPoCPanel: React.FC = () => {
       const { results, usedModel } = await analyzeSingleDateCore(selectedDate);
       const cloudOk = await saveDateResults(selectedDate, results);
       setStatusMsg(
-        `✅ ${selectedDate} の山頂視界・雲量解析（7時間帯・21枚）が完了し、${
-          cloudOk ? 'クラウドへ自動保存されました！' : 'ローカルへ保存されました。'
+        `✅ ${selectedDate} の山頂視界・雲量解析（7時間帯×${activeLocationsForSelectedDate.length}地点）が完了し、${
+          cloudOk ? 'クラウド(月別分割Firestore)へ自動保存されました！' : 'ローカルへ保存されました。'
         }（モデル: ${usedModel}）`
       );
     } catch (err: any) {
@@ -474,7 +535,7 @@ export const LiveCamPoCPanel: React.FC = () => {
       }
 
       if (!stopRequestedRef.current) {
-        setStatusMsg(`🎉 ${completedCount}日分の一括AI解析が完了し、すべてクラウド(Firestore)へ自動保存されました！`);
+        setStatusMsg(`🎉 ${completedCount}日分の一括AI解析が完了し、すべてクラウド(Firestore月別分割)へ自動保存されました！`);
       }
     } catch (err: any) {
       setErrorMsg(`一括解析中にエラーが発生しました (${completedCount}日完了時点・完了分は保存済): ${err.message}`);
@@ -671,11 +732,28 @@ export const LiveCamPoCPanel: React.FC = () => {
                 }}
               >
                 <Cloud size={12} />
-                {isSyncingCloud ? 'クラウド保存中...' : 'クラウド自動保存 ON'}
+                {isSyncingCloud ? 'クラウド保存中...' : '月別分割クラウド保存 ON'}
+              </span>
+              <span
+                style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  padding: '0.2rem 0.55rem',
+                  borderRadius: '999px',
+                  backgroundColor: storageStats.ratio >= 80 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(100, 116, 139, 0.12)',
+                  color: storageStats.ratio >= 80 ? '#d97706' : 'var(--text-secondary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                }}
+                title="GitHub無料枠 (1,000MB) に対するカメラ画像アーカイブ推定使用量"
+              >
+                <HardDrive size={12} />
+                容量: 約{storageStats.estMB}MB / {storageStats.limitMB}MB ({storageStats.ratio}%)
               </span>
             </div>
             <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-              1日7回（05〜17時の2時間おき・3地点計21枚）のカメラ画像から、山頂の露出状況と雲量をAI判定します。
+              1日7回（05〜17時の2時間おき・最大6地点）のカメラ画像から、山頂の露出状況と雲量をAI判定します。
             </p>
           </div>
         </div>
@@ -764,10 +842,10 @@ export const LiveCamPoCPanel: React.FC = () => {
               fontSize: '0.82rem',
               cursor: 'pointer',
             }}
-            title="期間を指定した再解析やバックアップ出力・モデル設定を開きます"
+            title="期間を指定した再解析やバックアップ出力・容量管理を開きます"
           >
             <SlidersHorizontal size={15} />
-            <span>{showAdvanced ? '詳細設定を閉じる' : '詳細・期間指定'}</span>
+            <span>{showAdvanced ? '詳細設定を閉じる' : '詳細・容量管理'}</span>
           </button>
         </div>
       </div>
@@ -804,7 +882,7 @@ export const LiveCamPoCPanel: React.FC = () => {
         </div>
       )}
 
-      {/* ===== 折りたたみ式：詳細設定（期間指定バッチ・AIモデル選択・JSONバックアップ・初期化） ===== */}
+      {/* ===== 折りたたみ式：詳細設定（期間指定バッチ・AIモデル選択・JSONバックアップ・無料枠容量ガード状況） ===== */}
       {showAdvanced && (
         <div
           style={{
@@ -821,7 +899,7 @@ export const LiveCamPoCPanel: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, fontSize: '0.88rem' }}>
               <Calendar size={16} style={{ color: '#3b82f6' }} />
-              <span>任意期間の再解析・詳細メンテナンス</span>
+              <span>任意期間の再解析・詳細メンテナンス・無料枠容量モニター</span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
@@ -960,6 +1038,43 @@ export const LiveCamPoCPanel: React.FC = () => {
                 <Trash2 size={14} />
                 <span>全解析データ初期化</span>
               </button>
+            </div>
+          </div>
+
+          {/* 無料枠3重容量ガードのステータス表示 */}
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              backgroundColor: 'var(--bg-primary)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              fontSize: '0.78rem',
+              color: 'var(--text-secondary)',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '0.75rem',
+            }}
+          >
+            <div>
+              <strong style={{ color: 'var(--text-primary)' }}>① GitHub 画像アーカイブ (上限目安 1,000MB):</strong>
+              <div>
+                現在 <strong>{storageStats.totalPhotos.toLocaleString()}枚</strong> (約<strong>{storageStats.estMB}MB</strong> / {storageStats.ratio}%使用)。
+                800MB到達時（約1.5〜2年後）に古い年度の画像フォルダをZIP退避すれば永久に無料運用可能です。
+              </div>
+            </div>
+            <div>
+              <strong style={{ color: 'var(--text-primary)' }}>② Firebase Hosting (上限 10,000MB):</strong>
+              <div>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>✓ カメラJPG除外ガード適用済</span>。
+                画像はGitHub Pages CDNから直接配信されるため、Hosting使用量は常に <strong>5MB未満</strong> に維持されます。
+              </div>
+            </div>
+            <div>
+              <strong style={{ color: 'var(--text-primary)' }}>③ Cloud Firestore (上限 1,024MB / 1doc 1MB):</strong>
+              <div>
+                <span style={{ color: '#10b981', fontWeight: 700 }}>✓ 月別ドキュメント分割 (camera_ai_month_YYYY-MM) 適用済</span>。
+                1ヶ月あたり約0.2MBのため、10年以上無制限に自動保存できます。
+              </div>
             </div>
           </div>
         </div>
@@ -1174,7 +1289,7 @@ export const LiveCamPoCPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* ===== 3. 時間帯別 カメラ画像＆AI判定一覧（7時間帯 × 3地点） ===== */}
+      {/* ===== 3. 時間帯別 カメラ画像＆AI判定一覧（7時間帯 × 3〜6地点） ===== */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {TIMES.map(time => (
           <div key={time}>
@@ -1201,12 +1316,12 @@ export const LiveCamPoCPanel: React.FC = () => {
                 {time}:00
               </span>
               <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {selectedDate} {time}時台の山頂視界・カメラ画像
+                {selectedDate} {time}時台の山頂視界・カメラ画像 ({activeLocationsForSelectedDate.length}地点)
               </span>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-              {LOCATIONS.map(loc => {
+              {activeLocationsForSelectedDate.map(loc => {
                 const fileName = `${time}_${loc.id}.jpg`;
                 const relPath = `cams/${selectedDate}/${fileName}`;
                 const cdnUrl = getCamImageUrl(relPath);

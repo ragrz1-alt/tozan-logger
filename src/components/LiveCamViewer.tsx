@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ExternalLink, Maximize2, X, Thermometer, Wind, Droplets, Mountain, VideoOff } from 'lucide-react';
 import type { HourlyWeatherData } from '../utils/weatherApi';
 import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
@@ -15,31 +15,61 @@ interface CamHistory {
   records: Record<string, Record<string, Record<string, string>>>;
 }
 
-const CAMERAS = [
+export const ALL_ARCHIVE_CAMERAS = [
   {
     id: 'oshidomari',
-    name: '鴛泊（本泊）',
+    name: '鴛泊（本泊・北）',
     videoId: 'bAWueJBFcT0',
     url: 'https://www.youtube.com/watch?v=bAWueJBFcT0',
     color: '#3b82f6',
-    badge: '鴛泊'
+    badge: '鴛泊(本泊)',
+    isCore: true,
+  },
+  {
+    id: 'ferry',
+    name: '鴛泊港（フェリー・北）',
+    videoId: '8BwfUCuPcVE',
+    url: 'https://www.youtube.com/watch?v=8BwfUCuPcVE',
+    color: '#0284c7',
+    badge: '鴛泊港',
+    isCore: false,
+  },
+  {
+    id: 'himenuma',
+    name: '姫沼（北東）',
+    videoId: 'wL2i45IZfvs',
+    url: 'https://www.youtube.com/watch?v=wL2i45IZfvs',
+    color: '#059669',
+    badge: '姫沼',
+    isCore: false,
   },
   {
     id: 'kutsugata',
-    name: '沓形（沓形）',
+    name: '沓形（西）',
     videoId: '',
     url: 'https://rishiri-town.jp/wp-content/themes/rishiri/images/MtRishiri/mt-rishiri.jpg',
     color: '#10b981',
-    badge: '沓形'
+    badge: '沓形',
+    isCore: true,
+  },
+  {
+    id: 'otadomari',
+    name: 'オタドマリ沼（南東）',
+    videoId: 'enBReBFAk7U',
+    url: 'https://www.youtube.com/watch?v=enBReBFAk7U',
+    color: '#8b5cf6',
+    badge: 'オタドマリ',
+    isCore: false,
   },
   {
     id: 'senposhi',
-    name: '仙法志（御崎）',
+    name: '仙法志（御崎・南）',
     videoId: '5BG3KJVFRVM',
     url: 'https://www.youtube.com/watch?v=5BG3KJVFRVM',
     color: '#f59e0b',
-    badge: '仙法志'
-  }
+    badge: '仙法志',
+    isCore: true,
+  },
 ];
 
 const HOURS = [
@@ -58,7 +88,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
     }
   }, [externalSelectedHour]);
 
-  // カメラ履歴 metadata をロード（GitHub Rawから即時取得、失敗時はローカルフォールバック）
+  // カメラ履歴 metadata をロード（GitHub Pages CDNから即時取得、失敗時はローカルフォールバック）
   useEffect(() => {
     const fetchHistory = async () => {
       try {
@@ -80,12 +110,29 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
   // 利用可能な時間帯をチェック
   const dateRecords = history?.records?.[dateStr] || {};
   const hasRecordForHour = (hr: string) => {
-    return !!dateRecords[hr] && Object.keys(dateRecords[hr]).length > 0;
+    return !!dateRecords[hr] && Object.keys(dateRecords[hr]).some(k => k !== 'timestamp');
   };
+
+  // 選択日に実際に記録があるカメラ（または2026-10-28以降の6地点運用日）を判定
+  const activeCameras = useMemo(() => {
+    const recordedCamIdsOnDate = new Set<string>();
+    Object.values(dateRecords).forEach(hrObj => {
+      if (hrObj && typeof hrObj === 'object') {
+        Object.keys(hrObj).forEach(k => {
+          if (k !== 'timestamp') recordedCamIdsOnDate.add(k);
+        });
+      }
+    });
+    const isSixCamEra = dateStr >= '2026-10-28' || recordedCamIdsOnDate.has('ferry') || recordedCamIdsOnDate.has('himenuma') || recordedCamIdsOnDate.has('otadomari');
+    if (isSixCamEra) {
+      return ALL_ARCHIVE_CAMERAS;
+    }
+    return ALL_ARCHIVE_CAMERAS.filter(c => c.isCore || recordedCamIdsOnDate.has(c.id));
+  }, [dateStr, dateRecords]);
 
   const currentHourWeather = hourlyWeather?.[selectedHour] || hourlyWeather?.[`${selectedHour.padStart(2, '0')}:00`] || hourlyWeather?.[parseInt(selectedHour, 10).toString()];
 
-  // 時間選択のデフォルト調整 (該当日の12時をデフォルト優先。なければ日中12時に近い記録ある時間を優先、それもなければ12時)
+  // 時間選択のデフォルト調整 (該当日の12時をデフォルト優先。なければ日中12時に近い記録ある時間を優先)
   useEffect(() => {
     const preferredHours = [
       '12', '11', '13', '10', '14', '09', '15', '08', '16', '07', '17',
@@ -132,8 +179,18 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
             <Mountain size={24} />
           </div>
           <div>
-            <h4 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              利尻山 ライブカメラ コンディション対比
+            <h4 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span>利尻山 ライブカメラ コンディション対比</span>
+              <span style={{
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                padding: '0.18rem 0.6rem',
+                borderRadius: '999px',
+                backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                color: '#2563eb'
+              }}>
+                {activeCameras.length}地点表示中
+              </span>
             </h4>
           </div>
         </div>
@@ -141,12 +198,12 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
 
       {/* 時間セレクター */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
             時刻を選択 ({selectedHour}時台の定時記録)
           </span>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            ●マークは定時撮影ログが存在する時間帯です
+            ●マークは定時撮影ログが存在する時間帯です（季節別日照スケジュール稼働）
           </span>
         </div>
         <div className="hours-grid">
@@ -221,13 +278,13 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
         </div>
       )}
 
-      {/* 画像カード（鴛泊・沓形 2カラム構成） */}
+      {/* 画像カード（3カラム×最大2段グリッド） */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
         gap: '1.25rem'
       }}>
-        {CAMERAS.map(cam => {
+        {activeCameras.map(cam => {
           const imgPath = dateRecords[selectedHour]?.[cam.id];
           const displayUrl = imgPath ? getCamImageUrl(imgPath) : null;
 
@@ -302,22 +359,25 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
               >
                 {displayUrl ? (
                   <>
-                      <img
-                        src={displayUrl}
-                        alt={`${cam.name} ${selectedHour}時`}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          transition: 'transform 0.3s ease'
-                        }}
-                        onError={(e) => { 
-                          if (imgPath) e.currentTarget.src = `/${imgPath}`; 
-                        }}
-                      />
+                    <img
+                      src={displayUrl}
+                      alt={`${cam.name} ${selectedHour}時`}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        transition: 'transform 0.3s ease'
+                      }}
+                      onError={(e) => {
+                        if (imgPath && !e.currentTarget.dataset.triedLocal) {
+                          e.currentTarget.dataset.triedLocal = 'true';
+                          e.currentTarget.src = `/${imgPath}`;
+                        }
+                      }}
+                    />
                     <div style={{
                       position: 'absolute',
                       top: '0.5rem',
@@ -349,7 +409,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                   }}>
                     <VideoOff size={34} style={{ opacity: 0.4 }} />
                     <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>この時間のカメラ画像はありません</div>
-                    <div style={{ fontSize: '0.78rem', opacity: 0.75 }}>未撮影（またはアーカイブ対象外の時間）</div>
+                    <div style={{ fontSize: '0.78rem', opacity: 0.75 }}>未撮影（または日照スケジュール外の時間）</div>
                   </div>
                 )}
               </div>
@@ -425,14 +485,10 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                 src={modalImage.url}
                 alt={modalImage.title}
                 style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain' }}
-                onError={(e) => {
-                  const urlObj = new URL(modalImage.url);
-                  e.currentTarget.src = urlObj.pathname.replace('/tozan-logger/public/', '/');
-                }}
               />
             </div>
             <div style={{ padding: '0.75rem 1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'right' }}>
-              クリックまたは ESC 相当で閉じます
+              クリックまたは × ボタンで閉じます
             </div>
           </div>
         </div>

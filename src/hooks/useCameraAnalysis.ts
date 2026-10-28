@@ -4,6 +4,8 @@ import {
   loadCameraAnalysisFromFirestore,
 } from '../utils/firebaseStorage';
 
+export type CameraId = 'oshidomari' | 'ferry' | 'himenuma' | 'kutsugata' | 'otadomari' | 'senposhi';
+
 export interface ImageAnalysis {
   fileName: string;
   is_sunny: boolean;
@@ -24,7 +26,7 @@ export interface DailyCameraSummary {
   validCount: number;
   avgCloudCover: number | null;
   morningClearAfternoonFoggy: boolean;
-  byCamera: Record<'oshidomari' | 'kutsugata' | 'senposhi', 'clear' | 'cloudy' | 'foggy' | 'unknown'>;
+  byCamera: Record<CameraId, 'clear' | 'cloudy' | 'foggy' | 'unknown'>;
 }
 
 /**
@@ -51,7 +53,7 @@ export function cleanupObsoleteLocalStorageCaches(): void {
 }
 
 /**
- * カメラAI解析データを localStorage ＆ Cloud Firestore の両方へ確実に永続保存する共通関数
+ * カメラAI解析データを localStorage ＆ Cloud Firestore（月別分割ドキュメント）の両方へ確実に永続保存する共通関数
  */
 export async function persistCameraAnalysisResults(
   updatedMap: Record<string, ImageAnalysis[]>,
@@ -70,7 +72,6 @@ export async function persistCameraAnalysisResults(
   } catch (storageErr) {
     console.warn('localStorage容量不足のため追加クリーンアップを実行します:', storageErr);
     try {
-      // 万が一まだ容量不足ならAIレポートキャッシュ以外の古いキーを整理して再試行
       cleanupObsoleteLocalStorageCaches();
       localStorage.setItem('tozan_weather_analysis_cache', JSON.stringify(updatedMap));
     } catch (e2) {
@@ -80,19 +81,22 @@ export async function persistCameraAnalysisResults(
 
   notifyCameraAnalysisUpdated();
 
-  // 2. Cloud Firestore に自動保存（別タブ・別端末・リロードでも消えない永久保存）
+  // 2. Cloud Firestore に自動保存（月別ドキュメント分割により1MB上限を永久回避）
   const cloudOk = await saveCameraAnalysisToFirestore(updatedMap);
   return cloudOk;
 }
 
 /**
- * 1日分のカメラAI解析配列（7回×3地点＝21枚、または従来の5回＝15枚）から、
+ * 1日分のカメラAI解析配列（7回×3〜6地点）から、
  * その日の山頂視界・雲量・日差しサマリーを厳密に評価する共通関数
  */
 export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyCameraSummary {
   const defaultByCam: DailyCameraSummary['byCamera'] = {
     oshidomari: 'unknown',
+    ferry: 'unknown',
+    himenuma: 'unknown',
     kutsugata: 'unknown',
+    otadomari: 'unknown',
     senposhi: 'unknown',
   };
 
@@ -129,11 +133,11 @@ export function evaluateDailyCameraVisibility(camData?: ImageAnalysis[]): DailyC
     };
   }
 
-  const cams = ['oshidomari', 'kutsugata', 'senposhi'] as const;
+  const cams: CameraId[] = ['oshidomari', 'ferry', 'himenuma', 'kutsugata', 'otadomari', 'senposhi'];
   const byCamera: DailyCameraSummary['byCamera'] = { ...defaultByCam };
 
   cams.forEach(cam => {
-    const cData = validCams.filter(c => c.fileName.includes(cam));
+    const cData = validCams.filter(c => c.fileName.includes(`_${cam}.jpg`));
     if (cData.length === 0) return;
     const clear = cData.filter(c => c.visibility === 'clear' && c.summit_visible !== false).length;
     const foggy = cData.filter(c => c.visibility === 'foggy').length;

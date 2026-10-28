@@ -32,7 +32,7 @@ import {
 import { isEntryEnter, type LogEntry } from '../utils/logParser';
 import { getWeatherDescription, type WeatherData } from '../utils/weatherApi';
 import { evaluateDailyCameraVisibility, type ImageAnalysis } from '../hooks/useCameraAnalysis';
-import { buildPeriodFactSheet } from '../utils/aiAnalytics';
+import { buildPeriodFactSheet, isDateMatchingPeriod } from '../utils/aiAnalytics';
 import { MonthlyAIAnalysisModal } from './MonthlyAIAnalysisModal';
 
 interface StakeholderAnalyticsProps {
@@ -81,6 +81,15 @@ const getSunlightZone = (monthFilter: string) => {
       desc: '9月（初秋期）：17時台で暗闇となるため早出・早期下山が必須',
     };
   }
+  if (monthFilter === '10' || monthFilter === 'winter' || ['11', '12', '1', '2', '3'].includes(monthFilter)) {
+    return {
+      sunriseX: '06:00',
+      sunsetX: '16:00',
+      sunriseText: '06:15頃',
+      sunsetText: '16:30頃',
+      desc: '秋〜冬期（10〜3月）：短日照帯・気象×ライブカメラ観測期間',
+    };
+  }
   return {
     sunriseX: '03:00',
     sunsetX: '18:00',
@@ -105,7 +114,8 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
   const [activeTab, setActiveTab] = useState<MainTabType>('dynamics');
   const [targetCourse, setTargetCourse] = useState<'all' | 'oshidomari' | 'kutsugata'>('all');
   const [targetYear, setTargetYear] = useState<string>(defaultYear);
-  const [targetMonth, setTargetMonth] = useState<string>('all'); // 'all' | '6' | '7' | '8' | '9'
+  // 'all' (6-9月), 'winter' (10-5月), 'year' (1-12月), または '1'〜'12'
+  const [targetMonth, setTargetMonth] = useState<string>('all');
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
 
   const courseName =
@@ -115,6 +125,24 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
       ? '沓形コース'
       : '利尻山 全体合算';
 
+  // targetMonth を buildPeriodFactSheet 用の数値コードに変換
+  // null: 6〜9月夏山通期, -1: 10〜5月秋冬春期, -2: 1〜12月年間通期, 1..12: 各月
+  const activeMonthForSheet: number | null = useMemo(() => {
+    if (targetMonth === 'all') return null;
+    if (targetMonth === 'winter') return -1;
+    if (targetMonth === 'year') return -2;
+    return parseInt(targetMonth, 10);
+  }, [targetMonth]);
+
+  const activeYearForSheet = targetYear === 'all' ? defaultYear : targetYear;
+
+  const periodDisplayBadge = useMemo(() => {
+    if (targetMonth === 'all') return '夏山通期(6〜9月)';
+    if (targetMonth === 'winter') return '秋冬春期(10〜5月)';
+    if (targetMonth === 'year') return '年間通期(1〜12月)';
+    return `${targetMonth}月`;
+  }, [targetMonth]);
+
   // コース・年度・月でフィルタリングした生ログ
   const filteredEntries = useMemo(() => {
     return entries.filter(e => {
@@ -123,17 +151,11 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
       } else if (targetCourse === 'kutsugata') {
         if (e.course !== 'kutsugata') return false;
       }
-      if (targetYear !== 'all') {
-        if (!e.dateStr.startsWith(targetYear)) return false;
-      }
-      const mNum = parseInt(e.dateStr.substring(5, 7), 10);
-      if (mNum < 6 || mNum > 9) return false;
-      if (targetMonth !== 'all' && mNum !== parseInt(targetMonth, 10)) return false;
-      return true;
+      return isDateMatchingPeriod(e.dateStr, targetYear, activeMonthForSheet);
     });
-  }, [entries, targetCourse, targetYear, targetMonth]);
+  }, [entries, targetCourse, targetYear, activeMonthForSheet]);
 
-  // 日別集計配列の生成
+  // 日別集計配列の生成（冬期や10月以降などカウンターログがない日も気象・カメラデータがあれば含める）
   const dailyList = useMemo(() => {
     const map: Record<string, { date: string; enter: number; exit: number; total: number }> = {};
     filteredEntries.forEach(e => {
@@ -147,13 +169,25 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
       }
       map[e.dateStr].total++;
     });
+
+    // 10月〜5月や年間通期が選ばれた場合、またはカメラ解析がある日は気象・カメラの日付も統合
+    const todayJst = new Date(Date.now() + 9 * 3600 * 1000).toISOString().split('T')[0];
+    const extraDates = new Set<string>([...Object.keys(weatherData), ...Object.keys(cameraAnalysis)]);
+    extraDates.forEach(dStr => {
+      if (dStr > todayJst) return;
+      if (!map[dStr] && isDateMatchingPeriod(dStr, targetYear, activeMonthForSheet)) {
+        const hasCam = cameraAnalysis[dStr] && cameraAnalysis[dStr].some(c => c.status === 'ok');
+        const m = parseInt(dStr.substring(5, 7), 10);
+        if (hasCam || activeMonthForSheet !== null || m < 6 || m > 9) {
+          map[dStr] = { date: dStr, enter: 0, exit: 0, total: 0 };
+        }
+      }
+    });
+
     return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
-  }, [filteredEntries]);
+  }, [filteredEntries, weatherData, cameraAnalysis, targetYear, activeMonthForSheet]);
 
   // 共通ファクトシートエンジン（4大ピラーの全指標を一括算出）
-  const activeYearForSheet = targetYear === 'all' ? defaultYear : targetYear;
-  const activeMonthForSheet = targetMonth === 'all' ? null : parseInt(targetMonth, 10);
-
   const factSheet = useMemo(() => {
     return buildPeriodFactSheet({
       year: activeYearForSheet,
@@ -205,14 +239,17 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
       exitCount: hourlyExit[h],
     }));
 
-    const topDays = [...dailyList].sort((a, b) => b.enter - a.enter).slice(0, 10);
+    const topDays = [...dailyList]
+      .filter(d => d.enter > 0 || d.exit > 0)
+      .sort((a, b) => b.enter - a.enter)
+      .slice(0, 10);
 
     const topMidnightDays = Object.entries(midnightDayMap)
       .map(([date, count]) => ({ date, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
 
-    // ハザード日リスト
+    // ハザード日リスト（冬期の暴風・大雨も網羅）
     const hazardDays: Array<{
       date: string;
       enter: number;
@@ -260,6 +297,12 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
   }, [filteredEntries, dailyList, weatherData, cameraAnalysis]);
 
   const sunZone = getSunlightZone(targetMonth);
+
+  // 追加カメラ（姫沼・オタドマリ沼）のデータが存在するかチェック
+  const hasExtendedCamStats = useMemo(
+    () => factSheet.windDirectionCameraStats.some(w => w.himenumaSamples > 0 || w.otadomariSamples > 0),
+    [factSheet.windDirectionCameraStats]
+  );
 
   const badgeStyle = (bg: string, color: string) => ({
     display: 'inline-flex',
@@ -316,7 +359,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                利尻山 総合利用解析ダッシュボード
+                利尻山 総合利用・気象視界解析ダッシュボード
               </h2>
               <span
                 style={{
@@ -329,17 +372,16 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                   border: '1px solid var(--border-color)',
                 }}
               >
-                {courseName} / {targetYear === 'all' ? '全年度累計' : `${targetYear}年`} /{' '}
-                {targetMonth === 'all' ? '6〜9月通期' : `${targetMonth}月`}
+                {courseName} / {targetYear === 'all' ? '全年度累計' : `${targetYear}年`} / {periodDisplayBadge}
               </span>
             </div>
             <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-              ①動態ピーク ②遅発・遅延下山リスク ③気象・山頂視界 ④誘客チャンス喪失日を1画面で俯瞰・分析
+              ①動態ピーク ②遅発・遅延下山リスク ③通年気象・6地点山頂視界クロス分析 ④誘客チャンス喪失日
             </p>
           </div>
         </div>
 
-        {/* フィルター群（コース・年度・月・AI解析ボタン） */}
+        {/* フィルター群（コース・年度・月/冬期通年・AI解析ボタン） */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.6rem' }}>
           {/* コース切替 */}
           <div
@@ -405,31 +447,37 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
             ))}
           </select>
 
-          {/* 月フィルター */}
+          {/* 月・シーズンフィルター（夏山6-9月ボタン ＋ 10月・冬期・年間セレクト） */}
           <div
             style={{
               display: 'flex',
+              alignItems: 'center',
               backgroundColor: 'var(--bg-primary)',
               borderRadius: '8px',
               padding: '0.2rem',
               border: '1px solid var(--border-color)',
+              gap: '0.15rem',
             }}
           >
             {[
-              { id: 'all', label: '通期(6-9月)' },
+              { id: 'all', label: '夏山(6-9月)' },
               { id: '6', label: '6月' },
               { id: '7', label: '7月' },
               { id: '8', label: '8月' },
               { id: '9', label: '9月' },
+              { id: '10', label: '10月' },
             ].map(m => {
               const active = targetMonth === m.id;
               return (
                 <button
                   key={m.id}
-                  onClick={() => setTargetMonth(m.id)}
+                  onClick={() => {
+                    setTargetMonth(m.id);
+                    if (m.id === '10') setActiveTab('weather');
+                  }}
                   style={{
-                    padding: '0.35rem 0.6rem',
-                    fontSize: '0.8rem',
+                    padding: '0.35rem 0.55rem',
+                    fontSize: '0.78rem',
                     fontWeight: 700,
                     borderRadius: '6px',
                     border: 'none',
@@ -442,6 +490,44 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                 </button>
               );
             })}
+
+            <select
+              value={['winter', 'year', '11', '12', '1', '2', '3', '4', '5'].includes(targetMonth) ? targetMonth : ''}
+              onChange={e => {
+                if (e.target.value) {
+                  setTargetMonth(e.target.value);
+                  setActiveTab('weather');
+                }
+              }}
+              style={{
+                padding: '0.3rem 0.45rem',
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                borderRadius: '6px',
+                border: ['winter', 'year', '11', '12', '1', '2', '3', '4', '5'].includes(targetMonth)
+                  ? '1px solid #3b82f6'
+                  : '1px solid transparent',
+                backgroundColor: ['winter', 'year', '11', '12', '1', '2', '3', '4', '5'].includes(targetMonth)
+                  ? 'rgba(59, 130, 246, 0.14)'
+                  : 'var(--bg-secondary)',
+                color: ['winter', 'year', '11', '12', '1', '2', '3', '4', '5'].includes(targetMonth)
+                  ? '#2563eb'
+                  : 'var(--text-secondary)',
+                cursor: 'pointer',
+              }}
+              title="冬期・通年の気象×ライブカメラクロス分析期間を選択"
+            >
+              <option value="">❄️ 冬期・年間分析...</option>
+              <option value="year">📅 年間通期 (1〜12月)</option>
+              <option value="winter">⛄ 秋冬春期 (10〜5月)</option>
+              <option value="11">11月 (初冬)</option>
+              <option value="12">12月 (厳冬)</option>
+              <option value="1">1月 (厳冬)</option>
+              <option value="2">2月 (厳冬)</option>
+              <option value="3">3月 (残雪春山)</option>
+              <option value="4">4月 (残雪春山)</option>
+              <option value="5">5月 (春山)</option>
+            </select>
           </div>
 
           {isAdmin && (
@@ -498,7 +584,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
           {
             id: 'weather' as const,
             label: '③ 気象・雲量・ハザード分析',
-            sub: '山頂AI視界ギャップ・大雨強風',
+            sub: '通年対応・全方位AI視界・風向非対称',
             icon: Sun,
             color: '#f59e0b',
           },
@@ -550,6 +636,45 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
 
       {/* ===== 3. 各タブのメインコンテンツ ===== */}
       <div style={{ padding: '1.5rem' }}>
+        {/* オフシーズン（カウンター撤去期）選択時の案内バナー */}
+        {factSheet.totalEnter === 0 && factSheet.daysCount > 0 && activeTab !== 'weather' && (
+          <div
+            style={{
+              padding: '0.9rem 1.25rem',
+              marginBottom: '1.25rem',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              fontSize: '0.86rem',
+            }}
+          >
+            <div>
+              ❄️ <strong>現在は登山カウンター休止期間（{periodDisplayBadge}）が選択されています。</strong>
+              アメダス気象データと6地点ライブカメラAI雲量・山頂視界のクロス分析は「③ 気象・雲量・ハザード分析」タブで確認できます。
+            </div>
+            <button
+              onClick={() => setActiveTab('weather')}
+              style={{
+                padding: '0.4rem 0.9rem',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: '#3b82f6',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+              }}
+            >
+              ③ 気象×カメラ視界分析を開く ➔
+            </button>
+          </div>
+        )}
+
         {/* ------------------------------------------------------------------ */}
         {/* タブ①：動態・ピーク分析（事実ベース） */}
         {/* ------------------------------------------------------------------ */}
@@ -570,7 +695,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                   {factSheet.totalEnter.toLocaleString()} <span style={{ fontSize: '0.9rem' }}>人</span>
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  1日平均 <strong>{factSheet.avgEnter}人</strong> (計測 {factSheet.daysCount}日)
+                  1日平均 <strong>{factSheet.avgEnter}人</strong> (対象 {factSheet.daysCount}日)
                 </div>
               </div>
 
@@ -717,6 +842,13 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                         </tr>
                       );
                     })}
+                    {detailedStats.topDays.length === 0 && (
+                      <tr>
+                        <td colSpan={8} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                          選択された期間に入山カウンター記録はありません（③ 気象・雲量・ハザード分析タブをご利用ください）。
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -983,7 +1115,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
         )}
 
         {/* ------------------------------------------------------------------ */}
-        {/* タブ③：気象・雲量・ハザード分析 */}
+        {/* タブ③：気象・雲量・ハザード分析（通年・冬期・6地点カメラ対応） */}
         {/* ------------------------------------------------------------------ */}
         {activeTab === 'weather' && (
           <div>
@@ -1002,7 +1134,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                   {factSheet.baseSunnyDays}日 <span style={{ fontSize: '0.95rem' }}>({factSheet.baseSunnyRate}%)</span>
                 </div>
                 <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  アメダス実測×3方向カメラ統合判定 ({factSheet.daysCount}日中)
+                  アメダス実測×多方向カメラ統合判定 ({factSheet.daysCount}日中)
                 </div>
               </div>
 
@@ -1012,7 +1144,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                   山頂快晴 {factSheet.summitClearDays}日
                 </div>
                 <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  山頂雲隠れ: {factSheet.summitCloudyDays}日 / 終日ガス: {factSheet.summitFoggyDays}日
+                  山頂雲隠れ: {factSheet.summitCloudyDays}日 / 終日ガス: {factSheet.summitFoggyDays}日 (解析{factSheet.camAnalyzedDays}日)
                 </div>
               </div>
 
@@ -1054,7 +1186,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                     <span>🌅 時間帯別「山頂視界ゴールデンタイム」曲線 （7時間帯AIカメラ実測）</span>
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                    利尻山特有の「朝〜午前は山頂が抜けやすく、昼過ぎから湧き上がり雲（対流雲）でガスに包まれる」確率を定量化（早出促進エビデンス）
+                    利尻山特有の「朝〜午前は山頂が抜けやすく、昼過ぎから湧き上がり雲（対流雲）や季節風でガスに包まれる」確率を定量化
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -1091,12 +1223,12 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                 </div>
               ) : (
                 <div style={{ padding: '1.25rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
-                  この期間のカメラAI解析データがまだありません。「カメラAI解析(PoC)」タブで解析を実行すると、時間帯別の山頂視界ゴールデンタイム曲線が自動描画されます。
+                  この期間のカメラAI解析データがまだありません。「山頂視界AI解析」タブで解析を実行すると、時間帯別の山頂視界ゴールデンタイム曲線が自動描画されます。
                 </div>
               )}
             </div>
 
-            {/* 【提案C】3方向カメラ（北:鴛泊 / 西:沓形 / 南:仙法志）視界比較 ＆ アメダス風向別・晴天非対称マトリクス */}
+            {/* 【提案C】全方位カメラ（北:鴛泊・鴛泊港 / 北東:姫沼 / 西:沓形 / 南東:オタドマリ / 南:仙法志）視界比較 ＆ アメダス風向別・非対称マトリクス */}
             <div
               style={{
                 backgroundColor: 'var(--bg-primary)',
@@ -1109,17 +1241,17 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
               <div style={{ padding: '0.9rem 1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <span style={{ fontWeight: 800, fontSize: '0.98rem', color: '#2563eb', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <Compass size={18} />
-                  <span>🧭 3方向カメラ（北:鴛泊 / 西:沓形 / 南:仙法志）視界比較 ＆ アメダス風向別・非対称マトリクス</span>
+                  <span>🧭 全方位カメラ（最大6地点）視界比較 ＆ アメダス風向別・非対称マトリクス</span>
                 </span>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  風向によって「風上側は海霧や雲がかかるが、風下側は山頂まで抜ける」独立峰特有の非対称性を実測比較
+                  風向によって「風上側は海霧や雪雲がかかるが、風下側は山頂まで抜ける」独立峰特有の非対称性を実測比較
                 </span>
               </div>
 
               {factSheet.camAnalyzedDays > 0 ? (
                 <div style={{ padding: '1rem 1.25rem' }}>
-                  {/* 3方向カメラ通期比較カード */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem', marginBottom: '1rem' }}>
+                  {/* 地点別カメラ通期比較カード */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.85rem', marginBottom: '1rem' }}>
                     {factSheet.cameraDirectionTotals.map(cd => (
                       <div
                         key={cd.camId}
@@ -1148,16 +1280,18 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                     ))}
                   </div>
 
-                  {/* 風向別×3方向カメラ非対称テーブル */}
+                  {/* 風向別×方角別カメラ非対称テーブル */}
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
                       <thead>
                         <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                           <th style={{ padding: '0.6rem 0.9rem' }}>主風向グループ (アメダス実測)</th>
                           <th style={{ padding: '0.6rem 0.9rem' }}>該当日数</th>
-                          <th style={{ padding: '0.6rem 0.9rem' }}>北：鴛泊カメラ (快晴率 / 雲量)</th>
-                          <th style={{ padding: '0.6rem 0.9rem' }}>西：沓形カメラ (快晴率 / 雲量)</th>
-                          <th style={{ padding: '0.6rem 0.9rem' }}>南：仙法志カメラ (快晴率 / 雲量)</th>
+                          <th style={{ padding: '0.6rem 0.9rem' }}>北：鴛泊・港 (快晴率 / 雲量)</th>
+                          {hasExtendedCamStats && <th style={{ padding: '0.6rem 0.9rem' }}>北東：姫沼 (快晴率 / 雲量)</th>}
+                          <th style={{ padding: '0.6rem 0.9rem' }}>西：沓形 (快晴率 / 雲量)</th>
+                          {hasExtendedCamStats && <th style={{ padding: '0.6rem 0.9rem' }}>南東：オタドマリ (快晴率 / 雲量)</th>}
+                          <th style={{ padding: '0.6rem 0.9rem' }}>南：仙法志 (快晴率 / 雲量)</th>
                           <th style={{ padding: '0.6rem 0.9rem' }}>風向別の最も視界が良い方角</th>
                         </tr>
                       </thead>
@@ -1176,6 +1310,18 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                                 '-'
                               )}
                             </td>
+                            {hasExtendedCamStats && (
+                              <td style={{ padding: '0.6rem 0.9rem' }}>
+                                {wg.himenumaSamples > 0 ? (
+                                  <span>
+                                    <strong style={{ color: '#059669' }}>{wg.himenumaClearRate}%</strong>{' '}
+                                    <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>(雲量 {wg.himenumaAvgCloud})</span>
+                                  </span>
+                                ) : (
+                                  '-'
+                                )}
+                              </td>
+                            )}
                             <td style={{ padding: '0.6rem 0.9rem' }}>
                               {wg.daysCount > 0 ? (
                                 <span>
@@ -1186,6 +1332,18 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                                 '-'
                               )}
                             </td>
+                            {hasExtendedCamStats && (
+                              <td style={{ padding: '0.6rem 0.9rem' }}>
+                                {wg.otadomariSamples > 0 ? (
+                                  <span>
+                                    <strong style={{ color: '#8b5cf6' }}>{wg.otadomariClearRate}%</strong>{' '}
+                                    <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>(雲量 {wg.otadomariAvgCloud})</span>
+                                  </span>
+                                ) : (
+                                  '-'
+                                )}
+                              </td>
+                            )}
                             <td style={{ padding: '0.6rem 0.9rem' }}>
                               {wg.daysCount > 0 ? (
                                 <span>
@@ -1211,17 +1369,17 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                 </div>
               ) : (
                 <div style={{ padding: '1.25rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
-                  カメラAI解析データが蓄積されると、風向別の3方向カメラ（鴛泊・沓形・仙法志）視界非対称マトリクスが表示されます。
+                  カメラAI解析データが蓄積されると、風向別のカメラ視界非対称マトリクスが表示されます。
                 </div>
               )}
             </div>
 
-            {/* 大雨・強風ハザード発生日の強行入山実績テーブル */}
+            {/* 大雨・強風ハザード発生日の実績テーブル */}
             <div style={{ backgroundColor: 'var(--bg-primary)', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
               <div style={{ padding: '0.9rem 1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <span style={{ fontWeight: 800, fontSize: '0.98rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <CloudRain size={18} />
-                  <span>自然要因ハザード発生日（大雨・強風）の入山実績一覧</span>
+                  <span>自然要因ハザード発生日（大雨・強風）の気象・視界・入山実績一覧</span>
                 </span>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   🔴 レベル2: 雨50mm+ または 風20m/s+ / 🟠 レベル1: 雨25mm+ または 風15m/s+
@@ -1321,7 +1479,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                 📌 誘客チャンス判定基準（6月下旬〜9月コアシーズン集中 × 9月秋山条件付き誘客）
               </div>
               <div>
-                ・<strong>🌱 6月上旬〜中旬（6/1〜6/19）</strong>：残雪期・山開き直後の立ち上がり期で誘客には向かないため、誘客ターゲット・機会損失日から<strong>自動除外</strong>しています。
+                ・<strong>🌱 6月上旬〜中旬（6/1〜6/19）および10〜5月（オフシーズン）</strong>：残雪・冬期等で一般登山誘客には向かないため、誘客ターゲット・機会損失日から<strong>自動除外</strong>しています。
                 <br />
                 ・<strong>🏔️ 6月下旬（6/20）〜8月</strong>：夏山コアシーズン。AIカメラで日中（07〜13時）に山頂快晴が確認された少人数日を <strong>「👑 特A級チャンス喪失日（山頂絶景×穴場）」</strong> として最優先抽出します。
                 <br />
@@ -1394,10 +1552,10 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
             >
               <div style={{ padding: '0.9rem 1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <span style={{ fontWeight: 800, fontSize: '0.98rem', color: '#059669' }}>
-                  📅 週別の「登山日和率（天候勝率）× 集客効率」比較テーブル
+                  📅 週別の「好天・視界率（天候勝率）× 集客効率」比較テーブル
                 </span>
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  6月上旬〜中旬（残雪期）を除外し、6月下旬〜9月のコアシーズンから重点誘客週を判定しています
+                  6月上旬〜中旬（残雪期）および10〜5月を除外し、6月下旬〜9月のコアシーズンから重点誘客週を判定しています
                 </span>
               </div>
               <div style={{ overflowX: 'auto' }}>
@@ -1405,7 +1563,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                       <th style={{ padding: '0.6rem 1rem' }}>週</th>
-                      <th style={{ padding: '0.6rem 1rem' }}>登山日和日数 (勝率)</th>
+                      <th style={{ padding: '0.6rem 1rem' }}>好天日数 (勝率)</th>
                       <th style={{ padding: '0.6rem 1rem' }}>山頂快晴日数 (AI)</th>
                       <th style={{ padding: '0.6rem 1rem' }}>週合計入山者</th>
                       <th style={{ padding: '0.6rem 1rem' }}>全日程平均</th>
@@ -1447,7 +1605,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
                             {w.isEarlyPreSeasonWeek ? (
                               <span style={badgeStyle('rgba(148, 163, 184, 0.2)', '#475569')}>
-                                🌱 シーズン序盤・残雪期 (誘客対象外)
+                                🌱 オフシーズン・残雪期 (一般誘客対象外)
                               </span>
                             ) : w.isTargetPromoWeek ? (
                               <>
@@ -1462,7 +1620,7 @@ export const StakeholderAnalytics: React.FC<StakeholderAnalyticsProps> = ({
                               </>
                             ) : w.weekLabel === factSheet.highestRiskWeek ? (
                               <span style={badgeStyle('rgba(239,68,68,0.15)', '#dc2626')}>⚠️ 安全管理・遅発遅延の重点警戒週</span>
-                            ) : w.avgEnterPerDay >= factSheet.avgEnter * 1.25 ? (
+                            ) : w.avgEnterPerDay >= factSheet.avgEnter * 1.25 && factSheet.avgEnter > 0 ? (
                               <span style={badgeStyle('rgba(59,130,246,0.12)', '#2563eb')}>🔥 繁忙ピーク週 (混雑・踏圧対策)</span>
                             ) : w.isSeptemberWeek ? (
                               <span style={badgeStyle('rgba(245,158,11,0.14)', '#d97706')}>

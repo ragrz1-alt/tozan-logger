@@ -1,31 +1,20 @@
 /**
- * 利尻山 YouTubeライブカメラ PoC 【Playwright ヘッドレスブラウザ リアルタイム生キャプチャ版】
- * 
- * 対象カメラ:
- *  - 鴛泊 (8BwfUCuPcVE)
- *  - 姫沼 (_CTve3fF0W4)
- *  - オタドマリ (enBReBFAk7U)
- * 
- * GitHub Actions (クラウドサーバーIP) でもサムネイルへフォールバックせず、
- * 実際のブラウザ (Chromium) で動画再生フレームを表示させ、
- * 直接生フレームを撮影・保存する実証実験スクリプトです。
+ * 利尻山 YouTubeライブカメラ 【Playwright 仮想ドメイン iframe + Canvas 生フレーム直接抽出】
  */
 
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const outputDir = path.join(__dirname, '../public/cams/test_poc_archive');
-const ffmpegExe = path.join(__dirname, '../node_modules/ffmpeg-static/ffmpeg.exe');
 
 const TARGET_CAMERAS = [
-  { id: 'oshidomari', name: '鴛泊（鴛泊）', videoId: '8BwfUCuPcVE' },
+  { id: 'oshidomari_port', name: '鴛泊港（フェリーターミナル）', videoId: '8BwfUCuPcVE' },
   { id: 'himenuma', name: '姫沼（逆さ利尻富士）', videoId: 'wL2i45IZfvs' },
-  { id: 'otadomari', name: 'オタドマリ（南麓展望）', videoId: 'enBReBFAk7U' }
+  { id: 'otadomari', name: 'オタドマリ沼（南東展望）', videoId: 'enBReBFAk7U' }
 ];
 
 function ensureDirectoryExistence(dirPath) {
@@ -34,137 +23,142 @@ function ensureDirectoryExistence(dirPath) {
   }
 }
 
-function compressTo50KB(imagePath) {
-  try {
-    if (!fs.existsSync(imagePath)) return;
-    let sizeBytes = fs.statSync(imagePath).size;
-    if (sizeBytes > 50000) {
-      for (let q = 4; q <= 31; q += 4) {
-        const tmpPath = imagePath + '.tmp.jpg';
-        try {
-          execSync(`"${ffmpegExe}" -y -i "${imagePath}" -vf "scale=800:-1" -q:v ${q} "${tmpPath}"`, {
-            stdio: ['ignore', 'ignore', 'ignore']
-          });
-          if (fs.existsSync(tmpPath) && fs.statSync(tmpPath).size > 1000) {
-            const tmpSize = fs.statSync(tmpPath).size;
-            fs.renameSync(tmpPath, imagePath);
-            sizeBytes = tmpSize;
-            if (sizeBytes <= 50000) break;
-          }
-        } catch (e) {
-          break;
-        }
-      }
-      if (sizeBytes > 50000) {
-        for (const w of [640, 500, 400]) {
-          const tmpPath = imagePath + '.tmp.jpg';
-          try {
-            execSync(`"${ffmpegExe}" -y -i "${imagePath}" -vf "scale=${w}:-1" -q:v 8 "${tmpPath}"`, {
-              stdio: ['ignore', 'ignore', 'ignore']
-            });
-            if (fs.existsSync(tmpPath) && fs.statSync(tmpPath).size > 1000) {
-              const tmpSize = fs.statSync(tmpPath).size;
-              fs.renameSync(tmpPath, imagePath);
-              sizeBytes = tmpSize;
-              if (sizeBytes <= 50000) break;
-            }
-          } catch (e) {
-            break;
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.error(`[WARN] 圧縮例外: ${e}`);
-  }
-}
-
 async function runPlaywrightCapture() {
-  console.log('================================================================');
-  console.log(' 🧪 利尻山 ライブカメラ 【Playwright ブラウザ生撮影】 PoC 実験');
-  console.log('    (クラウドIP制限を突破して生映像スクリーンショットを取得)');
-  console.log('================================================================\n');
-
   ensureDirectoryExistence(outputDir);
   const nowStr = new Date().toISOString();
   const statusJson = {
     updatedAt: nowStr,
-    engine: 'PLAYWRIGHT_HEADLESS_BROWSER',
+    engine: 'PLAYWRIGHT_IFRAME_CANVAS_PURE',
     results: {}
   };
 
   let browser;
   try {
-    console.log(' -> Playwright ヘッドレス Chromium ブラウザを起動中...');
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--autoplay-policy=no-user-gesture-required'
-      ]
-    });
+    try {
+      browser = await chromium.launch({
+        channel: 'chrome',
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--autoplay-policy=no-user-gesture-required',
+          '--disable-blink-features=AutomationControlled'
+        ]
+      });
+    } catch {
+      browser = await chromium.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--autoplay-policy=no-user-gesture-required',
+          '--disable-blink-features=AutomationControlled'
+        ]
+      });
+    }
 
     const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     });
 
     for (const cam of TARGET_CAMERAS) {
-      const embedUrl = `https://www.youtube.com/embed/${cam.videoId}?autoplay=1&mute=1&controls=0&modestbranding=1`;
       const latestFilename = `${cam.id}_latest.jpg`;
       const outputPath = path.join(outputDir, latestFilename);
 
-      console.log(`\n[Playwright 撮影試行] ${cam.name} (ID: ${cam.videoId})`);
-      console.log(` -> 埋め込みプレイヤーURL: ${embedUrl}`);
+      console.log(`\n[Playwright 生フレーム抽出] ${cam.name} (ID: ${cam.videoId})`);
 
       try {
         const page = await context.newPage();
-        await page.goto(embedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
-        // 動画ロードと再生を安定して待機
-        console.log(' -> 映像ストリームのロード及び実フレームレンダリングを待機中 (8秒)...');
-        await page.waitForTimeout(8000);
-
-        // クッキー同意ボタン等があれば念のためクリック
-        try {
-          const agreeBtn = await page.$('button[aria-label="Agree"], button:has-text("同意する")');
-          if (agreeBtn) {
-            await agreeBtn.click();
-            await page.waitForTimeout(2000);
-          }
-        } catch (_) {}
-
-        // 動画プレイヤー領域を中心にスクリーンショット
-        console.log(' -> ブラウザ画面から実際の再生映像を JPEG スクリーンショット撮影中...');
-        await page.screenshot({
-          path: outputPath,
-          type: 'jpeg',
-          quality: 85,
-          fullPage: false
+        const virtualOrigin = 'https://rishiri-trail-analytics.web.app/';
+        await page.route(virtualOrigin, route => {
+          route.fulfill({
+            status: 200,
+            contentType: 'text/html; charset=utf-8',
+            body: `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:#000;overflow:hidden;width:1280px;height:720px;}</style></head>
+<body>
+  <iframe
+    id="yt-frame"
+    width="1280"
+    height="720"
+    src="https://www.youtube.com/embed/${cam.videoId}?autoplay=1&mute=1&playsinline=1&controls=0&modestbranding=1&rel=0"
+    frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen
+    style="border:none;display:block;width:1280px;height:720px;"
+  ></iframe>
+</body>
+</html>`
+          });
         });
+
+        await page.goto(virtualOrigin, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        const frameElement = await page.waitForSelector('#yt-frame', { timeout: 10000 });
+        const frame = await frameElement.contentFrame();
+
+        let dataUrl = null;
+        if (frame) {
+          await frame.waitForSelector('video', { timeout: 12000 });
+          for (let attempt = 0; attempt < 20; attempt++) {
+            const state = await frame.evaluate(() => {
+              const v = document.querySelector('video');
+              if (!v) return { ready: false };
+              if (v.paused) {
+                v.muted = true;
+                v.play().catch(() => {});
+              }
+              if (v.readyState >= 2 && v.videoWidth > 0 && v.currentTime > 0) {
+                const canvas = document.createElement('canvas');
+                const targetW = 800;
+                const targetH = Math.round((v.videoHeight / v.videoWidth) * targetW) || 450;
+                canvas.width = targetW;
+                canvas.height = targetH;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(v, 0, 0, targetW, targetH);
+                // 段階的に品質を調整して60KB以下に収める
+                for (const q of [0.82, 0.72, 0.62, 0.52]) {
+                  const url = canvas.toDataURL('image/jpeg', q);
+                  const approxBytes = Math.round((url.length - 23) * 0.75);
+                  if (approxBytes <= 60000 || q === 0.52) {
+                    return { ready: true, dataUrl: url, width: v.videoWidth, height: v.videoHeight };
+                  }
+                }
+              }
+              return { ready: false, readyState: v.readyState, videoWidth: v.videoWidth };
+            });
+
+            if (state.ready && state.dataUrl) {
+              dataUrl = state.dataUrl;
+              break;
+            }
+            await page.waitForTimeout(500);
+          }
+        }
 
         await page.close();
 
-        if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1000) {
-          // 必ず50KB以下に軽量最適化
-          compressTo50KB(outputPath);
-
-          const sizeKB = Number((fs.statSync(outputPath).size / 1024).toFixed(1));
-          console.log(` ✅ 【大成功】 Playwrightにより現在流れている生映像を撮影保存! (${sizeKB} KB)`);
+        if (dataUrl) {
+          const base64Data = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
+          const buf = Buffer.from(base64Data, 'base64');
+          fs.writeFileSync(outputPath, buf);
+          const sizeKB = Number((buf.length / 1024).toFixed(1));
+          console.log(` ✅ 純粋映像フレーム抽出成功! (${sizeKB} KB)`);
           statusJson.results[cam.id] = {
             success: true,
             path: `/cams/test_poc_archive/${latestFilename}`,
-            sizeKB: sizeKB,
-            capturedAt: nowStr,
-            mode: 'PLAYWRIGHT_REAL_STREAM'
+            sizeKB,
+            capturedAt: nowStr
           };
         } else {
-          throw new Error('スクリーンショット画像が不正です。');
+          throw new Error('video要素からのフレーム抽出タイムアウト');
         }
       } catch (err) {
-        console.log(` ❌ 【撮影失敗】 ${cam.id}: ${err.message.split('\n')[0]}`);
+        console.log(` ❌ 失敗 ${cam.id}: ${err.message.split('\n')[0]}`);
         statusJson.results[cam.id] = {
           success: false,
           error: err.message.split('\n')[0],
@@ -172,20 +166,11 @@ async function runPlaywrightCapture() {
         };
       }
     }
-  } catch (error) {
-    console.error(' [CRITICAL ERROR] ブラウザ起動処理例外:', error);
   } finally {
-    if (browser) {
-      await browser.close();
-    }
+    if (browser) await browser.close();
   }
 
-  const statusPath = path.join(outputDir, 'poc_status.json');
-  fs.writeFileSync(statusPath, JSON.stringify(statusJson, null, 2), 'utf-8');
-
-  console.log('\n================================================================');
-  console.log(' 🎉 Playwright 実証実験 (PoC) キャプチャ処理が完了しました!');
-  console.log('================================================================');
+  fs.writeFileSync(path.join(outputDir, 'poc_status.json'), JSON.stringify(statusJson, null, 2), 'utf-8');
 }
 
 runPlaywrightCapture();

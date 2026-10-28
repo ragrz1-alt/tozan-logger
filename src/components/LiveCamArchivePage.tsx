@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar as CalendarIcon, Video, RefreshCw, Eye, Sun } from 'lucide-react';
-import { LiveCamViewer } from './LiveCamViewer';
+import { LiveCamViewer, ALL_ARCHIVE_CAMERAS } from './LiveCamViewer';
 import { fetchHourlyWeatherData, type HourlyWeatherData } from '../utils/weatherApi';
 import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
 
@@ -16,7 +16,7 @@ export const LiveCamArchivePage: React.FC = () => {
   const [hourlyWeather, setHourlyWeather] = useState<Record<string, HourlyWeatherData>>({});
   const [activeViewMode, setActiveViewMode] = useState<'compare' | 'gallery'>('compare');
 
-  // Load /cams/history.json（GitHub Rawから最新即時取得、失敗時はローカルフォールバック）
+  // Load /cams/history.json（GitHub Pages CDNから最新即時取得、失敗時はローカルフォールバック）
   const loadHistory = async () => {
     try {
       let res = await fetch(getHistoryJsonUrl());
@@ -61,10 +61,32 @@ export const LiveCamArchivePage: React.FC = () => {
 
   const availableDates = history?.records ? Object.keys(history.records).sort().reverse() : [];
   const selectedDateRecords = (history?.records && selectedDate && history.records[selectedDate]) || {};
-  const recordedHours = Object.keys(selectedDateRecords).sort();
+  const recordedHours = Object.keys(selectedDateRecords)
+    .filter(hr => Object.keys(selectedDateRecords[hr] || {}).some(k => k !== 'timestamp'))
+    .sort();
+
+  // 選択日に有効なカメラ一覧（6地点対応・過去3地点日の自動判別）
+  const activeCamerasForDate = useMemo(() => {
+    const recordedCamIds = new Set<string>();
+    Object.values(selectedDateRecords).forEach(hrObj => {
+      if (hrObj && typeof hrObj === 'object') {
+        Object.keys(hrObj).forEach(k => {
+          if (k !== 'timestamp') recordedCamIds.add(k);
+        });
+      }
+    });
+    const isSixCam =
+      selectedDate >= '2026-10-28' ||
+      recordedCamIds.has('ferry') ||
+      recordedCamIds.has('himenuma') ||
+      recordedCamIds.has('otadomari');
+    return isSixCam
+      ? ALL_ARCHIVE_CAMERAS
+      : ALL_ARCHIVE_CAMERAS.filter(c => c.isCore || recordedCamIds.has(c.id));
+  }, [selectedDate, selectedDateRecords]);
 
   // 年月ごとにグループ化（数年分溜まった時のためのセレクトボックス用）
-  const groupedDates = React.useMemo(() => {
+  const groupedDates = useMemo(() => {
     const groups: Record<string, string[]> = {};
     availableDates.forEach(dStr => {
       const [year, month] = dStr.split('-');
@@ -81,16 +103,26 @@ export const LiveCamArchivePage: React.FC = () => {
       <div className="card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #10b981' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
               <div style={{ backgroundColor: '#10b981', color: '#fff', padding: '0.45rem', borderRadius: '0.5rem', display: 'flex' }}>
                 <Video size={22} />
               </div>
               <h2 style={{ fontSize: '1.45rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
                 利尻山 ライブカメラ状況アーカイブ
               </h2>
+              <span style={{
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                padding: '0.2rem 0.65rem',
+                borderRadius: '999px',
+                backgroundColor: 'rgba(16, 185, 129, 0.14)',
+                color: '#059669'
+              }}>
+                🌅 季節別日照スケジュール稼働 (最大6地点: 5-7月 3〜21時 / 8月 4〜20時 / 春秋 4〜18時 / 冬期 6〜17時)
+              </span>
             </div>
             <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              自動定時スクリーンショット記録および気象要因との統合検証・確認ページ
+              自動定時スクリーンショット記録（本泊・鴛泊港・姫沼・沓形・オタドマリ沼・仙法志）および気象要因との統合検証ページ
             </p>
           </div>
 
@@ -153,7 +185,7 @@ export const LiveCamArchivePage: React.FC = () => {
           {availableDates.length > 0 ? (
             <div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                直近の撮影日クィック選択:
+                直近の撮影日クイック選択:
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {availableDates.slice(0, 14).map(dStr => {
@@ -252,7 +284,7 @@ export const LiveCamArchivePage: React.FC = () => {
 
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           選択日付: <strong style={{ color: 'var(--text-primary)', fontSize: '0.95rem' }}>{selectedDate}</strong>
-          {recordedHours.length > 0 && ` （アーカイブ: ${recordedHours.length}件記録済）`}
+          {recordedHours.length > 0 && ` （アーカイブ: ${recordedHours.length}時間帯・${activeCamerasForDate.length}地点）`}
         </div>
       </div>
 
@@ -266,7 +298,7 @@ export const LiveCamArchivePage: React.FC = () => {
         <div className="card">
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Sun size={20} style={{ color: '#f59e0b' }} />
-            {selectedDate} の全撮影アーカイブ一覧
+            {selectedDate} の全撮影アーカイブ一覧 ({activeCamerasForDate.length}地点)
           </h3>
 
           {recordedHours.length === 0 ? (
@@ -275,12 +307,9 @@ export const LiveCamArchivePage: React.FC = () => {
               <p style={{ fontSize: '0.85rem', margin: 0 }}>「時間帯別 コンディション対比」タブより、YouTubeおよび利尻町公式ライブカメラをご覧いただけます。</p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '1.25rem' }}>
               {recordedHours.map(hr => {
-                const oshidomariPath = selectedDateRecords[hr]?.oshidomari;
-                const kutsugataPath = selectedDateRecords[hr]?.kutsugata;
-                const senposhiPath = selectedDateRecords[hr]?.senposhi;
-
+                const hrRec = selectedDateRecords[hr] || {};
                 return (
                   <div
                     key={hr}
@@ -306,65 +335,56 @@ export const LiveCamArchivePage: React.FC = () => {
                       <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{hr}時台</strong>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px', backgroundColor: 'var(--border-color)' }}>
-                      {/* 鴛泊側ミニ画像 */}
-                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: oshidomariPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
-                        {oshidomariPath ? (
-                          <img
-                            src={getCamImageUrl(oshidomariPath)}
-                            alt={`鴛泊 ${hr}:00`}
-                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => { e.currentTarget.src = `/${oshidomariPath}`; }}
-                          />
-                        ) : (
-                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                            記録なし
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px', backgroundColor: 'var(--border-color)' }}>
+                      {activeCamerasForDate.map(cam => {
+                        const camPath = hrRec[cam.id];
+                        return (
+                          <div
+                            key={cam.id}
+                            style={{
+                              position: 'relative',
+                              width: '100%',
+                              paddingTop: '68%',
+                              backgroundColor: camPath ? '#000' : 'var(--bg-secondary)',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            {camPath ? (
+                              <img
+                                src={getCamImageUrl(camPath)}
+                                alt={`${cam.badge} ${hr}:00`}
+                                loading="lazy"
+                                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  if (!e.currentTarget.dataset.triedLocal) {
+                                    e.currentTarget.dataset.triedLocal = 'true';
+                                    e.currentTarget.src = `/${camPath}`;
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
+                                未記録
+                              </div>
+                            )}
+                            <span style={{
+                              position: 'absolute',
+                              bottom: '3px',
+                              left: '3px',
+                              backgroundColor: cam.color,
+                              color: '#fff',
+                              fontSize: '0.62rem',
+                              fontWeight: 700,
+                              padding: '1px 4px',
+                              borderRadius: '3px',
+                              opacity: 0.92
+                            }}>
+                              {cam.badge}
+                            </span>
                           </div>
-                        )}
-                        <span style={{ position: 'absolute', bottom: '4px', left: '4px', backgroundColor: 'rgba(59, 130, 246, 0.85)', color: '#fff', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px' }}>
-                          鴛泊
-                        </span>
-                      </div>
-
-                      {/* 沓形側ミニ画像 */}
-                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: kutsugataPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
-                        {kutsugataPath ? (
-                          <img
-                            src={getCamImageUrl(kutsugataPath)}
-                            alt={`沓形 ${hr}:00`}
-                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => { e.currentTarget.src = `/${kutsugataPath}`; }}
-                          />
-                        ) : (
-                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                            記録なし
-                          </div>
-                        )}
-                        <span style={{ position: 'absolute', bottom: '4px', left: '4px', backgroundColor: 'rgba(16, 185, 129, 0.85)', color: '#fff', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px' }}>
-                          沓形
-                        </span>
-                      </div>
-
-                      {/* 仙法志側ミニ画像 */}
-                      <div style={{ position: 'relative', width: '100%', paddingTop: '75%', backgroundColor: senposhiPath ? '#000' : 'var(--bg-secondary)', overflow: 'hidden' }}>
-                        {senposhiPath ? (
-                          <img
-                            src={getCamImageUrl(senposhiPath)}
-                            alt={`仙法志 ${hr}:00`}
-                            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => { e.currentTarget.src = `/${senposhiPath}`; }}
-                          />
-                        ) : (
-                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                            記録なし
-                          </div>
-                        )}
-                        <span style={{ position: 'absolute', bottom: '4px', left: '4px', backgroundColor: 'rgba(245, 158, 11, 0.85)', color: '#fff', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '3px' }}>
-                          仙法志
-                        </span>
-                      </div>
+                        );
+                      })}
                     </div>
-
                   </div>
                 );
               })}

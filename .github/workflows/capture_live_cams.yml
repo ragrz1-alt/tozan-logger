@@ -4,7 +4,7 @@ on:
   workflow_dispatch: # Cloudflare等の外部APIキックおよびGitHub画面からの手動実行に対応
   repository_dispatch: # 外部APIからのリポジトリディスパッチトリガーにも対応
   schedule:
-    - cron: '0 * * * *' # 毎時0分に実行
+    - cron: '0 * * * *' # 毎時0分に実行（季節別日照スケジュール外はスクリプト内で高速スキップ）
 permissions:
   contents: write
 
@@ -25,38 +25,64 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Set up FFmpeg (安定版 BtbN/FFmpeg-Builds 導入)
-        uses: AnimMouse/setup-ffmpeg@v1
+      - name: Set up Node.js (Playwright iframe Canvas抽出用)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install yt-dlp and streamlink
-        run: pip install -U yt-dlp streamlink
+      - name: Install dependencies (yt-dlp, streamlink, npm packages)
+        run: |
+          pip install -U yt-dlp streamlink
+          npm ci --prefer-offline --no-audit || npm install --no-audit
 
-      - name: Run live camera capture script
+      - name: Run live camera capture script (6 cameras + seasonal solar guard)
         run: |
           python scripts/capture_live_cams.py --debug || true
-          echo "=== 撮影結果一覧 ==="
-          ls -lh public/cams/2026-*/* || true
+          TODAY_JST=$(TZ='Asia/Tokyo' date +'%Y-%m-%d')
+          mkdir -p /tmp/cams_backup_today
+          cp -f "public/cams/$TODAY_JST/"*.jpg /tmp/cams_backup_today/ 2>/dev/null || true
+          echo "=== 本日 ($TODAY_JST) の撮影結果一覧 ==="
+          ls -lh "public/cams/$TODAY_JST/"* 2>/dev/null || echo "夜間スキップまたは新規撮影なし"
 
-      - name: Commit and push recorded screenshots
+      - name: Commit and push recorded screenshots (Conflict-Free Self-Healing)
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add public/cams/
           if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "🤖 [Auto-Capture] 利尻山ライブカメラ スクショ記録 ($(TZ='Asia/Tokyo' date +'%Y-%m-%d %H:%M JST'))"
-            for i in {1..3}; do
-              if git pull --rebase origin main && git push origin main; then
-                echo "Successfully pushed changes."
-                exit 0
-              fi
-              echo "Push failed (transient network/502 error or conflict), retrying in 5s... ($i/3)"
-              sleep 5
-            done
-            echo "Failed to push after 3 retries."
-            exit 1
+            echo "No changes to commit (Nighttime solar skip or no new files)."
+            exit 0
           fi
+
+          STAMP=$(TZ='Asia/Tokyo' date +'%Y-%m-%d %H:%M JST')
+          TODAY_JST=$(TZ='Asia/Tokyo' date +'%Y-%m-%d')
+          git commit -m "🤖 [Auto-Capture] 利尻山ライブカメラ 6地点スクショ記録 ($STAMP)"
+
+          for i in {1..4}; do
+            if git pull --rebase origin main && git push origin main; then
+              echo "Successfully pushed changes."
+              exit 0
+            fi
+            echo "Rebase or push conflict detected, self-healing history.json... ($i/4)"
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git reset --hard origin/main
+            mkdir -p "public/cams/$TODAY_JST"
+            cp -f /tmp/cams_backup_today/*.jpg "public/cams/$TODAY_JST/" 2>/dev/null || true
+            python scripts/capture_live_cams.py --sync-only
+            git add public/cams/
+            if ! git diff --staged --quiet; then
+              git commit -m "🤖 [Auto-Capture] 利尻山ライブカメラ 6地点スクショ記録 ($STAMP)"
+            fi
+            if git push origin main; then
+              echo "Successfully pushed after self-healing merge."
+              exit 0
+            fi
+            sleep 4
+          done
+          echo "Failed to push after 4 retries."
+          exit 1
 
       - name: Send Heartbeat to Healthchecks.io
         if: always()
@@ -67,7 +93,6 @@ jobs:
             echo "HEALTHCHECK_URL secret is not set, skipping heartbeat."
             exit 0
           fi
-          # ジョブが成功したか失敗したかに応じて、PingのURLを変更します（失敗時は即座にアラートを飛ばすため /fail を付与）
           STATUS_SUFFIX=""
           if [ "${{ job.status }}" != "success" ]; then
             STATUS_SUFFIX="/fail"
