@@ -33,7 +33,7 @@ const ffmpegExe = path.join(__dirname, '../node_modules/ffmpeg-static/ffmpeg.exe
 // サムネイル設定済みの対象ライブ一覧
 const TARGET_CAMERAS = [
   { id: 'oshidomari', name: '鴛泊（鴛泊）', videoId: '8BwfUCuPcVE' },
-  { id: 'himenuma', name: '姫沼（逆さ利尻富士）', videoId: '_CTve3fF0W4' },
+  { id: 'himenuma', name: '姫沼（逆さ利尻富士）', videoId: 'wL2i45IZfvs' },
   { id: 'otadomari', name: 'オタドマリ（南麓展望）', videoId: 'enBReBFAk7U' }
 ];
 

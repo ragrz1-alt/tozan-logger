@@ -1,5 +1,23 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Sun, RefreshCw, Database, CheckCircle2, Trash2, Download, Play, Square, Calendar, Eye, Cloud } from 'lucide-react';
+import {
+  Sun,
+  RefreshCw,
+  CheckCircle2,
+  Trash2,
+  Download,
+  Play,
+  Square,
+  Calendar,
+  Eye,
+  Cloud,
+  ChevronLeft,
+  ChevronRight,
+  SlidersHorizontal,
+  Sparkles,
+  VideoOff,
+  Maximize2,
+  X,
+} from 'lucide-react';
 import {
   type ImageAnalysis,
   evaluateDailyCameraVisibility,
@@ -11,10 +29,11 @@ import { fetchWeatherData, type WeatherData } from '../utils/weatherApi';
 import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
 
 const LOCATIONS = [
-  { id: 'oshidomari', name: '鴛泊(北)' },
-  { id: 'kutsugata', name: '沓形(西)' },
-  { id: 'senposhi', name: '仙法志(南)' },
+  { id: 'oshidomari', name: '鴛泊(北)', color: '#3b82f6' },
+  { id: 'kutsugata', name: '沓形(西)', color: '#10b981' },
+  { id: 'senposhi', name: '仙法志(南)', color: '#f59e0b' },
 ];
+
 // 2時間おき・7回 (05, 07, 09, 11, 13, 15, 17時 × 3地点 ＝ 計21枚/日)
 const TIMES = ['05', '07', '09', '11', '13', '15', '17'];
 
@@ -86,6 +105,9 @@ export const LiveCamPoCPanel: React.FC = () => {
     const today = getTodayJstStr();
     return today >= '2026-07-28' ? today : '2026-10-22';
   });
+
+  // 詳細設定（任意期間指定・モデル変更・データ管理）の開閉ステート
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [rangeStart, setRangeStart] = useState<string>('2026-10-01');
   const [rangeEnd, setRangeEnd] = useState<string>(() => {
     const today = getTodayJstStr();
@@ -111,6 +133,14 @@ export const LiveCamPoCPanel: React.FC = () => {
   const analysisResultsRef = useRef<Record<string, ImageAnalysis[]>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  // 画像読み込み失敗（本当に画像ファイルが存在しない枠）の記録と拡大モーダル
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
+  const [modalImage, setModalImage] = useState<{ url: string; title: string; sub?: string } | null>(null);
+
+  useEffect(() => {
+    setBrokenImages({});
+  }, [selectedDate]);
 
   useEffect(() => {
     cleanupObsoleteLocalStorageCaches();
@@ -190,49 +220,29 @@ export const LiveCamPoCPanel: React.FC = () => {
   const currentResults = analysisResults[selectedDate];
   const dailySummary = useMemo(() => evaluateDailyCameraVisibility(currentResults), [currentResults]);
 
-  // 解析済み日数のカウント (7回フォーマット完了日)
-  const analyzedDaysCount = useMemo(() => {
-    return availableDates.filter(d => isDayAnalyzed7Slots(analysisResults[d])).length;
+  // 未解析の日付リスト（実際のデータから動的に算出！）
+  const unanalyzedDates = useMemo(() => {
+    return availableDates.filter(d => !isDayAnalyzed7Slots(analysisResults[d]));
   }, [availableDates, analysisResults]);
 
-  // 選択範囲内のサマリー統計
-  const rangeSummary = useMemo(() => {
-    const datesInRange = availableDates.filter(d => d >= rangeStart && d <= rangeEnd);
-    let clearDays = 0;
-    let cloudyDays = 0;
-    let foggyDays = 0;
-    let analyzedInRange = 0;
+  const analyzedDaysCount = availableDates.length - unanalyzedDates.length;
 
-    datesInRange.forEach(d => {
-      const res = analysisResults[d];
-      if (!isDayAnalyzed7Slots(res)) return;
-      analyzedInRange++;
-      const evalRes = evaluateDailyCameraVisibility(res);
-      if (evalRes.mountainCategory === 'clear') clearDays++;
-      else if (evalRes.mountainCategory === 'foggy') foggyDays++;
-      else if (evalRes.mountainCategory === 'cloudy') cloudyDays++;
-    });
+  // 前の日・次の日ナビゲーション用
+  const currentIdx = availableDates.indexOf(selectedDate);
+  const prevDate = currentIdx > 0 ? availableDates[currentIdx - 1] : null;
+  const nextDate = currentIdx >= 0 && currentIdx < availableDates.length - 1 ? availableDates[currentIdx + 1] : null;
 
-    return {
-      totalInRange: datesInRange.length,
-      analyzedInRange,
-      clearDays,
-      cloudyDays,
-      foggyDays,
-    };
-  }, [availableDates, rangeStart, rangeEnd, analysisResults]);
-
+  // 1. まず GitHub Pages CDN (最新画像) から取得し、失敗時のみローカルへフォールバック
   const fetchAsBase64 = async (
-    url: string
+    relPath: string
   ): Promise<{ fileName: string; data: string; mimeType: string; isMissing: boolean }> => {
-    const fileName = url.split('/').pop() || '';
+    const fileName = relPath.split('/').pop() || '';
+    const cdnUrl = getCamImageUrl(relPath);
     try {
-      let res = await fetch(url);
+      let res = await fetch(cdnUrl);
       let blob = res.ok ? await res.blob() : null;
       if (!res.ok || !blob || blob.type.includes('html')) {
-        // GitHub Pages CDN (リアルタイム自動キャプチャ保存先) へフォールバック
-        const cdnUrl = getCamImageUrl(url);
-        res = await fetch(cdnUrl);
+        res = await fetch(relPath);
         if (!res.ok) {
           return { fileName, data: '', mimeType: '', isMissing: true };
         }
@@ -276,7 +286,7 @@ export const LiveCamPoCPanel: React.FC = () => {
           summit_visible: false,
           cloud_cover: -1,
           visibility: 'missing',
-          reason: '画像取得エラーのため解析スキップ',
+          reason: '画像未記録のため解析スキップ',
           status: 'missing',
         });
       });
@@ -298,7 +308,6 @@ export const LiveCamPoCPanel: React.FC = () => {
       parts.push({ inlineData: { mimeType: img.mimeType, data: img.data } });
     }
 
-    // 選択されたモデルを先頭に、フォールバック候補を並べる
     const fallbackChain = [
       selectedModel,
       ...CAMERA_MODELS.map(m => m.id).filter(id => id !== selectedModel),
@@ -359,7 +368,6 @@ export const LiveCamPoCPanel: React.FC = () => {
         const cleanText = rawText.replace(/```json|```/g, '').trim();
         const resultJson: ImageAnalysis[] = JSON.parse(cleanText);
 
-        // 二重ロック補正（山頂が見えないのにclearにした場合や、山全体が雲に隠れているのにcloudyにした場合を厳格補正）
         for (const res of resultJson) {
           if (res.summit_visible === false && res.visibility === 'clear') {
             res.visibility = 'cloudy';
@@ -408,9 +416,9 @@ export const LiveCamPoCPanel: React.FC = () => {
       const { results, usedModel } = await analyzeSingleDateCore(selectedDate);
       const cloudOk = await saveDateResults(selectedDate, results);
       setStatusMsg(
-        `✅ ${selectedDate} の7時間帯（21枚）雲量・山頂視界解析が完了し、${
-          cloudOk ? 'クラウド(Firestore)へ自動永久保存されました！' : 'ローカルキャッシュへ保存されました。'
-        }（使用モデル: ${usedModel}）`
+        `✅ ${selectedDate} の山頂視界・雲量解析（7時間帯・21枚）が完了し、${
+          cloudOk ? 'クラウドへ自動保存されました！' : 'ローカルへ保存されました。'
+        }（モデル: ${usedModel}）`
       );
     } catch (err: any) {
       setErrorMsg(err.message);
@@ -419,20 +427,10 @@ export const LiveCamPoCPanel: React.FC = () => {
     }
   };
 
-  // 範囲一括連続解析の実行
-  const runRangeBatchAnalysis = async () => {
-    if (rangeStart > rangeEnd) {
-      setErrorMsg('開始日は終了日以前の日付を指定してください。');
-      return;
-    }
-
-    const candidates = availableDates.filter(d => d >= rangeStart && d <= rangeEnd);
-    const targetList = overwriteExisting
-      ? candidates
-      : candidates.filter(d => !isDayAnalyzed7Slots(analysisResultsRef.current[d]));
-
+  // 共通バッチ解析ランナー
+  const executeBatchList = async (targetList: string[]) => {
     if (targetList.length === 0) {
-      setStatusMsg('指定範囲内の日付はすべて7回フォーマットで解析済みです。再解析する場合は「解析済みの日も新ルールで上書き再解析する」にチェックを入れてください。');
+      setStatusMsg('対象となる未解析の日付はありません。');
       return;
     }
 
@@ -446,7 +444,7 @@ export const LiveCamPoCPanel: React.FC = () => {
     try {
       for (let i = 0; i < targetList.length; i++) {
         if (stopRequestedRef.current) {
-          setStatusMsg(`⏸️ ユーザー操作により一括解析を中断しました。（${completedCount} / ${targetList.length} 日完了・クラウド自動保存済）`);
+          setStatusMsg(`⏸️ 一括解析を中断しました。（${completedCount} / ${targetList.length} 日完了・クラウド保存済）`);
           break;
         }
 
@@ -470,17 +468,16 @@ export const LiveCamPoCPanel: React.FC = () => {
           activeModel: usedModel,
         });
 
-        // 次の日がある場合は15 RPM制限（1分15回＝4秒/回）を守るため 4.2秒待機
         if (i < targetList.length - 1 && !stopRequestedRef.current) {
           await new Promise(r => setTimeout(r, 4200));
         }
       }
 
       if (!stopRequestedRef.current) {
-        setStatusMsg(`🎉 指定範囲（${completedCount}日間・各日7回21枚）の一括AI解析が完了し、すべてクラウド(Firestore)へ自動永久保存されました！`);
+        setStatusMsg(`🎉 ${completedCount}日分の一括AI解析が完了し、すべてクラウド(Firestore)へ自動保存されました！`);
       }
     } catch (err: any) {
-      setErrorMsg(`一括解析中にエラーが発生しました (${completedCount}日完了時点・完了分はクラウド自動保存済): ${err.message}`);
+      setErrorMsg(`一括解析中にエラーが発生しました (${completedCount}日完了時点・完了分は保存済): ${err.message}`);
     } finally {
       setIsAnalyzing(false);
       setBatchProgress(null);
@@ -488,11 +485,34 @@ export const LiveCamPoCPanel: React.FC = () => {
     }
   };
 
+  // ワンクリック：未解析の日だけを自動抽出して一括解析
+  const runUnanalyzedBatch = () => {
+    executeBatchList(unanalyzedDates);
+  };
+
+  // 詳細設定用：指定した期間の一括解析
+  const runCustomRangeBatch = () => {
+    if (rangeStart > rangeEnd) {
+      setErrorMsg('開始日は終了日以前の日付を指定してください。');
+      return;
+    }
+    const candidates = availableDates.filter(d => d >= rangeStart && d <= rangeEnd);
+    const targetList = overwriteExisting
+      ? candidates
+      : candidates.filter(d => !isDayAnalyzed7Slots(analysisResultsRef.current[d]));
+
+    if (targetList.length === 0) {
+      setStatusMsg('指定範囲内の日付はすべて解析済みです。再解析する場合は「解析済みの日も上書き再解析する」にチェックを入れてください。');
+      return;
+    }
+    executeBatchList(targetList);
+  };
+
   // 全解析データの完全クリア
   const handleClearAllAnalysis = async () => {
     if (
       !window.confirm(
-        '現在保持しているすべての雲量・視界解析データ（クラウド保存分含む）をクリア（初期化）しますか？\nクリア後、新しい7時間帯（21枚）高精度プロンプトで再解析できます。'
+        '現在保持しているすべての雲量・視界解析データ（クラウド保存分含む）を初期化しますか？'
       )
     ) {
       return;
@@ -515,13 +535,7 @@ export const LiveCamPoCPanel: React.FC = () => {
     a.download = 'analysis_results.json';
     a.click();
     URL.revokeObjectURL(url);
-    setStatusMsg('💾 バックアップ用 analysis_results.json をダウンロードしました。（※普段の運用はクラウド自動保存だけで完結します）');
-  };
-
-  const applyQuickRange = (start: string, end: string) => {
-    setRangeStart(start);
-    setRangeEnd(end);
-    setSelectedDate(start);
+    setStatusMsg('💾 バックアップ用 analysis_results.json をダウンロードしました。');
   };
 
   const getVisibilityBadge = (vis: string, summitVisible?: boolean) => {
@@ -532,13 +546,13 @@ export const LiveCamPoCPanel: React.FC = () => {
             style={{
               backgroundColor: '#10b981',
               color: '#fff',
-              padding: '0.2rem 0.5rem',
+              padding: '0.18rem 0.5rem',
               borderRadius: '4px',
-              fontSize: '0.75rem',
+              fontSize: '0.74rem',
               fontWeight: 'bold',
             }}
           >
-            🏔️ 山頂快晴 (Clear)
+            🏔️ 山頂快晴
           </span>
         );
       case 'cloudy':
@@ -547,13 +561,13 @@ export const LiveCamPoCPanel: React.FC = () => {
             style={{
               backgroundColor: '#64748b',
               color: '#fff',
-              padding: '0.2rem 0.5rem',
+              padding: '0.18rem 0.5rem',
               borderRadius: '4px',
-              fontSize: '0.75rem',
+              fontSize: '0.74rem',
               fontWeight: 'bold',
             }}
           >
-            ☁️ {summitVisible === false ? '山頂雲隠れ' : '曇り'} (Cloudy)
+            ☁️ {summitVisible === false ? '山頂雲隠れ' : '曇り'}
           </span>
         );
       case 'foggy':
@@ -562,28 +576,28 @@ export const LiveCamPoCPanel: React.FC = () => {
             style={{
               backgroundColor: '#cbd5e1',
               color: '#334155',
-              padding: '0.2rem 0.5rem',
+              padding: '0.18rem 0.5rem',
               borderRadius: '4px',
-              fontSize: '0.75rem',
+              fontSize: '0.74rem',
               fontWeight: 'bold',
             }}
           >
-            🌫️ 山体ガス・不可視 (Foggy)
+            🌫️ 山体ガス・不可視
           </span>
         );
       case 'missing':
         return (
           <span
             style={{
-              backgroundColor: '#f87171',
-              color: '#fff',
-              padding: '0.2rem 0.5rem',
+              backgroundColor: 'rgba(148, 163, 184, 0.25)',
+              color: 'var(--text-secondary)',
+              padding: '0.18rem 0.5rem',
               borderRadius: '4px',
-              fontSize: '0.75rem',
+              fontSize: '0.72rem',
               fontWeight: 'bold',
             }}
           >
-            カメラ未記録
+            未記録
           </span>
         );
       default:
@@ -591,14 +605,22 @@ export const LiveCamPoCPanel: React.FC = () => {
     }
   };
 
+  // 未解析日の範囲テキスト（例: "10/27 〜 10/28" または "10/28"）
+  const unanalyzedRangeLabel = useMemo(() => {
+    if (unanalyzedDates.length === 0) return '';
+    const first = unanalyzedDates[0].slice(5).replace('-', '/');
+    const last = unanalyzedDates[unanalyzedDates.length - 1].slice(5).replace('-', '/');
+    return first === last ? first : `${first}〜${last}`;
+  }, [unanalyzedDates]);
+
   return (
     <div className="card" style={{ borderTop: '4px solid #3b82f6', marginBottom: '2rem' }}>
-      {/* ヘッダー＆全体ステータス・クリア・JSON保存ボタン */}
+      {/* ===== 1. シンプル＆クリーンなヘッダー ＋ 未解析ワンクリックバー ===== */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
+          alignItems: 'center',
           flexWrap: 'wrap',
           gap: '1rem',
           marginBottom: '1.25rem',
@@ -606,459 +628,342 @@ export const LiveCamPoCPanel: React.FC = () => {
           borderBottom: '1px solid var(--border-color)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <div style={{ backgroundColor: '#3b82f6', color: '#fff', padding: '0.5rem', borderRadius: '0.6rem', display: 'flex' }}>
-            <Database size={24} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6, #10b981)',
+              color: '#fff',
+              padding: '0.55rem',
+              borderRadius: '0.65rem',
+              display: 'flex',
+            }}
+          >
+            <Sparkles size={22} />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <h3 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                🏔️ 山頂視界・雲量AI 一括解析マネージャー [管理者専用]
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                🏔️ 山頂視界・雲量AI 解析ビューア＆マネージャー
               </h3>
               <span
                 style={{
                   fontSize: '0.78rem',
                   fontWeight: 700,
-                  padding: '0.2rem 0.6rem',
+                  padding: '0.2rem 0.65rem',
                   borderRadius: '999px',
                   backgroundColor: 'rgba(16, 185, 129, 0.15)',
                   color: '#10b981',
                 }}
               >
-                2時間おき7回(21枚)厳格判定 ({analyzedDaysCount} / {availableDates.length}日 解析済)
+                解析済: {analyzedDaysCount} / {availableDates.length}日
               </span>
               <span
                 style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  padding: '0.2rem 0.6rem',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  padding: '0.2rem 0.55rem',
                   borderRadius: '999px',
-                  backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
                   color: '#2563eb',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.3rem',
+                  gap: '0.25rem',
                 }}
               >
-                <Cloud size={13} />
-                {isSyncingCloud ? 'クラウド自動保存中...' : 'クラウド自動永久保存 ON (保存操作不要)'}
+                <Cloud size={12} />
+                {isSyncingCloud ? 'クラウド保存中...' : 'クラウド自動保存 ON'}
               </span>
             </div>
-            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-              05・07・09・11・13・15・17時の計7回（21枚/日）を一括解析し、完了と同時にCloud Firestoreへ自動永久保存します（別タブや別端末でも消えません）。
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+              1日7回（05〜17時の2時間おき・3地点計21枚）のカメラ画像から、山頂の露出状況と雲量をAI判定します。
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-          <button
-            onClick={handleExportJson}
-            disabled={isAnalyzing || Object.keys(analysisResults).length === 0}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.5rem 0.9rem',
-              borderRadius: '8px',
-              border: '1px solid #10b981',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              color: '#10b981',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              cursor: isAnalyzing ? 'not-allowed' : 'pointer',
-            }}
-            title="バックアップとして analysis_results.json をダウンロードします"
-          >
-            <Download size={16} />
-            <span>バックアップJSON出力</span>
-          </button>
-
-          <button
-            onClick={handleClearAllAnalysis}
-            disabled={isAnalyzing}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.5rem 0.9rem',
-              borderRadius: '8px',
-              border: '1px solid #ef4444',
-              backgroundColor: 'rgba(239, 68, 68, 0.08)',
-              color: '#ef4444',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              cursor: isAnalyzing ? 'not-allowed' : 'pointer',
-            }}
-          >
-            <Trash2 size={16} />
-            <span>既存データを全クリア</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 1. 期間（範囲）一括解析パネル */}
-      <div
-        style={{
-          padding: '1.25rem',
-          backgroundColor: 'var(--bg-secondary)',
-          borderRadius: '12px',
-          border: '1px solid var(--border-color)',
-          marginBottom: '1.25rem',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-            marginBottom: '0.85rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem' }}>
-            <Calendar size={18} style={{ color: '#3b82f6' }} />
-            <span>📅 期間（範囲）選択・一括連続バッチ解析</span>
-          </div>
-
-          {/* 使用モデル選択 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
-            <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>使用AIモデル:</span>
-            <select
-              value={selectedModel}
-              onChange={e => setSelectedModel(e.target.value)}
-              disabled={isAnalyzing}
-              style={{
-                padding: '0.35rem 0.6rem',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-primary)',
-                color: 'var(--text-primary)',
-                fontWeight: 700,
-                fontSize: '0.82rem',
-              }}
-            >
-              {CAMERA_MODELS.map(m => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* クイック期間選択ボタン群 */}
-        <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.85rem' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', alignSelf: 'center', marginRight: '0.25rem' }}>
-            クイック範囲選択:
-          </span>
-          {[
-            { label: '7月後半 (7/28〜7/31)', start: '2026-07-28', end: '2026-07-31' },
-            { label: '8月前半 (8/1〜8/15)', start: '2026-08-01', end: '2026-08-15' },
-            { label: '8月後半 (8/16〜8/31)', start: '2026-08-16', end: '2026-08-31' },
-            { label: '8月すべて (31日間)', start: '2026-08-01', end: '2026-08-31' },
-            { label: '9月すべて (30日間)', start: '2026-09-01', end: '2026-09-30' },
-            { label: `10月 (10/1〜${latestEndDate.slice(5).replace('-', '/')})`, start: '2026-10-01', end: latestEndDate },
-            { label: `未解析分 (10/20〜${latestEndDate.slice(5).replace('-', '/')})`, start: '2026-10-20', end: latestEndDate },
-            { label: `全期間 (7/28〜${latestEndDate.slice(5).replace('-', '/')}・計${availableDates.length}日)`, start: '2026-07-28', end: latestEndDate },
-          ].map(q => {
-            const isSelected = rangeStart === q.start && rangeEnd === q.end;
-            return (
+        {/* 右側：未解析分のワンクリック実行ボタン ＆ 詳細設定トグル */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          {!isAnalyzing ? (
+            unanalyzedDates.length > 0 ? (
               <button
-                key={q.label}
-                onClick={() => applyQuickRange(q.start, q.end)}
-                disabled={isAnalyzing}
-                style={{
-                  padding: '0.35rem 0.7rem',
-                  borderRadius: '999px',
-                  border: isSelected ? '1px solid #3b82f6' : '1px solid var(--border-color)',
-                  backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-primary)',
-                  color: isSelected ? '#3b82f6' : 'var(--text-primary)',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  cursor: isAnalyzing ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {q.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 開始日〜終了日 ＆ 実行ボタン */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, marginRight: '0.35rem' }}>開始日:</label>
-              <select
-                value={rangeStart}
-                onChange={e => setRangeStart(e.target.value)}
-                disabled={isAnalyzing}
-                style={{
-                  padding: '0.4rem 0.6rem',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-primary)',
-                  color: 'var(--text-primary)',
-                  fontWeight: 600,
-                }}
-              >
-                {availableDates.map(d => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <span>〜</span>
-            <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, marginRight: '0.35rem' }}>終了日:</label>
-              <select
-                value={rangeEnd}
-                onChange={e => setRangeEnd(e.target.value)}
-                disabled={isAnalyzing}
-                style={{
-                  padding: '0.4rem 0.6rem',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-primary)',
-                  color: 'var(--text-primary)',
-                  fontWeight: 600,
-                }}
-              >
-                {availableDates.map(d => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                marginLeft: '0.5rem',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={overwriteExisting}
-                onChange={e => setOverwriteExisting(e.target.checked)}
-                disabled={isAnalyzing}
-              />
-              <span>解析済みの日も強制上書き再解析する</span>
-            </label>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {!isAnalyzing ? (
-              <button
-                onClick={runRangeBatchAnalysis}
+                onClick={runUnanalyzedBatch}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.45rem',
-                  padding: '0.6rem 1.25rem',
-                  borderRadius: '8px',
+                  padding: '0.6rem 1.15rem',
+                  borderRadius: '10px',
                   border: 'none',
                   background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
                   color: '#fff',
                   fontWeight: 800,
-                  fontSize: '0.9rem',
+                  fontSize: '0.88rem',
                   cursor: 'pointer',
                   boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35)',
                 }}
               >
                 <Play size={16} />
                 <span>
-                  選択範囲を一括解析 ({rangeStart.slice(5)}〜{rangeEnd.slice(5)} / {rangeSummary.totalInRange}日分)
+                  未解析分をまとめて解析 ({unanalyzedRangeLabel}・{unanalyzedDates.length}日分)
                 </span>
               </button>
             ) : (
-              <button
-                onClick={() => {
-                  stopRequestedRef.current = true;
-                }}
+              <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.45rem',
-                  padding: '0.6rem 1.25rem',
-                  borderRadius: '8px',
-                  border: 'none',
-                  backgroundColor: '#ef4444',
-                  color: '#fff',
-                  fontWeight: 800,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
+                  gap: '0.4rem',
+                  padding: '0.5rem 0.95rem',
+                  borderRadius: '10px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  color: '#059669',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
                 }}
               >
-                <Square size={16} />
-                <span>一括解析を安全に中断する</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* 選択範囲の山頂視界サマリーバー */}
-        <div
-          style={{
-            marginTop: '0.9rem',
-            paddingTop: '0.75rem',
-            borderTop: '1px solid var(--border-color)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '1.25rem',
-            fontSize: '0.82rem',
-            alignItems: 'center',
-          }}
-        >
-          <span style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>
-            📊 選択範囲 ({rangeStart} 〜 {rangeEnd}) の集計:
-          </span>
-          <span>
-            解析済: <strong>{rangeSummary.analyzedInRange}</strong> / {rangeSummary.totalInRange} 日
-          </span>
-          <span style={{ color: '#10b981', fontWeight: 700 }}>
-            🏔️ 山頂快晴(Clear): {rangeSummary.clearDays}日
-          </span>
-          <span style={{ color: '#64748b', fontWeight: 700 }}>
-            ☁️ 山頂雲隠れ・曇(Cloudy): {rangeSummary.cloudyDays}日
-          </span>
-          <span style={{ color: '#94a3b8', fontWeight: 700 }}>
-            🌫️ 山体ガス・不可視(Foggy): {rangeSummary.foggyDays}日
-          </span>
-        </div>
-
-        {/* 一括解析中の進捗バー */}
-        {batchProgress && (
-          <div
-            style={{
-              marginTop: '1rem',
-              padding: '0.85rem 1rem',
-              backgroundColor: 'var(--bg-primary)',
-              borderRadius: '8px',
-              border: '1px solid #3b82f6',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 700 }}>
-              <span style={{ color: '#3b82f6' }}>
-                🔄 一括解析中: {batchProgress.currentDate} を処理しています... (モデル: {batchProgress.activeModel})
-              </span>
-              <span>
-                {batchProgress.current} / {batchProgress.total} 日 ({Math.round((batchProgress.current / batchProgress.total) * 100)}%)
-              </span>
-            </div>
-            <div style={{ width: '100%', height: '10px', backgroundColor: 'var(--border-color)', borderRadius: '999px', overflow: 'hidden' }}>
-              <div
-                style={{
-                  width: `${Math.round((batchProgress.current / batchProgress.total) * 100)}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #3b82f6, #10b981)',
-                  transition: 'width 0.3s ease',
-                }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 2. 個別日インスペクター＆単日解析バー */}
-      <div
-        style={{
-          padding: '0.9rem 1.1rem',
-          backgroundColor: 'var(--bg-secondary)',
-          borderRadius: '10px',
-          marginBottom: '1.25rem',
-          display: 'flex',
-          gap: '1rem',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Eye size={17} style={{ color: 'var(--accent-primary)' }} />
-            <label style={{ fontSize: '0.88rem', fontWeight: 800 }}>表示・個別解析する日:</label>
-          </div>
-          <select
-            value={selectedDate}
-            onChange={e => setSelectedDate(e.target.value)}
-            disabled={isAnalyzing}
-            style={{
-              padding: '0.45rem 0.75rem',
-              borderRadius: '6px',
-              border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              fontWeight: 700,
-            }}
-          >
-            {availableDates.map(d => {
-              const hasOk = isDayAnalyzed7Slots(analysisResults[d]);
-              return (
-                <option key={d} value={d}>
-                  {d} {hasOk ? '✓ 解析済(7回)' : '（未解析）'}
-                </option>
-              );
-            })}
-          </select>
+                <CheckCircle2 size={16} />
+                <span>最新日まで全日程の解析完了</span>
+              </div>
+            )
+          ) : (
+            <button
+              onClick={() => {
+                stopRequestedRef.current = true;
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.6rem 1.15rem',
+                borderRadius: '10px',
+                border: 'none',
+                backgroundColor: '#ef4444',
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+              }}
+            >
+              <Square size={16} />
+              <span>解析を安全に中断する</span>
+            </button>
+          )}
 
           <button
-            onClick={runSingleDayAnalysis}
-            disabled={isAnalyzing}
+            onClick={() => setShowAdvanced(!showAdvanced)}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.45rem 0.95rem',
+              gap: '0.35rem',
+              padding: '0.55rem 0.85rem',
               borderRadius: '8px',
-              border: '1px solid #3b82f6',
-              backgroundColor: 'var(--bg-primary)',
-              color: '#3b82f6',
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              cursor: isAnalyzing ? 'wait' : 'pointer',
-              opacity: isAnalyzing ? 0.6 : 1,
+              border: showAdvanced ? '1px solid #3b82f6' : '1px solid var(--border-color)',
+              backgroundColor: showAdvanced ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg-secondary)',
+              color: showAdvanced ? '#3b82f6' : 'var(--text-secondary)',
+              fontWeight: 600,
+              fontSize: '0.82rem',
+              cursor: 'pointer',
             }}
+            title="期間を指定した再解析やバックアップ出力・モデル設定を開きます"
           >
-            <RefreshCw size={15} className={isAnalyzing && !batchProgress ? 'animate-spin' : ''} />
-            <span>この1日だけ解析 (7回・21枚)</span>
+            <SlidersHorizontal size={15} />
+            <span>{showAdvanced ? '詳細設定を閉じる' : '詳細・期間指定'}</span>
           </button>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {isDayAnalyzed7Slots(currentResults) ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem' }}>
-              <span style={{ color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <CheckCircle2 size={16} /> 解析済 (クラウド同期済)
-              </span>
-              <span>|</span>
-              <span>
-                1日総合判定:{' '}
-                <strong>
-                  {dailySummary.mountainCategory === 'clear'
-                    ? '🏔️ 山頂快晴'
-                    : dailySummary.mountainCategory === 'foggy'
-                    ? '🌫️ 終日ガス'
-                    : '☁️ 曇り・山頂雲隠れ'}
-                </strong>
-              </span>
-              {dailySummary.avgCloudCover !== null && (
-                <span>(平均雲量: {dailySummary.avgCloudCover}/10)</span>
-              )}
-            </div>
-          ) : (
-            <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 'bold' }}>未解析</span>
-          )}
-        </div>
       </div>
+
+      {/* 一括解析中の進捗バー */}
+      {batchProgress && (
+        <div
+          style={{
+            marginBottom: '1.25rem',
+            padding: '0.85rem 1rem',
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: '10px',
+            border: '1px solid #3b82f6',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 700 }}>
+            <span style={{ color: '#3b82f6' }}>
+              🔄 一括解析中: {batchProgress.currentDate} を処理しています... (モデル: {batchProgress.activeModel})
+            </span>
+            <span>
+              {batchProgress.current} / {batchProgress.total} 日 ({Math.round((batchProgress.current / batchProgress.total) * 100)}%)
+            </span>
+          </div>
+          <div style={{ width: '100%', height: '10px', backgroundColor: 'var(--border-color)', borderRadius: '999px', overflow: 'hidden' }}>
+            <div
+              style={{
+                width: `${Math.round((batchProgress.current / batchProgress.total) * 100)}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #3b82f6, #10b981)',
+                transition: 'width 0.3s ease',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ===== 折りたたみ式：詳細設定（期間指定バッチ・AIモデル選択・JSONバックアップ・初期化） ===== */}
+      {showAdvanced && (
+        <div
+          style={{
+            padding: '1rem 1.25rem',
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: '10px',
+            border: '1px solid var(--border-color)',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.9rem',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 700, fontSize: '0.88rem' }}>
+              <Calendar size={16} style={{ color: '#3b82f6' }} />
+              <span>任意期間の再解析・詳細メンテナンス</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>使用AIモデル:</span>
+              <select
+                value={selectedModel}
+                onChange={e => setSelectedModel(e.target.value)}
+                disabled={isAnalyzing}
+                style={{
+                  padding: '0.3rem 0.55rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                }}
+              >
+                {CAMERA_MODELS.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.82rem' }}>
+              <label style={{ fontWeight: 600 }}>期間指定:</label>
+              <select
+                value={rangeStart}
+                onChange={e => setRangeStart(e.target.value)}
+                disabled={isAnalyzing}
+                style={{
+                  padding: '0.35rem 0.55rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                {availableDates.map(d => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+              <span>〜</span>
+              <select
+                value={rangeEnd}
+                onChange={e => setRangeEnd(e.target.value)}
+                disabled={isAnalyzing}
+                style={{
+                  padding: '0.35rem 0.55rem',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                {availableDates.map(d => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', marginLeft: '0.25rem' }}>
+                <input
+                  type="checkbox"
+                  checked={overwriteExisting}
+                  onChange={e => setOverwriteExisting(e.target.checked)}
+                  disabled={isAnalyzing}
+                />
+                <span>解析済みの日も上書き再解析する</span>
+              </label>
+
+              <button
+                onClick={runCustomRangeBatch}
+                disabled={isAnalyzing}
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  borderRadius: '6px',
+                  border: '1px solid #3b82f6',
+                  backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                  color: '#2563eb',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                }}
+              >
+                指定期間を実行
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleExportJson}
+                disabled={isAnalyzing || Object.keys(analysisResults).length === 0}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '6px',
+                  border: '1px solid #10b981',
+                  backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                  color: '#059669',
+                  fontWeight: 600,
+                  fontSize: '0.78rem',
+                  cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <Download size={14} />
+                <span>JSONバックアップ出力</span>
+              </button>
+
+              <button
+                onClick={handleClearAllAnalysis}
+                disabled={isAnalyzing}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  backgroundColor: 'transparent',
+                  color: '#ef4444',
+                  fontWeight: 600,
+                  fontSize: '0.78rem',
+                  cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <Trash2 size={14} />
+                <span>全解析データ初期化</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {statusMsg && (
         <div
@@ -1068,8 +973,8 @@ export const LiveCamPoCPanel: React.FC = () => {
             color: '#059669',
             border: '1px solid rgba(16, 185, 129, 0.3)',
             borderRadius: '8px',
-            marginBottom: '1.25rem',
-            fontSize: '0.88rem',
+            marginBottom: '1rem',
+            fontSize: '0.86rem',
             fontWeight: 600,
           }}
         >
@@ -1085,8 +990,8 @@ export const LiveCamPoCPanel: React.FC = () => {
             color: '#ef4444',
             border: '1px solid #f87171',
             borderRadius: '8px',
-            marginBottom: '1.25rem',
-            fontSize: '0.88rem',
+            marginBottom: '1rem',
+            fontSize: '0.86rem',
             fontWeight: 600,
           }}
         >
@@ -1094,192 +999,449 @@ export const LiveCamPoCPanel: React.FC = () => {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 1fr) 3fr', gap: '1.5rem' }}>
-        {/* 気象データ（マクロ）パネル */}
-        <div style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px', height: 'fit-content' }}>
-          <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Sun size={18} style={{ color: '#f59e0b' }} />
-            アメダス実測データ ({selectedDate})
-          </h4>
-          {currentWeather ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.88rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>最高 / 最低気温</span>
-                <strong>{currentWeather.tempMax}℃ / {currentWeather.tempMin}℃</strong>
+      {/* ===== 2. メイン操作：日付選択 ＆ 1日の総合判定・アメダスサマリーバー ===== */}
+      <div
+        style={{
+          padding: '1rem 1.25rem',
+          backgroundColor: 'var(--bg-secondary)',
+          borderRadius: '12px',
+          border: '1px solid var(--border-color)',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.9rem',
+        }}
+      >
+        {/* 上段：日付セレクター・前後日移動・単日再解析ボタン */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <Eye size={18} style={{ color: 'var(--accent-primary)' }} />
+            <span style={{ fontSize: '0.92rem', fontWeight: 800 }}>確認する日付:</span>
+
+            <button
+              onClick={() => prevDate && setSelectedDate(prevDate)}
+              disabled={!prevDate || isAnalyzing}
+              style={{
+                padding: '0.4rem 0.6rem',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                cursor: !prevDate || isAnalyzing ? 'not-allowed' : 'pointer',
+                opacity: !prevDate || isAnalyzing ? 0.4 : 1,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              title="前の日へ"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <select
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              disabled={isAnalyzing}
+              style={{
+                padding: '0.45rem 0.85rem',
+                borderRadius: '8px',
+                border: '2px solid #3b82f6',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                fontWeight: 800,
+                fontSize: '0.92rem',
+                cursor: 'pointer',
+              }}
+            >
+              {[...availableDates].reverse().map(d => {
+                const hasOk = isDayAnalyzed7Slots(analysisResults[d]);
+                return (
+                  <option key={d} value={d}>
+                    {d} {hasOk ? '✓ 解析済' : '（未解析）'}
+                  </option>
+                );
+              })}
+            </select>
+
+            <button
+              onClick={() => nextDate && setSelectedDate(nextDate)}
+              disabled={!nextDate || isAnalyzing}
+              style={{
+                padding: '0.4rem 0.6rem',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                cursor: !nextDate || isAnalyzing ? 'not-allowed' : 'pointer',
+                opacity: !nextDate || isAnalyzing ? 0.4 : 1,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              title="次の日へ"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {isDayAnalyzed7Slots(currentResults) ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem' }}>
+                <span style={{ color: '#10b981', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <CheckCircle2 size={16} /> 解析済
+                </span>
+                <span style={{ color: 'var(--border-color)' }}>|</span>
+                <span>
+                  1日総合判定:{' '}
+                  <strong>
+                    {dailySummary.mountainCategory === 'clear'
+                      ? '🏔️ 山頂快晴'
+                      : dailySummary.mountainCategory === 'foggy'
+                      ? '🌫️ 終日ガス'
+                      : '☁️ 曇り・山頂雲隠れ'}
+                  </strong>
+                </span>
+                {dailySummary.avgCloudCover !== null && (
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                    (平均雲量: {dailySummary.avgCloudCover}/10)
+                  </span>
+                )}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>日降水量 (最大)</span>
-                <strong style={{ color: currentWeather.precipitation > 0 ? '#3b82f6' : 'inherit' }}>
-                  {currentWeather.precipitation} mm
-                </strong>
-              </div>
-              {currentWeather.kutsugata && currentWeather.motodomari && (
-                <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-secondary)', padding: '0.45rem 0.6rem', borderRadius: '6px', lineHeight: 1.5 }}>
-                  <div>・<strong>本泊(北):</strong> 降水 {currentWeather.motodomari.precipitation}mm / 最高 {currentWeather.motodomari.tempMax}℃ / 風 {currentWeather.motodomari.windSpeedMax}m/s({currentWeather.motodomari.windDirectionText || getWindDirString(currentWeather.motodomari.windDirection)})</div>
-                  <div>・<strong>沓形(西):</strong> 降水 {currentWeather.kutsugata.precipitation}mm / 最高 {currentWeather.kutsugata.tempMax}℃ / 風 {currentWeather.kutsugata.windSpeedMax}m/s({currentWeather.kutsugata.windDirectionText || getWindDirString(currentWeather.kutsugata.windDirection)})</div>
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>最大風速</span>
-                <strong>{currentWeather.windSpeedMax} m/s</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>風向き</span>
-                <strong>
-                  {getWindDirString(currentWeather.windDirection)} ({currentWeather.windDirection}°)
-                </strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>日照時間 (沓形実測)</span>
-                <strong>{currentWeather.sunshineDuration ?? '-'} 時間</strong>
-              </div>
-            </div>
-          ) : (
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              {isLoadingWeather ? '読み込み中...' : 'データなし'}
-            </div>
-          )}
+            ) : (
+              <span style={{ fontSize: '0.85rem', color: '#f59e0b', fontWeight: 700 }}>⚠️ この日はまだAI解析されていません</span>
+            )}
+
+            <button
+              onClick={runSingleDayAnalysis}
+              disabled={isAnalyzing}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.42rem 0.85rem',
+                borderRadius: '8px',
+                border: '1px solid #3b82f6',
+                backgroundColor: 'var(--bg-primary)',
+                color: '#3b82f6',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: isAnalyzing ? 'wait' : 'pointer',
+                opacity: isAnalyzing ? 0.6 : 1,
+              }}
+            >
+              <RefreshCw size={14} className={isAnalyzing && !batchProgress ? 'animate-spin' : ''} />
+              <span>{isDayAnalyzed7Slots(currentResults) ? 'この日を再解析' : 'この日をAI解析する'}</span>
+            </button>
+          </div>
         </div>
 
-        {/* 画像＆解析結果（ミクロ）パネル */}
-        <div>
-          {TIMES.map(time => (
-            <div key={time} style={{ marginBottom: '2rem' }}>
-              <h5
+        {/* 下段：選択日のアメダス気象データ（横一列コンパクト表示） */}
+        <div
+          style={{
+            paddingTop: '0.75rem',
+            borderTop: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1.25rem',
+            fontSize: '0.84rem',
+          }}
+        >
+          <span style={{ fontWeight: 700, color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+            <Sun size={15} /> {selectedDate} アメダス気象:
+          </span>
+          {currentWeather ? (
+            <>
+              <span>
+                気温: <strong>{currentWeather.tempMax}℃</strong> / {currentWeather.tempMin}℃
+              </span>
+              <span>
+                日降水量: <strong style={{ color: currentWeather.precipitation > 0 ? '#3b82f6' : 'inherit' }}>{currentWeather.precipitation} mm</strong>
+              </span>
+              <span>
+                最大風速: <strong>{currentWeather.windSpeedMax} m/s</strong> ({getWindDirString(currentWeather.windDirection)})
+              </span>
+              <span>
+                日照(沓形): <strong>{currentWeather.sunshineDuration ?? '-'} h</strong>
+              </span>
+              {currentWeather.motodomari && currentWeather.kutsugata && (
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  [本泊: 降水{currentWeather.motodomari.precipitation}mm・風{currentWeather.motodomari.windSpeedMax}m/s / 沓形: 降水{currentWeather.kutsugata.precipitation}mm・風{currentWeather.kutsugata.windSpeedMax}m/s]
+                </span>
+              )}
+            </>
+          ) : (
+            <span style={{ color: 'var(--text-secondary)' }}>{isLoadingWeather ? '気象データ読込中...' : '気象データなし'}</span>
+          )}
+        </div>
+      </div>
+
+      {/* ===== 3. 時間帯別 カメラ画像＆AI判定一覧（7時間帯 × 3地点） ===== */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {TIMES.map(time => (
+          <div key={time}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '0.65rem',
+                paddingBottom: '0.35rem',
+                borderBottom: '2px solid var(--border-color)',
+              }}
+            >
+              <span
                 style={{
-                  fontSize: '1.05rem',
+                  backgroundColor: 'var(--accent-primary, #3b82f6)',
+                  color: '#fff',
                   fontWeight: 800,
-                  margin: '0 0 0.75rem 0',
-                  borderBottom: '2px solid var(--border-color)',
-                  paddingBottom: '0.3rem',
+                  fontSize: '0.85rem',
+                  padding: '0.15rem 0.6rem',
+                  borderRadius: '6px',
                 }}
               >
-                {time}:00 のカメラ状況 ({selectedDate})
-              </h5>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                {LOCATIONS.map(loc => {
-                  const fileName = `${time}_${loc.id}.jpg`;
-                  const imageUrl = `/cams/${selectedDate}/${fileName}`;
-                  const result = currentResults?.find(r => r.fileName === fileName);
-                  const isMissing = result?.status === 'missing' || result?.visibility === 'missing';
+                {time}:00
+              </span>
+              <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {selectedDate} {time}時台の山頂視界・カメラ画像
+              </span>
+            </div>
 
-                  return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+              {LOCATIONS.map(loc => {
+                const fileName = `${time}_${loc.id}.jpg`;
+                const relPath = `cams/${selectedDate}/${fileName}`;
+                const cdnUrl = getCamImageUrl(relPath);
+                const localUrl = `/${relPath}`;
+                const imgKey = `${selectedDate}_${fileName}`;
+                const isBroken = !!brokenImages[imgKey];
+
+                const result = currentResults?.find(r => r.fileName === fileName);
+                const isMissingResult = result?.status === 'missing' || result?.visibility === 'missing';
+
+                return (
+                  <div
+                    key={loc.id}
+                    style={{
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '10px',
+                      overflow: 'hidden',
+                      backgroundColor: 'var(--bg-primary)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    {/* カードヘッダー */}
                     <div
-                      key={loc.id}
                       style={{
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '6px',
-                        overflow: 'hidden',
-                        backgroundColor: 'var(--bg-primary)',
-                        opacity: isMissing ? 0.6 : 1,
+                        padding: '0.45rem 0.75rem',
+                        backgroundColor: 'var(--bg-secondary)',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        borderBottom: '1px solid var(--border-color)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
                       }}
                     >
-                      <div
-                        style={{
-                          padding: '0.4rem 0.6rem',
-                          backgroundColor: 'var(--bg-secondary)',
-                          fontWeight: 'bold',
-                          fontSize: '0.85rem',
-                          borderBottom: '1px solid var(--border-color)',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <span>{loc.name}</span>
-                        {result && !isMissing && result.summit_visible !== undefined && (
-                          <span
-                            style={{
-                              fontSize: '0.7rem',
-                              padding: '0.1rem 0.4rem',
-                              borderRadius: '4px',
-                              backgroundColor: result.summit_visible ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.2)',
-                              color: result.summit_visible ? '#059669' : 'var(--text-secondary)',
-                            }}
-                          >
-                            {result.summit_visible ? '山頂露出: ◯' : '山頂隠れ: ×'}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ position: 'relative', aspectRatio: '16/9', backgroundColor: '#000' }}>
-                        {!isMissing && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: loc.color,
+                            display: 'inline-block',
+                          }}
+                        />
+                        {loc.name}
+                      </span>
+                      {result && !isMissingResult && result.summit_visible !== undefined && (
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '4px',
+                            backgroundColor: result.summit_visible ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.2)',
+                            color: result.summit_visible ? '#059669' : 'var(--text-secondary)',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {result.summit_visible ? '山頂露出: ◯' : '山頂隠れ: ×'}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 画像表示エリア（GitHub Pages CDN優先 ➔ ローカルフォールバック ➔ 未記録時は明確なプレースホルダー） */}
+                    <div
+                      style={{
+                        position: 'relative',
+                        aspectRatio: '16/9',
+                        backgroundColor: isBroken ? 'var(--bg-secondary)' : '#0f172a',
+                        cursor: !isBroken ? 'pointer' : 'default',
+                        overflow: 'hidden',
+                      }}
+                      onClick={() => {
+                        if (!isBroken) {
+                          setModalImage({
+                            url: cdnUrl,
+                            title: `${loc.name} - ${selectedDate} ${time}:00`,
+                            sub: result?.reason,
+                          });
+                        }
+                      }}
+                    >
+                      {!isBroken ? (
+                        <>
                           <img
-                            src={imageUrl}
-                            alt={loc.name}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            src={cdnUrl}
+                            alt={`${loc.name} ${selectedDate} ${time}:00`}
+                            loading="lazy"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                             onError={e => {
                               const imgEl = e.currentTarget;
-                              const cdnUrl = getCamImageUrl(imageUrl);
-                              if (imgEl.src !== cdnUrl && !imgEl.dataset.triedCdn) {
-                                imgEl.dataset.triedCdn = 'true';
-                                imgEl.src = cdnUrl;
+                              if (!imgEl.dataset.triedLocal) {
+                                imgEl.dataset.triedLocal = 'true';
+                                imgEl.src = localUrl;
                               } else {
-                                imgEl.style.display = 'none';
+                                setBrokenImages(prev => ({ ...prev, [imgKey]: true }));
                               }
                             }}
                           />
-                        )}
-                      </div>
-                      <div style={{ padding: '0.6rem' }}>
-                        {result ? (
-                          isMissing ? (
-                            <div
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '0.4rem',
+                              right: '0.4rem',
+                              backgroundColor: 'rgba(0, 0, 0, 0.55)',
+                              color: '#fff',
+                              padding: '0.25rem',
+                              borderRadius: '4px',
+                              display: 'flex',
+                            }}
+                          >
+                            <Maximize2 size={13} />
+                          </div>
+                        </>
+                      ) : (
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--text-secondary)',
+                            gap: '0.35rem',
+                            padding: '0.75rem',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <VideoOff size={26} style={{ opacity: 0.45 }} />
+                          <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>この時間の記録画像はありません</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* AI解析結果フッター */}
+                    <div style={{ padding: '0.65rem 0.75rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      {result && !isMissingResult ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem' }}>
+                            {getVisibilityBadge(result.visibility, result.summit_visible)}
+                            <span
                               style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '0.4rem',
-                                alignItems: 'center',
-                                padding: '0.5rem 0',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: result.is_sunny ? '#f59e0b' : 'var(--text-secondary)',
                               }}
                             >
-                              {getVisibilityBadge('missing')}
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-                                画像取得エラーのため解析スキップ
-                              </div>
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem' }}>
-                                {getVisibilityBadge(result.visibility, result.summit_visible)}
-                                <span
-                                  style={{
-                                    fontSize: '0.75rem',
-                                    fontWeight: 'bold',
-                                    color: result.is_sunny ? '#f59e0b' : 'var(--text-secondary)',
-                                  }}
-                                >
-                                  {result.is_sunny ? '☀️ 日差し・青空' : '☁️ 日差しなし'}
-                                </span>
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: '0.75rem',
-                                  color: 'var(--text-secondary)',
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                }}
-                              >
-                                <span>空の雲量: {result.cloud_cover}/10</span>
-                              </div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-primary)', marginTop: '0.2rem', lineHeight: 1.35 }}>
-                                {result.reason}
-                              </div>
-                            </div>
-                          )
-                        ) : (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '1rem 0' }}>
-                            未解析
+                              {result.is_sunny ? '☀️ 日差し・青空' : '☁️ 日差しなし'} (雲量 {result.cloud_cover}/10)
+                            </span>
                           </div>
-                        )}
-                      </div>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-primary)', marginTop: '0.15rem', lineHeight: 1.4 }}>
+                            {result.reason}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          <span>{isBroken ? 'カメラ未記録のため解析対象外' : 'AI未解析（上の「この日をAI解析する」で判定可能）'}</span>
+                          {isMissingResult && getVisibilityBadge('missing')}
+                        </div>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
+
+      {/* 画像拡大モーダル */}
+      {modalImage && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.25rem',
+          }}
+          onClick={() => setModalImage(null)}
+        >
+          <div
+            style={{
+              maxWidth: '900px',
+              width: '100%',
+              backgroundColor: 'var(--bg-secondary)',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div
+              style={{
+                padding: '0.85rem 1.25rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid var(--border-color)',
+                fontWeight: 700,
+              }}
+            >
+              <span>{modalImage.title}</span>
+              <button
+                onClick={() => setModalImage(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div style={{ backgroundColor: '#000', display: 'flex', justifyContent: 'center' }}>
+              <img
+                src={modalImage.url}
+                alt={modalImage.title}
+                style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain' }}
+              />
+            </div>
+            {modalImage.sub && (
+              <div style={{ padding: '0.75rem 1.25rem', fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                🤖 <strong>AI判定理由:</strong> {modalImage.sub}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
