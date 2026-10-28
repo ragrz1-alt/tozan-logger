@@ -1,20 +1,41 @@
 {
-  "updatedAt": "2026-10-28T05:53:56.083Z",
+  "updatedAt": "2026-10-28T15:06:45.235499+09:00",
   "cameras": {
     "oshidomari": {
-      "name": "鴛泊（本泊）",
+      "name": "鴛泊（本泊・北）",
       "videoId": "bAWueJBFcT0",
-      "url": "https://www.youtube.com/watch?v=bAWueJBFcT0"
+      "url": "https://www.youtube.com/watch?v=bAWueJBFcT0",
+      "customThumbnail": false
+    },
+    "ferry": {
+      "name": "鴛泊港（フェリー・北）",
+      "videoId": "8BwfUCuPcVE",
+      "url": "https://www.youtube.com/watch?v=8BwfUCuPcVE",
+      "customThumbnail": true
+    },
+    "himenuma": {
+      "name": "姫沼（北東）",
+      "videoId": "wL2i45IZfvs",
+      "url": "https://www.youtube.com/watch?v=wL2i45IZfvs",
+      "customThumbnail": true
     },
     "kutsugata": {
-      "name": "沓形（沓形）",
+      "name": "沓形（西）",
       "videoId": "",
-      "url": "https://rishiri-town.jp/wp-content/themes/rishiri/images/MtRishiri/mt-rishiri.jpg"
+      "url": "https://rishiri-town.jp/wp-content/themes/rishiri/images/MtRishiri/mt-rishiri.jpg",
+      "customThumbnail": false
+    },
+    "otadomari": {
+      "name": "オタドマリ沼（南東）",
+      "videoId": "enBReBFAk7U",
+      "url": "https://www.youtube.com/watch?v=enBReBFAk7U",
+      "customThumbnail": true
     },
     "senposhi": {
-      "name": "仙法志（御崎）",
+      "name": "仙法志（御崎・南）",
       "videoId": "5BG3KJVFRVM",
-      "url": "https://www.youtube.com/watch?v=5BG3KJVFRVM"
+      "url": "https://www.youtube.com/watch?v=5BG3KJVFRVM",
+      "customThumbnail": false
     }
   },
   "records": {
@@ -13272,6 +13293,12 @@
         "kutsugata": "cams/2026-10-28/09_kutsugata.jpg",
         "oshidomari": "cams/2026-10-28/09_oshidomari.jpg",
         "senposhi": "cams/2026-10-28/09_senposhi.jpg"
+      },
+      "15": {
+        "timestamp": "2026-10-28T15:06:08.435826+09:00",
+        "oshidomari": "cams/2026-10-28/15_oshidomari.jpg",
+        "kutsugata": "cams/2026-10-28/15_kutsugata.jpg",
+        "senposhi": "cams/2026-10-28/15_senposhi.jpg"
       }
     }
   }
