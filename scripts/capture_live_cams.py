@@ -19,8 +19,11 @@ import json
 import subprocess
 import urllib.request
 import argparse
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
+
+PLAYWRIGHT_LOCK = threading.Lock()
 
 # 日本標準時 (JST)
 JST = timezone(timedelta(hours=9))
@@ -91,18 +94,46 @@ def is_within_seasonal_solar_hours(dt_jst):
 def ensure_compressed_image(image_path, max_bytes=58000):
     """
     保存された画像ファイルサイズを確認し、約58KB以下に高精細・軽量最適化する（無料枠6地点運用ガード）
+    Pillow (PIL) を最優先で使用し、どんなピクセルフォーマットの静止画でも100%確実にリサイズ・軽量化する
     """
     try:
         if not os.path.exists(image_path):
             return
         size = os.path.getsize(image_path)
+        if size <= max_bytes:
+            return
+
+        # 1. Pillow (PIL) による確実・高速なリサイズ＆JPEG圧縮
+        try:
+            from PIL import Image
+            with Image.open(image_path) as im:
+                im = im.convert("RGB")
+                w, h = im.size
+                if w > 800:
+                    new_h = int(h * (800.0 / w))
+                    im = im.resize((800, new_h), Image.Resampling.LANCZOS)
+                for q in [78, 68, 58, 48, 38]:
+                    tmp_path = image_path + ".pil.jpg"
+                    im.save(tmp_path, format="JPEG", quality=q, optimize=True)
+                    if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1000:
+                        tmp_size = os.path.getsize(tmp_path)
+                        os.replace(tmp_path, image_path)
+                        if tmp_size <= max_bytes or q == 38:
+                            print(f" -> [PIL容量最適化 q={q}] {size} bytes => {tmp_size} bytes")
+                            return
+                        size = tmp_size
+        except Exception as pil_err:
+            print(f"[DEBUG] PIL圧縮フォールバック: {pil_err}")
+
+        # 2. ffmpeg フォールバック (-vf scale=800:-2)
         if size > max_bytes:
             for q in [4, 6, 8, 10, 12]:
                 tmp_path = image_path + ".tmp.jpg"
                 cmd = [
                     "ffmpeg", "-y",
                     "-i", image_path,
-                    "-vf", "scale=800:-1",
+                    "-vf", "scale=800:-2",
+                    "-pix_fmt", "yuvj420p",
                     "-q:v", str(q),
                     tmp_path
                 ]
@@ -114,24 +145,6 @@ def ensure_compressed_image(image_path, max_bytes=58000):
                     size = tmp_size
                     if tmp_size <= max_bytes:
                         break
-            if size > max_bytes:
-                for w in [640, 560]:
-                    tmp_path = image_path + ".tmp.jpg"
-                    cmd = [
-                        "ffmpeg", "-y",
-                        "-i", image_path,
-                        "-vf", f"scale={w}:-1",
-                        "-q:v", "6",
-                        tmp_path
-                    ]
-                    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15)
-                    if res.returncode == 0 and os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 1000:
-                        tmp_size = os.path.getsize(tmp_path)
-                        os.replace(tmp_path, image_path)
-                        print(f" -> [解像度最適化 w={w}] {size} bytes => {tmp_size} bytes")
-                        size = tmp_size
-                        if tmp_size <= max_bytes:
-                            break
     except Exception as e:
         print(f"[WARN] 画像圧縮処理例外: {e}")
 
@@ -244,31 +257,33 @@ def capture_with_playwright_iframe(video_id, output_path):
     """
     カスタムサムネイル設定済みカメラ（およびクラウドIPでyt-dlpがブロックされた場合）向けに、
     Playwright 仮想ドメイン iframe 埋め込み + HTML5 <video> -> <canvas> から直接生フレームを抽出する
+    (2コアCI環境でのCPU競合を防ぐためロック制御で1ブラウザずつ安全に実行)
     """
-    try:
-        root_dir = get_project_root()
-        script_path = os.path.join(root_dir, "scripts", "capture_youtube_iframe.mjs")
-        if not os.path.exists(script_path):
+    with PLAYWRIGHT_LOCK:
+        try:
+            root_dir = get_project_root()
+            script_path = os.path.join(root_dir, "scripts", "capture_youtube_iframe.mjs")
+            if not os.path.exists(script_path):
+                return False
+            res = subprocess.run(
+                ["node", script_path, video_id, output_path],
+                cwd=root_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=55
+            )
+            if res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1500:
+                print(f" -> [PLAYWRIGHT_CANVAS] 仮想ドメインiframeから純粋ライブ映像抽出成功 ({os.path.getsize(output_path)} bytes)")
+                return True
+            else:
+                err_msg = (res.stderr or res.stdout or "").strip()
+                if err_msg:
+                    print(f" -> [PLAYWRIGHT_CANVAS WARN] {err_msg[:180]}")
             return False
-        res = subprocess.run(
-            ["node", script_path, video_id, output_path],
-            cwd=root_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=45
-        )
-        if res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1500:
-            print(f" -> [PLAYWRIGHT_CANVAS] 仮想ドメインiframeから純粋ライブ映像抽出成功 ({os.path.getsize(output_path)} bytes)")
-            return True
-        else:
-            err_msg = (res.stderr or res.stdout or "").strip()
-            if err_msg:
-                print(f" -> [PLAYWRIGHT_CANVAS WARN] {err_msg[:180]}")
-        return False
-    except Exception as e:
-        print(f"[WARN] Playwright iframe キャプチャ失敗 ({video_id}): {e}")
-        return False
+        except Exception as e:
+            print(f"[WARN] Playwright iframe キャプチャ失敗 ({video_id}): {e}")
+            return False
 
 def capture_stream_frame(video_url, output_path):
     if capture_with_ytdlp_url(video_url, output_path, "best[protocol^=m3u8]/301/300/96/95/94/93/best"):

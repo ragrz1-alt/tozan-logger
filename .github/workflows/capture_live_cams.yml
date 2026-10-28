@@ -31,10 +31,11 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies (yt-dlp, streamlink, npm packages)
+      - name: Install dependencies (yt-dlp, streamlink, Pillow, Playwright Chrome)
         run: |
-          pip install -U yt-dlp streamlink
+          pip install -U yt-dlp streamlink Pillow
           npm ci --prefer-offline --no-audit || npm install --no-audit
+          npx playwright install --with-deps chrome
 
       - name: Run live camera capture script (6 cameras + seasonal solar guard)
         run: |
