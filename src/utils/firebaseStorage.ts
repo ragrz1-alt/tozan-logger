@@ -7,6 +7,9 @@ import {
   setDoc,
   getDocs,
   deleteDoc,
+  query,
+  where,
+  documentId,
   type Firestore
 } from 'firebase/firestore';
 import type { LogEntry } from './logParser';
@@ -61,6 +64,27 @@ const getDB = (): Firestore | null => {
 };
 
 /**
+ * 登山ログ（YYYY-MM）ドキュメントのみをサーバー側で絞り込むクエリ。
+ * カメラAI解析ドキュメントやメタデータをダウンロード対象から除外します。
+ */
+const getLogDocsQuery = (db: Firestore) =>
+  query(
+    collection(db, COLLECTION_NAME),
+    where(documentId(), '>=', '0000'),
+    where(documentId(), '<=', '9999\uf8ff')
+  );
+
+/**
+ * カメラAI解析（camera_ai_*）ドキュメントのみをサーバー側で絞り込むクエリ。
+ */
+const getCameraAiDocsQuery = (db: Firestore) =>
+  query(
+    collection(db, COLLECTION_NAME),
+    where(documentId(), '>=', 'camera_ai_'),
+    where(documentId(), '<=', 'camera_ai_\uf8ff')
+  );
+
+/**
  * たった 1 Read で Cloud Firestore 上の最新データ保存状態（メタデータ）を確認します。
  * (更新日時 updatedAt や総件数 totalCount を取得し、キャッシュとの比較に用います)
  */
@@ -104,8 +128,8 @@ export const saveLogsToFirestore = async (entries: LogEntry[]): Promise<boolean>
       groupedByMonth[monthStr].push(entry);
     });
 
-    // ② Firestore上の現在のデータを一括取得 (メタデータ・カメラ解析データ以外)
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    // ② Firestore上の現在の月別ログドキュメントのみを取得 (メタデータ・カメラ解析ドキュメントはサーバー側で除外)
+    const querySnapshot = await getDocs(getLogDocsQuery(db));
     const existingDocsMap: Record<string, any> = {};
     querySnapshot.forEach(docSnap => {
       if (docSnap.id !== META_DOC_ID && !docSnap.id.startsWith('camera_ai_')) {
@@ -190,7 +214,7 @@ export const loadLogsFromFirestore = async (): Promise<LogEntry[]> => {
   }
 
   try {
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    const querySnapshot = await getDocs(getLogDocsQuery(db));
     let allEntries: LogEntry[] = [];
 
     querySnapshot.forEach(docSnap => {
@@ -230,14 +254,12 @@ export const clearLogsFromFirestore = async (): Promise<boolean> => {
   }
 
   try {
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    const querySnapshot = await getDocs(getLogDocsQuery(db));
     const docs = querySnapshot.docs;
 
-    // カメラ解析ドキュメントは残し、ログドキュメントのみ削除
+    // ログドキュメントのみ削除
     for (let i = 0; i < docs.length; i++) {
-      if (!docs[i].id.startsWith('camera_ai_')) {
-        await deleteDoc(docs[i].ref);
-      }
+      await deleteDoc(docs[i].ref);
     }
     return true;
   } catch (error) {
@@ -269,7 +291,7 @@ export const saveCameraAnalysisToFirestore = async (
     const isCleared = dates.length === 0;
 
     if (isCleared) {
-      const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+      const querySnapshot = await getDocs(getCameraAiDocsQuery(db));
       for (const docSnap of querySnapshot.docs) {
         if (docSnap.id.startsWith(CAMERA_MONTH_PREFIX) || docSnap.id === CAMERA_LEGACY_DOC_ID) {
           await deleteDoc(docSnap.ref);
@@ -294,8 +316,8 @@ export const saveCameraAnalysisToFirestore = async (
       groupedByMonth[monthStr][dateStr] = analysisMap[dateStr];
     }
 
-    // 既存の月別カメラドキュメントを取得して差分比較（不要なWriteクォータ消費を防止）
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    // 既存の月別カメラドキュメントのみを取得して差分比較（不要なRead/Writeクォータ消費を防止）
+    const querySnapshot = await getDocs(getCameraAiDocsQuery(db));
     const existingMonthDocs: Record<string, any> = {};
     querySnapshot.forEach(docSnap => {
       if (docSnap.id.startsWith(CAMERA_MONTH_PREFIX)) {
@@ -352,7 +374,7 @@ export const loadCameraAnalysisFromFirestore = async (): Promise<{
   if (!db) return null;
 
   try {
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    const querySnapshot = await getDocs(getCameraAiDocsQuery(db));
     let legacyRecords: Record<string, any[]> = {};
     const monthlyRecords: Record<string, any[]> = {};
     let metaCleared: boolean | null = null;

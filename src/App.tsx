@@ -1,27 +1,36 @@
-import { useState, useEffect, useMemo } from 'react';
-import { FileUploader } from './components/FileUploader';
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { Charts } from './components/Charts';
-import { DailyDetailView } from './components/DailyDetailView';
-import { LiveCamArchivePage } from './components/LiveCamArchivePage';
-import { LiveCamPoCPanel } from './components/LiveCamPoCPanel';
-import { RishiriNowPanel } from './components/RishiriNowPanel';
-import { StakeholderAnalytics } from './components/StakeholderAnalytics';
 import { parseLogFile, aggregateData, getDailyDetails, type LogEntry, type CourseId } from './utils/logParser';
 import { fetchWeatherData, fetchHourlyWeatherData, type WeatherData, type HourlyWeatherData } from './utils/weatherApi';
 import { saveLogsToDB, loadLogsFromDB, clearLogsFromDB } from './utils/storage';
 import { Trash2, Calendar as CalendarIcon, Cloud, CloudDownload, CloudUpload, Key, Database, Mountain, Compass, Layers, PlusCircle, X, Lock, Unlock, Eye, RefreshCw, Video, Info, BarChart3, Sparkles } from 'lucide-react';
-import { FirebaseModal } from './components/FirebaseModal';
-import { AdminModal } from './components/AdminModal';
-import { SystemInfoModal } from './components/SystemInfoModal';
 import { saveLogsToFirestore, loadLogsFromFirestore, checkCloudMetadata } from './utils/firebaseStorage';
 import { isFirebaseConfigured } from './config/firebaseConfig';
 import { YearlySummaryBanner } from './components/YearlySummaryBanner';
 import { MonthlySummaryBanner } from './components/MonthlySummaryBanner';
 import { useCameraAnalysis } from './hooks/useCameraAnalysis';
 
+// 初期バンドルサイズ削減のため、タブ・詳細・モーダル・アップローダーを遅延読み込み
+const FileUploader = lazy(() => import('./components/FileUploader').then(m => ({ default: m.FileUploader })));
+const DailyDetailView = lazy(() => import('./components/DailyDetailView').then(m => ({ default: m.DailyDetailView })));
+const LiveCamArchivePage = lazy(() => import('./components/LiveCamArchivePage').then(m => ({ default: m.LiveCamArchivePage })));
+const LiveCamPoCPanel = lazy(() => import('./components/LiveCamPoCPanel').then(m => ({ default: m.LiveCamPoCPanel })));
+const RishiriNowPanel = lazy(() => import('./components/RishiriNowPanel').then(m => ({ default: m.RishiriNowPanel })));
+const StakeholderAnalytics = lazy(() => import('./components/StakeholderAnalytics').then(m => ({ default: m.StakeholderAnalytics })));
+const FirebaseModal = lazy(() => import('./components/FirebaseModal').then(m => ({ default: m.FirebaseModal })));
+const AdminModal = lazy(() => import('./components/AdminModal').then(m => ({ default: m.AdminModal })));
+const SystemInfoModal = lazy(() => import('./components/SystemInfoModal').then(m => ({ default: m.SystemInfoModal })));
+
+const TabLoadingFallback = () => (
+  <div className="card" style={{ textAlign: 'center', padding: '2.5rem' }}>
+    <p style={{ fontSize: '1rem', color: 'var(--text-secondary)', margin: 0 }}>画面を読み込んでいます...</p>
+  </div>
+);
+
 function App() {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+  const localMutationVersionRef = useRef(0);
   const [selectedCourse, setSelectedCourse] = useState<CourseId | 'all' | 'cameras' | 'analytics' | 'poc' | 'now'>('oshidomari');
   const [showAddUploader, setShowAddUploader] = useState(false);
   const [showDataManagement, setShowDataManagement] = useState(false);
@@ -86,6 +95,7 @@ function App() {
       return;
     }
     if (window.confirm(`誤って読み込まれた ${targetYear} 年のすべてのログデータ (${targetCount}件) を削除しますか？\n（この操作は元に戻せません）`)) {
+      localMutationVersionRef.current += 1;
       const newEntries = entries.filter(e => !e.dateStr.startsWith(targetYear));
       setEntries(newEntries);
       saveLogsToDB(newEntries);
@@ -115,6 +125,7 @@ function App() {
       return;
     }
     if (window.confirm(`指定期間 (${cleanStartDate} 〜 ${cleanEndDate}) のログデータ (${targetCount}件) をすべて削除しますか？`)) {
+      localMutationVersionRef.current += 1;
       const newEntries = entries.filter(e => !(e.dateStr >= cleanStartDate && e.dateStr <= cleanEndDate));
       setEntries(newEntries);
       saveLogsToDB(newEntries);
@@ -157,6 +168,7 @@ function App() {
     const loaded = await loadLogsFromFirestore();
     setIsSyncing(false);
     if (loaded && loaded.length > 0) {
+      localMutationVersionRef.current += 1;
       setEntries(loaded);
       saveLogsToDB(loaded);
       setCloudMessage(`クラウドから ${loaded.length} 件のログを正常に読み込みました！`);
@@ -199,6 +211,7 @@ function App() {
       }
     });
 
+    localMutationVersionRef.current += 1;
     const allEntries = Array.from(uniqueMap.values());
     allEntries.sort((a, b) => a.timestamp - b.timestamp);
     setEntries(allEntries);
@@ -232,56 +245,75 @@ function App() {
   }, [entries, selectedCourse]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const syncCloudLogs = async (localSaved: LogEntry[]) => {
+      if (!isFirebaseConfigured()) return;
+      const startMutationVersion = localMutationVersionRef.current;
+      if (!cancelled) setIsSyncing(true);
+      try {
+        // 1 Read だけでクラウド上の最新保存情報（更新タイムスタンプ・総件数）を確認
+        const cloudMeta = await checkCloudMetadata();
+        if (cancelled) return;
+
+        const localUpdatedAt = Number(localStorage.getItem('tozan_cloud_updated_at') || 0);
+        const localTotalCount = Number(localStorage.getItem('tozan_cloud_total_count') || 0);
+
+        // 更新が必要な条件:
+        // 1. ローカルキャッシュが空
+        // 2. クラウドの更新日時(updatedAt)が手元のタイムスタンプより新しい
+        // 3. クラウドと手元で総件数が異なる
+        // 4. メタデータが存在しない旧バージョン保存データで、かつ件数が異なる
+        const needsFetch =
+          localSaved.length === 0 ||
+          (cloudMeta && cloudMeta.updatedAt > localUpdatedAt) ||
+          (cloudMeta && cloudMeta.totalCount !== localSaved.length) ||
+          (!cloudMeta && localSaved.length !== localTotalCount);
+
+        if (needsFetch) {
+          console.log('[Smart Sync] Newer cloud data detected (1 Read check). Updating local cache...');
+          const cloudData = await loadLogsFromFirestore();
+          if (cancelled || localMutationVersionRef.current !== startMutationVersion) return;
+
+          if (cloudData && cloudData.length > 0) {
+            setEntries(cloudData);
+            await saveLogsToDB(cloudData); // ローカルにもキャッシュ更新
+            if (!cancelled) {
+              setCloudMessage(`☁️ クラウドから最新データ (${cloudData.length}件) を自動読込・同期しました！`);
+              setTimeout(() => setCloudMessage(null), 6000);
+            }
+          }
+        } else {
+          console.log('[Smart Sync] Local cache is up-to-date (1 Read verified). No extra Read consumed.');
+        }
+      } catch (err) {
+        console.warn('Silent initial cloud fetch error:', err);
+      } finally {
+        if (!cancelled) setIsSyncing(false);
+      }
+    };
+
     const initLoad = async () => {
       setIsLoadingLogs(true);
-      let saved = await loadLogsFromDB();
-      let hasUpdatedFromCloud = false;
-
-      if (isFirebaseConfigured()) {
-        try {
-          // 1 Read だけでクラウド上の最新保存情報（更新タイムスタンプ・総件数）を確認
-          const cloudMeta = await checkCloudMetadata();
-          const localUpdatedAt = Number(localStorage.getItem('tozan_cloud_updated_at') || 0);
-          const localTotalCount = Number(localStorage.getItem('tozan_cloud_total_count') || 0);
-
-          // 更新が必要な条件:
-          // 1. ローカルキャッシュが空
-          // 2. クラウドの更新日時(updatedAt)が手元のタイムスタンプより新しい
-          // 3. クラウドと手元で総件数が異なる (2025-2026年のみ端末から全件データへ変わった場合など)
-          // 4. メタデータが存在しない旧バージョン保存データで、かつ件数が異なる
-          const needsFetch =
-            !saved ||
-            saved.length === 0 ||
-            (cloudMeta && cloudMeta.updatedAt > localUpdatedAt) ||
-            (cloudMeta && cloudMeta.totalCount !== saved.length) ||
-            (!cloudMeta && saved.length !== localTotalCount);
-
-          if (needsFetch) {
-            console.log('[Smart Sync] Newer cloud data detected (1 Read check). Updating local cache...');
-            const cloudData = await loadLogsFromFirestore();
-            if (cloudData && cloudData.length > 0) {
-              saved = cloudData;
-              await saveLogsToDB(cloudData); // ローカルにもキャッシュ更新
-              hasUpdatedFromCloud = true;
-            }
-          } else {
-            console.log('[Smart Sync] Local cache is up-to-date (1 Read verified). No extra Read consumed.');
-          }
-        } catch (err) {
-          console.warn('Silent initial cloud fetch error:', err);
-        }
-      }
+      const saved = await loadLogsFromDB();
+      if (cancelled) return;
 
       if (saved && saved.length > 0) {
+        // Stale-While-Revalidate: キャッシュがあれば即座に描画し、クラウド確認はバックグラウンドで実行
         setEntries(saved);
-        if (hasUpdatedFromCloud) {
-          setCloudMessage(`☁️ クラウドから最新データ (${saved.length}件) を自動読込・同期しました！`);
-          setTimeout(() => setCloudMessage(null), 6000);
-        }
+        setIsLoadingLogs(false);
+        void syncCloudLogs(saved);
+      } else {
+        // 初回アクセス等でキャッシュが空の場合のみクラウド取得を待つ
+        await syncCloudLogs([]);
+        if (!cancelled) setIsLoadingLogs(false);
       }
-      setIsLoadingLogs(false);
     };
+
     initLoad();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const availableYears = useMemo(() => {
@@ -690,280 +722,298 @@ function App() {
           </div>
         )}
 
-        <FirebaseModal 
-          isOpen={isFirebaseOpen} 
-          onClose={() => setIsFirebaseOpen(false)} 
-          onConfigUpdated={handleConfigUpdated}
-        />
+        <Suspense fallback={null}>
+          {isFirebaseOpen && (
+            <FirebaseModal 
+              isOpen={isFirebaseOpen} 
+              onClose={() => setIsFirebaseOpen(false)} 
+              onConfigUpdated={handleConfigUpdated}
+            />
+          )}
 
-        <AdminModal
-          isOpen={isAdminModalOpen}
-          onClose={() => setIsAdminModalOpen(false)}
-          isAdmin={isAdmin}
-          onUnlock={handleAdminUnlock}
-          onLock={handleAdminLock}
-        />
+          {isAdminModalOpen && (
+            <AdminModal
+              isOpen={isAdminModalOpen}
+              onClose={() => setIsAdminModalOpen(false)}
+              isAdmin={isAdmin}
+              onUnlock={handleAdminUnlock}
+              onLock={handleAdminLock}
+            />
+          )}
 
-        <SystemInfoModal
-          isOpen={isSystemInfoOpen}
-          onClose={() => setIsSystemInfoOpen(false)}
-        />
+          {isSystemInfoOpen && (
+            <SystemInfoModal
+              isOpen={isSystemInfoOpen}
+              onClose={() => setIsSystemInfoOpen(false)}
+            />
+          )}
+        </Suspense>
 
-        {isLoadingLogs ? (
-          <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-            <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)' }}>保存されたログデータを読み込んでいます...</p>
-          </div>
-        ) : entries.length === 0 ? (
-          isAdmin ? (
-            <FileUploader onFilesParsed={handleFilesParsed} />
-          ) : (
-            <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', maxWidth: '600px', margin: '2rem auto' }}>
-              <div style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                color: '#3b82f6',
+        {/* 2. プロフェッショナルでスタイリッシュなヘッダー下のメイン・コース選択セグメントバー（ログ読込中も非ブロックで表示） */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          marginBottom: '1.75rem' 
+        }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0.3rem',
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: '14px',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+            gap: '0.25rem',
+            flexWrap: 'wrap',
+            maxWidth: '100%'
+          }}>
+            <button
+              onClick={() => {
+                setSelectedCourse('now');
+                setSelectedDate(null);
+              }}
+              style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 1.5rem auto'
-              }}>
-                <Eye size={32} />
-              </div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
-                閲覧専用ダッシュボード (公開モード)
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: 1.6 }}>
-                現在表示できるログデータが保存されていません。<br />
-                管理者によってクラウドに同期された最新の解析結果を読み込むか、管理者モードにログインしてください。
-              </p>
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button
-                  onClick={handleLoadFromCloud}
-                  disabled={isSyncing}
-                  className="button button-primary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', fontWeight: 700 }}
-                >
-                  <RefreshCw size={18} className={isSyncing ? 'spin' : ''} />
-                  <span>{isSyncing ? 'クラウドを確認中...' : 'クラウドから最新データを読み込む'}</span>
-                </button>
-                <button
-                  onClick={() => setIsAdminModalOpen(true)}
-                  className="button button-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem' }}
-                >
-                  <Lock size={16} />
-                  <span>管理者ログイン (ログ追加・管理)</span>
-                </button>
-              </div>
-            </div>
-          )
-        ) : (
-          <>
-            {/* 2. プロが選ぶ最適配置: 画面中央上部のメイン・コース選択セグメントバー */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              marginBottom: '1.75rem' 
-            }}>
-              <div style={{
-                display: 'inline-flex',
+                gap: '0.35rem',
+                padding: '0.52rem 0.95rem',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                borderRadius: '10px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                backgroundColor: selectedCourse === 'now' ? '#f59e0b' : 'rgba(245, 158, 11, 0.1)',
+                color: selectedCourse === 'now' ? '#ffffff' : '#f59e0b',
+                boxShadow: selectedCourse === 'now' ? '0 4px 12px rgba(245, 158, 11, 0.4)' : 'none',
+                transition: 'all 0.2s ease',
+                marginRight: '0.25rem'
+              }}
+            >
+              <Cloud size={16} />
+              <span>🌤️ 利尻Now</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedCourse('oshidomari');
+                setSelectedDate(null);
+              }}
+              style={{
+                display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0.3rem',
-                backgroundColor: 'var(--bg-secondary)',
-                borderRadius: '14px',
-                border: '1px solid var(--border-color)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-                gap: '0.25rem',
-                flexWrap: 'wrap',
-                maxWidth: '100%'
-              }}>
-                <button
-                  onClick={() => {
-                    setSelectedCourse('now');
-                    setSelectedDate(null);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    padding: '0.52rem 0.95rem',
-                    fontWeight: 800,
-                    fontSize: '0.88rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    backgroundColor: selectedCourse === 'now' ? '#f59e0b' : 'rgba(245, 158, 11, 0.1)',
-                    color: selectedCourse === 'now' ? '#ffffff' : '#f59e0b',
-                    boxShadow: selectedCourse === 'now' ? '0 4px 12px rgba(245, 158, 11, 0.4)' : 'none',
-                    transition: 'all 0.2s ease',
-                    marginRight: '0.25rem'
-                  }}
-                >
-                  <Cloud size={16} />
-                  <span>🌤️ 利尻Now</span>
-                </button>
+                gap: '0.35rem',
+                padding: '0.52rem 0.9rem',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                borderRadius: '10px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                backgroundColor: selectedCourse === 'oshidomari' ? '#10b981' : 'transparent',
+                color: selectedCourse === 'oshidomari' ? '#ffffff' : 'var(--text-primary)',
+                boxShadow: selectedCourse === 'oshidomari' ? '0 2px 8px rgba(16, 185, 129, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Mountain size={16} />
+              <span>鴛泊コース</span>
+            </button>
 
-                <button
-                  onClick={() => {
-                    setSelectedCourse('oshidomari');
-                    setSelectedDate(null);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    padding: '0.52rem 0.9rem',
-                    fontWeight: 700,
-                    fontSize: '0.88rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    backgroundColor: selectedCourse === 'oshidomari' ? '#10b981' : 'transparent',
-                    color: selectedCourse === 'oshidomari' ? '#ffffff' : 'var(--text-primary)',
-                    boxShadow: selectedCourse === 'oshidomari' ? '0 2px 8px rgba(16, 185, 129, 0.35)' : 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <Mountain size={16} />
-                  <span>鴛泊コース</span>
-                </button>
+            <button
+              onClick={() => {
+                setSelectedCourse('kutsugata');
+                setSelectedDate(null);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.52rem 0.9rem',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                borderRadius: '10px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                backgroundColor: selectedCourse === 'kutsugata' ? '#3b82f6' : 'transparent',
+                color: selectedCourse === 'kutsugata' ? '#ffffff' : 'var(--text-primary)',
+                boxShadow: selectedCourse === 'kutsugata' ? '0 2px 8px rgba(59, 130, 246, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Compass size={16} />
+              <span>沓形コース</span>
+            </button>
 
-                <button
-                  onClick={() => {
-                    setSelectedCourse('kutsugata');
-                    setSelectedDate(null);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    padding: '0.52rem 0.9rem',
-                    fontWeight: 700,
-                    fontSize: '0.88rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    backgroundColor: selectedCourse === 'kutsugata' ? '#3b82f6' : 'transparent',
-                    color: selectedCourse === 'kutsugata' ? '#ffffff' : 'var(--text-primary)',
-                    boxShadow: selectedCourse === 'kutsugata' ? '0 2px 8px rgba(59, 130, 246, 0.35)' : 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <Compass size={16} />
-                  <span>沓形コース</span>
-                </button>
+            <button
+              onClick={() => {
+                setSelectedCourse('all');
+                setSelectedDate(null);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.52rem 0.9rem',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                borderRadius: '10px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                backgroundColor: selectedCourse === 'all' ? '#6366f1' : 'transparent',
+                color: selectedCourse === 'all' ? '#ffffff' : 'var(--text-primary)',
+                boxShadow: selectedCourse === 'all' ? '0 2px 8px rgba(99, 102, 241, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Layers size={16} />
+              <span>利尻山 全体合算</span>
+            </button>
 
-                <button
-                  onClick={() => {
-                    setSelectedCourse('all');
-                    setSelectedDate(null);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    padding: '0.52rem 0.9rem',
-                    fontWeight: 700,
-                    fontSize: '0.88rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    backgroundColor: selectedCourse === 'all' ? '#6366f1' : 'transparent',
-                    color: selectedCourse === 'all' ? '#ffffff' : 'var(--text-primary)',
-                    boxShadow: selectedCourse === 'all' ? '0 2px 8px rgba(99, 102, 241, 0.35)' : 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <Layers size={16} />
-                  <span>利尻山 全体合算</span>
-                </button>
+            <button
+              onClick={() => {
+                setSelectedCourse('cameras');
+                setSelectedDate(null);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.52rem 0.9rem',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                borderRadius: '10px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                backgroundColor: selectedCourse === 'cameras' ? '#10b981' : 'transparent',
+                color: selectedCourse === 'cameras' ? '#ffffff' : 'var(--text-primary)',
+                boxShadow: selectedCourse === 'cameras' ? '0 2px 8px rgba(16, 185, 129, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Video size={16} />
+              <span>ライブカメラ状況確認</span>
+            </button>
 
-                <button
-                  onClick={() => {
-                    setSelectedCourse('cameras');
-                    setSelectedDate(null);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    padding: '0.52rem 0.9rem',
-                    fontWeight: 700,
-                    fontSize: '0.88rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    backgroundColor: selectedCourse === 'cameras' ? '#10b981' : 'transparent',
-                    color: selectedCourse === 'cameras' ? '#ffffff' : 'var(--text-primary)',
-                    boxShadow: selectedCourse === 'cameras' ? '0 2px 8px rgba(16, 185, 129, 0.35)' : 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <Video size={16} />
-                  <span>ライブカメラ状況確認</span>
-                </button>
+            <button
+              onClick={() => {
+                setSelectedCourse('poc');
+                setSelectedDate(null);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.52rem 0.9rem',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                borderRadius: '10px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                backgroundColor: selectedCourse === 'poc' ? '#8b5cf6' : 'transparent',
+                color: selectedCourse === 'poc' ? '#ffffff' : 'var(--text-primary)',
+                boxShadow: selectedCourse === 'poc' ? '0 2px 8px rgba(139, 92, 246, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Sparkles size={16} style={{ color: selectedCourse === 'poc' ? '#ffffff' : '#8b5cf6' }} />
+              <span>山頂視界・雲量AI</span>
+            </button>
 
-                <button
-                  onClick={() => {
-                    setSelectedCourse('poc');
-                    setSelectedDate(null);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    padding: '0.52rem 0.9rem',
-                    fontWeight: 700,
-                    fontSize: '0.88rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    backgroundColor: selectedCourse === 'poc' ? '#8b5cf6' : 'transparent',
-                    color: selectedCourse === 'poc' ? '#ffffff' : 'var(--text-primary)',
-                    boxShadow: selectedCourse === 'poc' ? '0 2px 8px rgba(139, 92, 246, 0.35)' : 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <Sparkles size={16} style={{ color: selectedCourse === 'poc' ? '#ffffff' : '#8b5cf6' }} />
-                  <span>山頂視界・雲量AI</span>
-                </button>
+            <button
+              onClick={() => {
+                setSelectedCourse('analytics');
+                setSelectedDate(null);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.52rem 0.9rem',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                borderRadius: '10px',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                backgroundColor: selectedCourse === 'analytics' ? '#3b82f6' : 'transparent',
+                color: selectedCourse === 'analytics' ? '#ffffff' : 'var(--text-primary)',
+                boxShadow: selectedCourse === 'analytics' ? '0 2px 8px rgba(59, 130, 246, 0.35)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <BarChart3 size={16} />
+              <span>利用解析</span>
+            </button>
+          </div>
+        </div>
 
-                <button
-                  onClick={() => {
-                    setSelectedCourse('analytics');
-                    setSelectedDate(null);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    padding: '0.52rem 0.9rem',
-                    fontWeight: 700,
-                    fontSize: '0.88rem',
-                    borderRadius: '10px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    backgroundColor: selectedCourse === 'analytics' ? '#3b82f6' : 'transparent',
-                    color: selectedCourse === 'analytics' ? '#ffffff' : 'var(--text-primary)',
-                    boxShadow: selectedCourse === 'analytics' ? '0 2px 8px rgba(59, 130, 246, 0.35)' : 'none',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <BarChart3 size={16} />
-                  <span>利用解析</span>
-                </button>
-              </div>
+        <Suspense fallback={<TabLoadingFallback />}>
+          {selectedCourse === 'cameras' ? (
+            <LiveCamArchivePage />
+          ) : selectedCourse === 'poc' ? (
+            <LiveCamPoCPanel isAdmin={isAdmin} />
+          ) : selectedCourse === 'now' ? (
+            <RishiriNowPanel />
+          ) : isLoadingLogs && entries.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+              <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', margin: 0 }}>
+                {fbConfigured ? 'クラウドから最新の登山ログを読み込んでいます...' : '保存されたログデータを読み込んでいます...'}
+              </p>
             </div>
+          ) : entries.length === 0 ? (
+            isAdmin ? (
+              <FileUploader onFilesParsed={handleFilesParsed} />
+            ) : (
+              <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem', maxWidth: '600px', margin: '2rem auto' }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  color: '#3b82f6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.5rem auto'
+                }}>
+                  <Eye size={32} />
+                </div>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
+                  閲覧専用ダッシュボード (公開モード)
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '2rem', lineHeight: 1.6 }}>
+                  現在表示できるログデータが保存されていません。<br />
+                  管理者によってクラウドに同期された最新の解析結果を読み込むか、管理者モードにログインしてください。
+                </p>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={handleLoadFromCloud}
+                    disabled={isSyncing}
+                    className="button button-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', fontWeight: 700 }}
+                  >
+                    <RefreshCw size={18} className={isSyncing ? 'spin' : ''} />
+                    <span>{isSyncing ? 'クラウドを確認中...' : 'クラウドから最新データを読み込む'}</span>
+                  </button>
+                  <button
+                    onClick={() => setIsAdminModalOpen(true)}
+                    className="button button-secondary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem' }}
+                  >
+                    <Lock size={16} />
+                    <span>管理者ログイン (ログ追加・管理)</span>
+                  </button>
+                </div>
+              </div>
+            )
+          ) : (
+            <>
 
             {/* 3. トグル式データ・ログ管理パネル (常時非表示 -> ボタン押下時のみ美しい展開) */}
             {showDataManagement && isAdmin && (
@@ -1112,14 +1162,15 @@ function App() {
                   <button 
                     className="button button-secondary" 
                     style={{ backgroundColor: 'transparent', color: '#ef4444', borderColor: '#ef4444', fontSize: '0.85rem', padding: '0.55rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                    onClick={() => {
-                      if (window.confirm('保存されているログデータをすべて削除して初期化しますか？')) {
-                        clearLogsFromDB().then(() => {
-                          setEntries([]);
-                          setSelectedDate(null);
-                        });
-                      }
-                    }}
+                      onClick={() => {
+                        if (window.confirm('保存されているログデータをすべて削除して初期化しますか？')) {
+                          localMutationVersionRef.current += 1;
+                          clearLogsFromDB().then(() => {
+                            setEntries([]);
+                            setSelectedDate(null);
+                          });
+                        }
+                      }}
                   >
                     <Trash2 size={16} />
                     <span>全データを初期化（リセット）</span>
@@ -1227,13 +1278,7 @@ function App() {
               </div>
             )}
 
-            {selectedCourse === 'cameras' ? (
-              <LiveCamArchivePage />
-            ) : selectedCourse === 'poc' ? (
-              <LiveCamPoCPanel isAdmin={isAdmin} />
-            ) : selectedCourse === 'now' ? (
-              <RishiriNowPanel />
-            ) : selectedCourse === 'analytics' ? (
+            {selectedCourse === 'analytics' ? (
               <StakeholderAnalytics
                 entries={entries}
                 weatherData={weatherData}
@@ -1458,19 +1503,22 @@ function App() {
             )}
           </>
         )}
+        </Suspense>
 
         {/* どのタブ・どの画面からでも共通で開く 日付詳細アナリティクス（オーバーレイ・モーダル） */}
         {selectedDayDetails && (
-          <DailyDetailView
-            details={selectedDayDetails}
-            weather={selectedDate ? weatherData[selectedDate] : undefined}
-            hourlyWeather={hourlyWeather}
-            cameraAnalysis={selectedDate ? cameraAnalysis[selectedDate] : undefined}
-            onClose={() => setSelectedDate(null)}
-            onSelectDate={handleSelectDate}
-            prevDate={prevDate}
-            nextDate={nextDate}
-          />
+          <Suspense fallback={null}>
+            <DailyDetailView
+              details={selectedDayDetails}
+              weather={selectedDate ? weatherData[selectedDate] : undefined}
+              hourlyWeather={hourlyWeather}
+              cameraAnalysis={selectedDate ? cameraAnalysis[selectedDate] : undefined}
+              onClose={() => setSelectedDate(null)}
+              onSelectDate={handleSelectDate}
+              prevDate={prevDate}
+              nextDate={nextDate}
+            />
+          </Suspense>
         )}
       </main>
     </div>
