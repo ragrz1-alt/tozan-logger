@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-14T06:06:59.519992+09:00",
+  "updatedAt": "2026-11-14T06:15:36.926743+09:00",
   "cameras": {
     "oshidomari": {
       "name": "鴛泊（本泊・北）",
@@ -42,29 +42,29 @@
     "oshidomari": {
       "status": "active",
       "lastValidAt": "2026-11-14 06:00",
-      "updatedAt": "2026-11-14T06:06:59.519992+09:00"
+      "updatedAt": "2026-11-14T06:15:36.926743+09:00"
     },
     "ferry": {
       "status": "active",
       "lastValidAt": "2026-11-14 06:00",
-      "updatedAt": "2026-11-14T06:06:59.519992+09:00"
+      "updatedAt": "2026-11-14T06:15:36.926743+09:00"
     },
     "himenuma": {
       "status": "seasonal_closed",
       "since": "2026-11-09",
       "note": "冬季配信終了のため休止中",
       "lastValidAt": "2026-11-09 10:00",
-      "updatedAt": "2026-11-14T06:06:59.519992+09:00"
+      "updatedAt": "2026-11-14T06:15:36.926743+09:00"
     },
     "kutsugata": {
       "status": "active",
-      "lastValidAt": "2026-11-14 06:00",
-      "updatedAt": "2026-11-14T06:06:59.519992+09:00"
+      "lastValidAt": "2026-11-13 17:00",
+      "updatedAt": "2026-11-14T06:15:36.926743+09:00"
     },
     "otadomari": {
       "status": "active",
       "lastValidAt": "2026-11-14 06:00",
-      "updatedAt": "2026-11-14T06:06:59.519992+09:00"
+      "updatedAt": "2026-11-14T06:15:36.926743+09:00"
     },
     "senposhi": {
       "status": "monitoring",
@@ -72,8 +72,8 @@
       "since": "2026-11-08",
       "note": "配信側の映像暗転につき復旧待ち（正常映像を検知次第自動復帰）",
       "lastValidAt": "2026-11-07 15:00",
-      "lastCheckedAt": "2026-11-14T06:06:59.519992+09:00",
-      "updatedAt": "2026-11-14T06:06:59.519992+09:00"
+      "lastCheckedAt": "2026-11-14T06:15:36.926743+09:00",
+      "updatedAt": "2026-11-14T06:15:36.926743+09:00"
     }
   },
   "records": {
@@ -14911,7 +14911,6 @@
       "06": {
         "timestamp": "2026-11-14T06:06:59.519992+09:00",
         "ferry": "cams/2026-11-14/06_ferry.jpg",
-        "kutsugata": "cams/2026-11-14/06_kutsugata.jpg",
         "oshidomari": "cams/2026-11-14/06_oshidomari.jpg",
         "otadomari": "cams/2026-11-14/06_otadomari.jpg"
       }
