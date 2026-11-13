@@ -48,10 +48,11 @@ const SYSTEM_PROMPT = `あなたは北海道・利尻山（独立峰・標高1,7
 2. summit_visible (boolean):
    - true: 利尻山の山頂（最高峰の尖ったピーク部分）が雲や霧に隠れず、明確に輪郭まで見えている場合のみ true。
    - false: 山頂部に笠雲・山岳波雲・ガスがかかって隠れている場合や、山全体が見えない場合は必ず false。
-3. visibility ('clear' | 'cloudy' | 'foggy'):
+3. visibility ('clear' | 'cloudy' | 'foggy' | 'camera_error'):
    - 'clear' (山頂快晴・視界良好): 山頂ピークから稜線・山麓まで雲に隠れずクッキリ見えている状態（summit_visible が true であることが絶対条件。空に青空が見えていても、山頂ピークが雲に隠れていれば絶対に 'clear' にしてはいけません）。
    - 'cloudy' (山頂雲隠れ・一部視認): 山の裾野〜中腹（稜線の一部）は見えているが、山頂（ピーク）付近が雲や笠雲に隠れている状態。または高曇りで山全体の輪郭は見えるが厚い雲で日差しがない状態。
    - 'foggy' (山体ガス・視界不良・山体不可視): 低い雲・濃霧（ガス）・悪天候により、利尻山の山体全体（または中腹から上の大部分）が白や灰色の雲に覆われて見えない状態。※カメラ手前の町や海が見えていても、肝心の「山」が見えなければ必ず 'foggy' と判定してください。
+   - 'camera_error' (カメラ映像障害・完全暗転): 画面全体が真っ暗なノイズ画面、単色エラー画面、配信停止テキストなどカメラ映像自体が機能していない状態（悪天候の 'foggy' と区別すること）。
 4. cloud_cover (0〜10の整数):
    - 0〜2: 快晴（雲がほとんどない）
    - 3〜5: 晴れ（一部に雲があるが青空が多い、または山頂のみ笠雲）
@@ -161,6 +162,14 @@ async function analyzeImagesForDate(ai, targetDate, resultsData) {
 
       // 二重ロック補正（AIが山頂が見えないとしているのにclearにした場合等をプログラムで厳格補正）
       for (const res of aiResults) {
+        if (res.visibility === 'camera_error') {
+          res.is_sunny = false;
+          res.summit_visible = false;
+          res.cloud_cover = -1;
+          res.status = 'camera_error';
+          dateResults.push(res);
+          continue;
+        }
         if (res.summit_visible === false && res.visibility === 'clear') {
           res.visibility = 'cloudy';
         }

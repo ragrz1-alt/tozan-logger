@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-13T17:07:34.205633+09:00",
+  "updatedAt": "2026-11-13T22:03:52.419+09:00",
   "cameras": {
     "oshidomari": {
       "name": "鴛泊（本泊・北）",
@@ -13332,60 +13332,6 @@
       }
     },
     "2026-10-29": {
-      "04": {
-        "timestamp": "2026-10-29T04:08:17.140528+09:00",
-        "ferry": "cams/2026-10-29/04_ferry.jpg",
-        "himenuma": "cams/2026-10-29/04_himenuma.jpg",
-        "kutsugata": "cams/2026-10-29/04_kutsugata.jpg",
-        "oshidomari": "cams/2026-10-29/04_oshidomari.jpg",
-        "otadomari": "cams/2026-10-29/04_otadomari.jpg",
-        "senposhi": "cams/2026-10-29/04_senposhi.jpg"
-      },
-      "05": {
-        "timestamp": "2026-10-29T05:07:36.522844+09:00",
-        "ferry": "cams/2026-10-29/05_ferry.jpg",
-        "himenuma": "cams/2026-10-29/05_himenuma.jpg",
-        "kutsugata": "cams/2026-10-29/05_kutsugata.jpg",
-        "oshidomari": "cams/2026-10-29/05_oshidomari.jpg",
-        "otadomari": "cams/2026-10-29/05_otadomari.jpg",
-        "senposhi": "cams/2026-10-29/05_senposhi.jpg"
-      },
-      "06": {
-        "timestamp": "2026-10-29T06:07:50.683060+09:00",
-        "ferry": "cams/2026-10-29/06_ferry.jpg",
-        "himenuma": "cams/2026-10-29/06_himenuma.jpg",
-        "kutsugata": "cams/2026-10-29/06_kutsugata.jpg",
-        "oshidomari": "cams/2026-10-29/06_oshidomari.jpg",
-        "otadomari": "cams/2026-10-29/06_otadomari.jpg",
-        "senposhi": "cams/2026-10-29/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-10-29T07:07:16.578199+09:00",
-        "ferry": "cams/2026-10-29/07_ferry.jpg",
-        "himenuma": "cams/2026-10-29/07_himenuma.jpg",
-        "kutsugata": "cams/2026-10-29/07_kutsugata.jpg",
-        "oshidomari": "cams/2026-10-29/07_oshidomari.jpg",
-        "otadomari": "cams/2026-10-29/07_otadomari.jpg",
-        "senposhi": "cams/2026-10-29/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-10-29T08:07:12.512148+09:00",
-        "ferry": "cams/2026-10-29/08_ferry.jpg",
-        "himenuma": "cams/2026-10-29/08_himenuma.jpg",
-        "kutsugata": "cams/2026-10-29/08_kutsugata.jpg",
-        "oshidomari": "cams/2026-10-29/08_oshidomari.jpg",
-        "otadomari": "cams/2026-10-29/08_otadomari.jpg",
-        "senposhi": "cams/2026-10-29/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-10-29T09:07:28.075506+09:00",
-        "ferry": "cams/2026-10-29/09_ferry.jpg",
-        "himenuma": "cams/2026-10-29/09_himenuma.jpg",
-        "kutsugata": "cams/2026-10-29/09_kutsugata.jpg",
-        "oshidomari": "cams/2026-10-29/09_oshidomari.jpg",
-        "otadomari": "cams/2026-10-29/09_otadomari.jpg",
-        "senposhi": "cams/2026-10-29/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-10-29T10:08:05.446538+09:00",
         "ferry": "cams/2026-10-29/10_ferry.jpg",
@@ -13461,57 +13407,63 @@
         "oshidomari": "cams/2026-10-29/18_oshidomari.jpg",
         "senposhi": "cams/2026-10-29/18_senposhi.jpg",
         "otadomari": "cams/2026-10-29/18_otadomari.jpg"
+      },
+      "04": {
+        "timestamp": "2026-10-29T04:08:17.140528+09:00",
+        "ferry": "cams/2026-10-29/04_ferry.jpg",
+        "himenuma": "cams/2026-10-29/04_himenuma.jpg",
+        "kutsugata": "cams/2026-10-29/04_kutsugata.jpg",
+        "oshidomari": "cams/2026-10-29/04_oshidomari.jpg",
+        "otadomari": "cams/2026-10-29/04_otadomari.jpg",
+        "senposhi": "cams/2026-10-29/04_senposhi.jpg"
+      },
+      "05": {
+        "timestamp": "2026-10-29T05:07:36.522844+09:00",
+        "ferry": "cams/2026-10-29/05_ferry.jpg",
+        "himenuma": "cams/2026-10-29/05_himenuma.jpg",
+        "kutsugata": "cams/2026-10-29/05_kutsugata.jpg",
+        "oshidomari": "cams/2026-10-29/05_oshidomari.jpg",
+        "otadomari": "cams/2026-10-29/05_otadomari.jpg",
+        "senposhi": "cams/2026-10-29/05_senposhi.jpg"
+      },
+      "06": {
+        "timestamp": "2026-10-29T06:07:50.683060+09:00",
+        "ferry": "cams/2026-10-29/06_ferry.jpg",
+        "himenuma": "cams/2026-10-29/06_himenuma.jpg",
+        "kutsugata": "cams/2026-10-29/06_kutsugata.jpg",
+        "oshidomari": "cams/2026-10-29/06_oshidomari.jpg",
+        "otadomari": "cams/2026-10-29/06_otadomari.jpg",
+        "senposhi": "cams/2026-10-29/06_senposhi.jpg"
+      },
+      "07": {
+        "timestamp": "2026-10-29T07:07:16.578199+09:00",
+        "ferry": "cams/2026-10-29/07_ferry.jpg",
+        "himenuma": "cams/2026-10-29/07_himenuma.jpg",
+        "kutsugata": "cams/2026-10-29/07_kutsugata.jpg",
+        "oshidomari": "cams/2026-10-29/07_oshidomari.jpg",
+        "otadomari": "cams/2026-10-29/07_otadomari.jpg",
+        "senposhi": "cams/2026-10-29/07_senposhi.jpg"
+      },
+      "08": {
+        "timestamp": "2026-10-29T08:07:12.512148+09:00",
+        "ferry": "cams/2026-10-29/08_ferry.jpg",
+        "himenuma": "cams/2026-10-29/08_himenuma.jpg",
+        "kutsugata": "cams/2026-10-29/08_kutsugata.jpg",
+        "oshidomari": "cams/2026-10-29/08_oshidomari.jpg",
+        "otadomari": "cams/2026-10-29/08_otadomari.jpg",
+        "senposhi": "cams/2026-10-29/08_senposhi.jpg"
+      },
+      "09": {
+        "timestamp": "2026-10-29T09:07:28.075506+09:00",
+        "ferry": "cams/2026-10-29/09_ferry.jpg",
+        "himenuma": "cams/2026-10-29/09_himenuma.jpg",
+        "kutsugata": "cams/2026-10-29/09_kutsugata.jpg",
+        "oshidomari": "cams/2026-10-29/09_oshidomari.jpg",
+        "otadomari": "cams/2026-10-29/09_otadomari.jpg",
+        "senposhi": "cams/2026-10-29/09_senposhi.jpg"
       }
     },
     "2026-10-30": {
-      "04": {
-        "timestamp": "2026-10-30T04:07:11.590015+09:00",
-        "ferry": "cams/2026-10-30/04_ferry.jpg",
-        "himenuma": "cams/2026-10-30/04_himenuma.jpg",
-        "oshidomari": "cams/2026-10-30/04_oshidomari.jpg",
-        "otadomari": "cams/2026-10-30/04_otadomari.jpg",
-        "senposhi": "cams/2026-10-30/04_senposhi.jpg"
-      },
-      "05": {
-        "timestamp": "2026-10-30T05:08:39.075739+09:00",
-        "oshidomari": "cams/2026-10-30/05_oshidomari.jpg",
-        "senposhi": "cams/2026-10-30/05_senposhi.jpg",
-        "ferry": "cams/2026-10-30/05_ferry.jpg",
-        "himenuma": "cams/2026-10-30/05_himenuma.jpg",
-        "otadomari": "cams/2026-10-30/05_otadomari.jpg"
-      },
-      "06": {
-        "timestamp": "2026-10-30T06:07:07.388405+09:00",
-        "ferry": "cams/2026-10-30/06_ferry.jpg",
-        "himenuma": "cams/2026-10-30/06_himenuma.jpg",
-        "oshidomari": "cams/2026-10-30/06_oshidomari.jpg",
-        "otadomari": "cams/2026-10-30/06_otadomari.jpg",
-        "senposhi": "cams/2026-10-30/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-10-30T07:07:30.248021+09:00",
-        "ferry": "cams/2026-10-30/07_ferry.jpg",
-        "himenuma": "cams/2026-10-30/07_himenuma.jpg",
-        "oshidomari": "cams/2026-10-30/07_oshidomari.jpg",
-        "otadomari": "cams/2026-10-30/07_otadomari.jpg",
-        "senposhi": "cams/2026-10-30/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-10-30T08:06:57.752599+09:00",
-        "ferry": "cams/2026-10-30/08_ferry.jpg",
-        "himenuma": "cams/2026-10-30/08_himenuma.jpg",
-        "oshidomari": "cams/2026-10-30/08_oshidomari.jpg",
-        "otadomari": "cams/2026-10-30/08_otadomari.jpg",
-        "senposhi": "cams/2026-10-30/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-10-30T09:07:11.040746+09:00",
-        "ferry": "cams/2026-10-30/09_ferry.jpg",
-        "himenuma": "cams/2026-10-30/09_himenuma.jpg",
-        "oshidomari": "cams/2026-10-30/09_oshidomari.jpg",
-        "otadomari": "cams/2026-10-30/09_otadomari.jpg",
-        "senposhi": "cams/2026-10-30/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-10-30T10:07:07.123155+09:00",
         "ferry": "cams/2026-10-30/10_ferry.jpg",
@@ -13583,57 +13535,57 @@
         "oshidomari": "cams/2026-10-30/18_oshidomari.jpg",
         "otadomari": "cams/2026-10-30/18_otadomari.jpg",
         "senposhi": "cams/2026-10-30/18_senposhi.jpg"
+      },
+      "04": {
+        "timestamp": "2026-10-30T04:07:11.590015+09:00",
+        "ferry": "cams/2026-10-30/04_ferry.jpg",
+        "himenuma": "cams/2026-10-30/04_himenuma.jpg",
+        "oshidomari": "cams/2026-10-30/04_oshidomari.jpg",
+        "otadomari": "cams/2026-10-30/04_otadomari.jpg",
+        "senposhi": "cams/2026-10-30/04_senposhi.jpg"
+      },
+      "05": {
+        "timestamp": "2026-10-30T05:08:39.075739+09:00",
+        "oshidomari": "cams/2026-10-30/05_oshidomari.jpg",
+        "senposhi": "cams/2026-10-30/05_senposhi.jpg",
+        "ferry": "cams/2026-10-30/05_ferry.jpg",
+        "himenuma": "cams/2026-10-30/05_himenuma.jpg",
+        "otadomari": "cams/2026-10-30/05_otadomari.jpg"
+      },
+      "06": {
+        "timestamp": "2026-10-30T06:07:07.388405+09:00",
+        "ferry": "cams/2026-10-30/06_ferry.jpg",
+        "himenuma": "cams/2026-10-30/06_himenuma.jpg",
+        "oshidomari": "cams/2026-10-30/06_oshidomari.jpg",
+        "otadomari": "cams/2026-10-30/06_otadomari.jpg",
+        "senposhi": "cams/2026-10-30/06_senposhi.jpg"
+      },
+      "07": {
+        "timestamp": "2026-10-30T07:07:30.248021+09:00",
+        "ferry": "cams/2026-10-30/07_ferry.jpg",
+        "himenuma": "cams/2026-10-30/07_himenuma.jpg",
+        "oshidomari": "cams/2026-10-30/07_oshidomari.jpg",
+        "otadomari": "cams/2026-10-30/07_otadomari.jpg",
+        "senposhi": "cams/2026-10-30/07_senposhi.jpg"
+      },
+      "08": {
+        "timestamp": "2026-10-30T08:06:57.752599+09:00",
+        "ferry": "cams/2026-10-30/08_ferry.jpg",
+        "himenuma": "cams/2026-10-30/08_himenuma.jpg",
+        "oshidomari": "cams/2026-10-30/08_oshidomari.jpg",
+        "otadomari": "cams/2026-10-30/08_otadomari.jpg",
+        "senposhi": "cams/2026-10-30/08_senposhi.jpg"
+      },
+      "09": {
+        "timestamp": "2026-10-30T09:07:11.040746+09:00",
+        "ferry": "cams/2026-10-30/09_ferry.jpg",
+        "himenuma": "cams/2026-10-30/09_himenuma.jpg",
+        "oshidomari": "cams/2026-10-30/09_oshidomari.jpg",
+        "otadomari": "cams/2026-10-30/09_otadomari.jpg",
+        "senposhi": "cams/2026-10-30/09_senposhi.jpg"
       }
     },
     "2026-10-31": {
-      "04": {
-        "timestamp": "2026-10-31T04:07:44.616160+09:00",
-        "oshidomari": "cams/2026-10-31/04_oshidomari.jpg",
-        "senposhi": "cams/2026-10-31/04_senposhi.jpg",
-        "ferry": "cams/2026-10-31/04_ferry.jpg",
-        "himenuma": "cams/2026-10-31/04_himenuma.jpg",
-        "otadomari": "cams/2026-10-31/04_otadomari.jpg"
-      },
-      "05": {
-        "timestamp": "2026-10-31T05:07:41.490189+09:00",
-        "ferry": "cams/2026-10-31/05_ferry.jpg",
-        "himenuma": "cams/2026-10-31/05_himenuma.jpg",
-        "oshidomari": "cams/2026-10-31/05_oshidomari.jpg",
-        "otadomari": "cams/2026-10-31/05_otadomari.jpg",
-        "senposhi": "cams/2026-10-31/05_senposhi.jpg"
-      },
-      "06": {
-        "timestamp": "2026-10-31T06:07:34.316410+09:00",
-        "ferry": "cams/2026-10-31/06_ferry.jpg",
-        "himenuma": "cams/2026-10-31/06_himenuma.jpg",
-        "oshidomari": "cams/2026-10-31/06_oshidomari.jpg",
-        "otadomari": "cams/2026-10-31/06_otadomari.jpg",
-        "senposhi": "cams/2026-10-31/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-10-31T07:07:59.344556+09:00",
-        "ferry": "cams/2026-10-31/07_ferry.jpg",
-        "himenuma": "cams/2026-10-31/07_himenuma.jpg",
-        "oshidomari": "cams/2026-10-31/07_oshidomari.jpg",
-        "otadomari": "cams/2026-10-31/07_otadomari.jpg",
-        "senposhi": "cams/2026-10-31/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-10-31T08:07:24.853193+09:00",
-        "oshidomari": "cams/2026-10-31/08_oshidomari.jpg",
-        "senposhi": "cams/2026-10-31/08_senposhi.jpg",
-        "ferry": "cams/2026-10-31/08_ferry.jpg",
-        "himenuma": "cams/2026-10-31/08_himenuma.jpg",
-        "otadomari": "cams/2026-10-31/08_otadomari.jpg"
-      },
-      "09": {
-        "timestamp": "2026-10-31T09:07:47.950520+09:00",
-        "oshidomari": "cams/2026-10-31/09_oshidomari.jpg",
-        "senposhi": "cams/2026-10-31/09_senposhi.jpg",
-        "ferry": "cams/2026-10-31/09_ferry.jpg",
-        "himenuma": "cams/2026-10-31/09_himenuma.jpg",
-        "otadomari": "cams/2026-10-31/09_otadomari.jpg"
-      },
       "10": {
         "timestamp": "2026-10-31T10:07:20.461509+09:00",
         "ferry": "cams/2026-10-31/10_ferry.jpg",
@@ -13705,41 +13657,57 @@
         "oshidomari": "cams/2026-10-31/18_oshidomari.jpg",
         "otadomari": "cams/2026-10-31/18_otadomari.jpg",
         "senposhi": "cams/2026-10-31/18_senposhi.jpg"
+      },
+      "04": {
+        "timestamp": "2026-10-31T04:07:44.616160+09:00",
+        "oshidomari": "cams/2026-10-31/04_oshidomari.jpg",
+        "senposhi": "cams/2026-10-31/04_senposhi.jpg",
+        "ferry": "cams/2026-10-31/04_ferry.jpg",
+        "himenuma": "cams/2026-10-31/04_himenuma.jpg",
+        "otadomari": "cams/2026-10-31/04_otadomari.jpg"
+      },
+      "05": {
+        "timestamp": "2026-10-31T05:07:41.490189+09:00",
+        "ferry": "cams/2026-10-31/05_ferry.jpg",
+        "himenuma": "cams/2026-10-31/05_himenuma.jpg",
+        "oshidomari": "cams/2026-10-31/05_oshidomari.jpg",
+        "otadomari": "cams/2026-10-31/05_otadomari.jpg",
+        "senposhi": "cams/2026-10-31/05_senposhi.jpg"
+      },
+      "06": {
+        "timestamp": "2026-10-31T06:07:34.316410+09:00",
+        "ferry": "cams/2026-10-31/06_ferry.jpg",
+        "himenuma": "cams/2026-10-31/06_himenuma.jpg",
+        "oshidomari": "cams/2026-10-31/06_oshidomari.jpg",
+        "otadomari": "cams/2026-10-31/06_otadomari.jpg",
+        "senposhi": "cams/2026-10-31/06_senposhi.jpg"
+      },
+      "07": {
+        "timestamp": "2026-10-31T07:07:59.344556+09:00",
+        "ferry": "cams/2026-10-31/07_ferry.jpg",
+        "himenuma": "cams/2026-10-31/07_himenuma.jpg",
+        "oshidomari": "cams/2026-10-31/07_oshidomari.jpg",
+        "otadomari": "cams/2026-10-31/07_otadomari.jpg",
+        "senposhi": "cams/2026-10-31/07_senposhi.jpg"
+      },
+      "08": {
+        "timestamp": "2026-10-31T08:07:24.853193+09:00",
+        "oshidomari": "cams/2026-10-31/08_oshidomari.jpg",
+        "senposhi": "cams/2026-10-31/08_senposhi.jpg",
+        "ferry": "cams/2026-10-31/08_ferry.jpg",
+        "himenuma": "cams/2026-10-31/08_himenuma.jpg",
+        "otadomari": "cams/2026-10-31/08_otadomari.jpg"
+      },
+      "09": {
+        "timestamp": "2026-10-31T09:07:47.950520+09:00",
+        "oshidomari": "cams/2026-10-31/09_oshidomari.jpg",
+        "senposhi": "cams/2026-10-31/09_senposhi.jpg",
+        "ferry": "cams/2026-10-31/09_ferry.jpg",
+        "himenuma": "cams/2026-10-31/09_himenuma.jpg",
+        "otadomari": "cams/2026-10-31/09_otadomari.jpg"
       }
     },
     "2026-11-01": {
-      "06": {
-        "timestamp": "2026-11-01T06:07:54.532396+09:00",
-        "oshidomari": "cams/2026-11-01/06_oshidomari.jpg",
-        "senposhi": "cams/2026-11-01/06_senposhi.jpg",
-        "ferry": "cams/2026-11-01/06_ferry.jpg",
-        "himenuma": "cams/2026-11-01/06_himenuma.jpg",
-        "otadomari": "cams/2026-11-01/06_otadomari.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-01T07:07:42.136192+09:00",
-        "ferry": "cams/2026-11-01/07_ferry.jpg",
-        "himenuma": "cams/2026-11-01/07_himenuma.jpg",
-        "oshidomari": "cams/2026-11-01/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-01/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-01/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-01T08:08:47.206627+09:00",
-        "oshidomari": "cams/2026-11-01/08_oshidomari.jpg",
-        "senposhi": "cams/2026-11-01/08_senposhi.jpg",
-        "ferry": "cams/2026-11-01/08_ferry.jpg",
-        "himenuma": "cams/2026-11-01/08_himenuma.jpg",
-        "otadomari": "cams/2026-11-01/08_otadomari.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-01T09:10:58.421251+09:00",
-        "ferry": "cams/2026-11-01/09_ferry.jpg",
-        "himenuma": "cams/2026-11-01/09_himenuma.jpg",
-        "oshidomari": "cams/2026-11-01/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-01/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-01/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-11-01T10:11:21.329788+09:00",
         "ferry": "cams/2026-11-01/10_ferry.jpg",
@@ -13803,41 +13771,41 @@
         "oshidomari": "cams/2026-11-01/17_oshidomari.jpg",
         "otadomari": "cams/2026-11-01/17_otadomari.jpg",
         "senposhi": "cams/2026-11-01/17_senposhi.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-01T06:07:54.532396+09:00",
+        "oshidomari": "cams/2026-11-01/06_oshidomari.jpg",
+        "senposhi": "cams/2026-11-01/06_senposhi.jpg",
+        "ferry": "cams/2026-11-01/06_ferry.jpg",
+        "himenuma": "cams/2026-11-01/06_himenuma.jpg",
+        "otadomari": "cams/2026-11-01/06_otadomari.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-01T07:07:42.136192+09:00",
+        "ferry": "cams/2026-11-01/07_ferry.jpg",
+        "himenuma": "cams/2026-11-01/07_himenuma.jpg",
+        "oshidomari": "cams/2026-11-01/07_oshidomari.jpg",
+        "otadomari": "cams/2026-11-01/07_otadomari.jpg",
+        "senposhi": "cams/2026-11-01/07_senposhi.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-01T08:08:47.206627+09:00",
+        "oshidomari": "cams/2026-11-01/08_oshidomari.jpg",
+        "senposhi": "cams/2026-11-01/08_senposhi.jpg",
+        "ferry": "cams/2026-11-01/08_ferry.jpg",
+        "himenuma": "cams/2026-11-01/08_himenuma.jpg",
+        "otadomari": "cams/2026-11-01/08_otadomari.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-01T09:10:58.421251+09:00",
+        "ferry": "cams/2026-11-01/09_ferry.jpg",
+        "himenuma": "cams/2026-11-01/09_himenuma.jpg",
+        "oshidomari": "cams/2026-11-01/09_oshidomari.jpg",
+        "otadomari": "cams/2026-11-01/09_otadomari.jpg",
+        "senposhi": "cams/2026-11-01/09_senposhi.jpg"
       }
     },
     "2026-11-02": {
-      "06": {
-        "timestamp": "2026-11-02T06:07:53.911034+09:00",
-        "ferry": "cams/2026-11-02/06_ferry.jpg",
-        "himenuma": "cams/2026-11-02/06_himenuma.jpg",
-        "oshidomari": "cams/2026-11-02/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-02/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-02/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-02T07:08:36.963566+09:00",
-        "ferry": "cams/2026-11-02/07_ferry.jpg",
-        "himenuma": "cams/2026-11-02/07_himenuma.jpg",
-        "oshidomari": "cams/2026-11-02/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-02/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-02/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-02T08:07:42.875050+09:00",
-        "ferry": "cams/2026-11-02/08_ferry.jpg",
-        "himenuma": "cams/2026-11-02/08_himenuma.jpg",
-        "oshidomari": "cams/2026-11-02/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-02/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-02/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-02T09:07:21.659040+09:00",
-        "ferry": "cams/2026-11-02/09_ferry.jpg",
-        "himenuma": "cams/2026-11-02/09_himenuma.jpg",
-        "oshidomari": "cams/2026-11-02/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-02/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-02/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-11-02T10:07:50.060944+09:00",
         "ferry": "cams/2026-11-02/10_ferry.jpg",
@@ -13901,41 +13869,41 @@
         "oshidomari": "cams/2026-11-02/17_oshidomari.jpg",
         "otadomari": "cams/2026-11-02/17_otadomari.jpg",
         "senposhi": "cams/2026-11-02/17_senposhi.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-02T06:07:53.911034+09:00",
+        "ferry": "cams/2026-11-02/06_ferry.jpg",
+        "himenuma": "cams/2026-11-02/06_himenuma.jpg",
+        "oshidomari": "cams/2026-11-02/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-02/06_otadomari.jpg",
+        "senposhi": "cams/2026-11-02/06_senposhi.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-02T07:08:36.963566+09:00",
+        "ferry": "cams/2026-11-02/07_ferry.jpg",
+        "himenuma": "cams/2026-11-02/07_himenuma.jpg",
+        "oshidomari": "cams/2026-11-02/07_oshidomari.jpg",
+        "otadomari": "cams/2026-11-02/07_otadomari.jpg",
+        "senposhi": "cams/2026-11-02/07_senposhi.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-02T08:07:42.875050+09:00",
+        "ferry": "cams/2026-11-02/08_ferry.jpg",
+        "himenuma": "cams/2026-11-02/08_himenuma.jpg",
+        "oshidomari": "cams/2026-11-02/08_oshidomari.jpg",
+        "otadomari": "cams/2026-11-02/08_otadomari.jpg",
+        "senposhi": "cams/2026-11-02/08_senposhi.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-02T09:07:21.659040+09:00",
+        "ferry": "cams/2026-11-02/09_ferry.jpg",
+        "himenuma": "cams/2026-11-02/09_himenuma.jpg",
+        "oshidomari": "cams/2026-11-02/09_oshidomari.jpg",
+        "otadomari": "cams/2026-11-02/09_otadomari.jpg",
+        "senposhi": "cams/2026-11-02/09_senposhi.jpg"
       }
     },
     "2026-11-03": {
-      "06": {
-        "timestamp": "2026-11-03T06:07:56.111489+09:00",
-        "ferry": "cams/2026-11-03/06_ferry.jpg",
-        "himenuma": "cams/2026-11-03/06_himenuma.jpg",
-        "oshidomari": "cams/2026-11-03/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-03/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-03/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-03T07:08:13.961264+09:00",
-        "oshidomari": "cams/2026-11-03/07_oshidomari.jpg",
-        "senposhi": "cams/2026-11-03/07_senposhi.jpg",
-        "ferry": "cams/2026-11-03/07_ferry.jpg",
-        "himenuma": "cams/2026-11-03/07_himenuma.jpg",
-        "otadomari": "cams/2026-11-03/07_otadomari.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-03T08:07:26.031890+09:00",
-        "ferry": "cams/2026-11-03/08_ferry.jpg",
-        "himenuma": "cams/2026-11-03/08_himenuma.jpg",
-        "oshidomari": "cams/2026-11-03/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-03/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-03/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-03T09:08:32.878090+09:00",
-        "ferry": "cams/2026-11-03/09_ferry.jpg",
-        "himenuma": "cams/2026-11-03/09_himenuma.jpg",
-        "oshidomari": "cams/2026-11-03/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-03/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-03/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-11-03T10:07:39.299296+09:00",
         "ferry": "cams/2026-11-03/10_ferry.jpg",
@@ -13999,41 +13967,41 @@
         "oshidomari": "cams/2026-11-03/17_oshidomari.jpg",
         "otadomari": "cams/2026-11-03/17_otadomari.jpg",
         "senposhi": "cams/2026-11-03/17_senposhi.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-03T06:07:56.111489+09:00",
+        "ferry": "cams/2026-11-03/06_ferry.jpg",
+        "himenuma": "cams/2026-11-03/06_himenuma.jpg",
+        "oshidomari": "cams/2026-11-03/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-03/06_otadomari.jpg",
+        "senposhi": "cams/2026-11-03/06_senposhi.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-03T07:08:13.961264+09:00",
+        "oshidomari": "cams/2026-11-03/07_oshidomari.jpg",
+        "senposhi": "cams/2026-11-03/07_senposhi.jpg",
+        "ferry": "cams/2026-11-03/07_ferry.jpg",
+        "himenuma": "cams/2026-11-03/07_himenuma.jpg",
+        "otadomari": "cams/2026-11-03/07_otadomari.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-03T08:07:26.031890+09:00",
+        "ferry": "cams/2026-11-03/08_ferry.jpg",
+        "himenuma": "cams/2026-11-03/08_himenuma.jpg",
+        "oshidomari": "cams/2026-11-03/08_oshidomari.jpg",
+        "otadomari": "cams/2026-11-03/08_otadomari.jpg",
+        "senposhi": "cams/2026-11-03/08_senposhi.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-03T09:08:32.878090+09:00",
+        "ferry": "cams/2026-11-03/09_ferry.jpg",
+        "himenuma": "cams/2026-11-03/09_himenuma.jpg",
+        "oshidomari": "cams/2026-11-03/09_oshidomari.jpg",
+        "otadomari": "cams/2026-11-03/09_otadomari.jpg",
+        "senposhi": "cams/2026-11-03/09_senposhi.jpg"
       }
     },
     "2026-11-04": {
-      "06": {
-        "timestamp": "2026-11-04T06:10:59.848763+09:00",
-        "ferry": "cams/2026-11-04/06_ferry.jpg",
-        "himenuma": "cams/2026-11-04/06_himenuma.jpg",
-        "oshidomari": "cams/2026-11-04/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-04/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-04/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-04T07:08:59.593138+09:00",
-        "oshidomari": "cams/2026-11-04/07_oshidomari.jpg",
-        "senposhi": "cams/2026-11-04/07_senposhi.jpg",
-        "ferry": "cams/2026-11-04/07_ferry.jpg",
-        "himenuma": "cams/2026-11-04/07_himenuma.jpg",
-        "otadomari": "cams/2026-11-04/07_otadomari.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-04T08:07:26.979477+09:00",
-        "ferry": "cams/2026-11-04/08_ferry.jpg",
-        "himenuma": "cams/2026-11-04/08_himenuma.jpg",
-        "oshidomari": "cams/2026-11-04/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-04/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-04/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-04T09:07:40.211346+09:00",
-        "ferry": "cams/2026-11-04/09_ferry.jpg",
-        "himenuma": "cams/2026-11-04/09_himenuma.jpg",
-        "oshidomari": "cams/2026-11-04/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-04/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-04/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-11-04T10:08:22.453213+09:00",
         "ferry": "cams/2026-11-04/10_ferry.jpg",
@@ -14097,41 +14065,41 @@
         "oshidomari": "cams/2026-11-04/17_oshidomari.jpg",
         "otadomari": "cams/2026-11-04/17_otadomari.jpg",
         "senposhi": "cams/2026-11-04/17_senposhi.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-04T06:10:59.848763+09:00",
+        "ferry": "cams/2026-11-04/06_ferry.jpg",
+        "himenuma": "cams/2026-11-04/06_himenuma.jpg",
+        "oshidomari": "cams/2026-11-04/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-04/06_otadomari.jpg",
+        "senposhi": "cams/2026-11-04/06_senposhi.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-04T07:08:59.593138+09:00",
+        "oshidomari": "cams/2026-11-04/07_oshidomari.jpg",
+        "senposhi": "cams/2026-11-04/07_senposhi.jpg",
+        "ferry": "cams/2026-11-04/07_ferry.jpg",
+        "himenuma": "cams/2026-11-04/07_himenuma.jpg",
+        "otadomari": "cams/2026-11-04/07_otadomari.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-04T08:07:26.979477+09:00",
+        "ferry": "cams/2026-11-04/08_ferry.jpg",
+        "himenuma": "cams/2026-11-04/08_himenuma.jpg",
+        "oshidomari": "cams/2026-11-04/08_oshidomari.jpg",
+        "otadomari": "cams/2026-11-04/08_otadomari.jpg",
+        "senposhi": "cams/2026-11-04/08_senposhi.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-04T09:07:40.211346+09:00",
+        "ferry": "cams/2026-11-04/09_ferry.jpg",
+        "himenuma": "cams/2026-11-04/09_himenuma.jpg",
+        "oshidomari": "cams/2026-11-04/09_oshidomari.jpg",
+        "otadomari": "cams/2026-11-04/09_otadomari.jpg",
+        "senposhi": "cams/2026-11-04/09_senposhi.jpg"
       }
     },
     "2026-11-05": {
-      "06": {
-        "timestamp": "2026-11-05T06:07:26.603296+09:00",
-        "ferry": "cams/2026-11-05/06_ferry.jpg",
-        "himenuma": "cams/2026-11-05/06_himenuma.jpg",
-        "oshidomari": "cams/2026-11-05/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-05/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-05/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-05T07:08:15.568388+09:00",
-        "ferry": "cams/2026-11-05/07_ferry.jpg",
-        "himenuma": "cams/2026-11-05/07_himenuma.jpg",
-        "oshidomari": "cams/2026-11-05/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-05/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-05/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-05T08:07:12.685421+09:00",
-        "ferry": "cams/2026-11-05/08_ferry.jpg",
-        "himenuma": "cams/2026-11-05/08_himenuma.jpg",
-        "oshidomari": "cams/2026-11-05/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-05/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-05/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-05T09:07:49.826221+09:00",
-        "ferry": "cams/2026-11-05/09_ferry.jpg",
-        "himenuma": "cams/2026-11-05/09_himenuma.jpg",
-        "oshidomari": "cams/2026-11-05/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-05/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-05/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-11-05T10:07:27.140177+09:00",
         "ferry": "cams/2026-11-05/10_ferry.jpg",
@@ -14195,41 +14163,41 @@
         "oshidomari": "cams/2026-11-05/17_oshidomari.jpg",
         "otadomari": "cams/2026-11-05/17_otadomari.jpg",
         "senposhi": "cams/2026-11-05/17_senposhi.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-05T06:07:26.603296+09:00",
+        "ferry": "cams/2026-11-05/06_ferry.jpg",
+        "himenuma": "cams/2026-11-05/06_himenuma.jpg",
+        "oshidomari": "cams/2026-11-05/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-05/06_otadomari.jpg",
+        "senposhi": "cams/2026-11-05/06_senposhi.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-05T07:08:15.568388+09:00",
+        "ferry": "cams/2026-11-05/07_ferry.jpg",
+        "himenuma": "cams/2026-11-05/07_himenuma.jpg",
+        "oshidomari": "cams/2026-11-05/07_oshidomari.jpg",
+        "otadomari": "cams/2026-11-05/07_otadomari.jpg",
+        "senposhi": "cams/2026-11-05/07_senposhi.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-05T08:07:12.685421+09:00",
+        "ferry": "cams/2026-11-05/08_ferry.jpg",
+        "himenuma": "cams/2026-11-05/08_himenuma.jpg",
+        "oshidomari": "cams/2026-11-05/08_oshidomari.jpg",
+        "otadomari": "cams/2026-11-05/08_otadomari.jpg",
+        "senposhi": "cams/2026-11-05/08_senposhi.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-05T09:07:49.826221+09:00",
+        "ferry": "cams/2026-11-05/09_ferry.jpg",
+        "himenuma": "cams/2026-11-05/09_himenuma.jpg",
+        "oshidomari": "cams/2026-11-05/09_oshidomari.jpg",
+        "otadomari": "cams/2026-11-05/09_otadomari.jpg",
+        "senposhi": "cams/2026-11-05/09_senposhi.jpg"
       }
     },
     "2026-11-06": {
-      "06": {
-        "timestamp": "2026-11-06T06:07:17.466031+09:00",
-        "ferry": "cams/2026-11-06/06_ferry.jpg",
-        "himenuma": "cams/2026-11-06/06_himenuma.jpg",
-        "oshidomari": "cams/2026-11-06/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-06/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-06/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-06T07:07:47.370899+09:00",
-        "ferry": "cams/2026-11-06/07_ferry.jpg",
-        "himenuma": "cams/2026-11-06/07_himenuma.jpg",
-        "oshidomari": "cams/2026-11-06/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-06/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-06/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-06T08:07:17.066790+09:00",
-        "ferry": "cams/2026-11-06/08_ferry.jpg",
-        "himenuma": "cams/2026-11-06/08_himenuma.jpg",
-        "oshidomari": "cams/2026-11-06/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-06/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-06/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-06T09:07:48.981130+09:00",
-        "oshidomari": "cams/2026-11-06/09_oshidomari.jpg",
-        "senposhi": "cams/2026-11-06/09_senposhi.jpg",
-        "ferry": "cams/2026-11-06/09_ferry.jpg",
-        "himenuma": "cams/2026-11-06/09_himenuma.jpg",
-        "otadomari": "cams/2026-11-06/09_otadomari.jpg"
-      },
       "10": {
         "timestamp": "2026-11-06T10:07:40.797851+09:00",
         "ferry": "cams/2026-11-06/10_ferry.jpg",
@@ -14293,41 +14261,41 @@
         "oshidomari": "cams/2026-11-06/17_oshidomari.jpg",
         "otadomari": "cams/2026-11-06/17_otadomari.jpg",
         "senposhi": "cams/2026-11-06/17_senposhi.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-06T06:07:17.466031+09:00",
+        "ferry": "cams/2026-11-06/06_ferry.jpg",
+        "himenuma": "cams/2026-11-06/06_himenuma.jpg",
+        "oshidomari": "cams/2026-11-06/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-06/06_otadomari.jpg",
+        "senposhi": "cams/2026-11-06/06_senposhi.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-06T07:07:47.370899+09:00",
+        "ferry": "cams/2026-11-06/07_ferry.jpg",
+        "himenuma": "cams/2026-11-06/07_himenuma.jpg",
+        "oshidomari": "cams/2026-11-06/07_oshidomari.jpg",
+        "otadomari": "cams/2026-11-06/07_otadomari.jpg",
+        "senposhi": "cams/2026-11-06/07_senposhi.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-06T08:07:17.066790+09:00",
+        "ferry": "cams/2026-11-06/08_ferry.jpg",
+        "himenuma": "cams/2026-11-06/08_himenuma.jpg",
+        "oshidomari": "cams/2026-11-06/08_oshidomari.jpg",
+        "otadomari": "cams/2026-11-06/08_otadomari.jpg",
+        "senposhi": "cams/2026-11-06/08_senposhi.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-06T09:07:48.981130+09:00",
+        "oshidomari": "cams/2026-11-06/09_oshidomari.jpg",
+        "senposhi": "cams/2026-11-06/09_senposhi.jpg",
+        "ferry": "cams/2026-11-06/09_ferry.jpg",
+        "himenuma": "cams/2026-11-06/09_himenuma.jpg",
+        "otadomari": "cams/2026-11-06/09_otadomari.jpg"
       }
     },
     "2026-11-07": {
-      "06": {
-        "timestamp": "2026-11-07T06:07:09.803701+09:00",
-        "ferry": "cams/2026-11-07/06_ferry.jpg",
-        "himenuma": "cams/2026-11-07/06_himenuma.jpg",
-        "oshidomari": "cams/2026-11-07/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-07/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-07/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-07T07:07:22.809802+09:00",
-        "ferry": "cams/2026-11-07/07_ferry.jpg",
-        "himenuma": "cams/2026-11-07/07_himenuma.jpg",
-        "oshidomari": "cams/2026-11-07/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-07/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-07/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-07T08:10:21.778604+09:00",
-        "oshidomari": "cams/2026-11-07/08_oshidomari.jpg",
-        "senposhi": "cams/2026-11-07/08_senposhi.jpg",
-        "ferry": "cams/2026-11-07/08_ferry.jpg",
-        "himenuma": "cams/2026-11-07/08_himenuma.jpg",
-        "otadomari": "cams/2026-11-07/08_otadomari.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-07T09:07:28.362527+09:00",
-        "ferry": "cams/2026-11-07/09_ferry.jpg",
-        "himenuma": "cams/2026-11-07/09_himenuma.jpg",
-        "oshidomari": "cams/2026-11-07/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-07/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-07/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-11-07T10:07:19.031447+09:00",
         "ferry": "cams/2026-11-07/10_ferry.jpg",
@@ -14381,619 +14349,563 @@
         "ferry": "cams/2026-11-07/16_ferry.jpg",
         "himenuma": "cams/2026-11-07/16_himenuma.jpg",
         "oshidomari": "cams/2026-11-07/16_oshidomari.jpg",
-        "otadomari": "cams/2026-11-07/16_otadomari.jpg",
-        "senposhi": "cams/2026-11-07/16_senposhi.jpg"
+        "otadomari": "cams/2026-11-07/16_otadomari.jpg"
       },
       "17": {
         "timestamp": "2026-11-07T17:07:04.641670+09:00",
         "ferry": "cams/2026-11-07/17_ferry.jpg",
         "himenuma": "cams/2026-11-07/17_himenuma.jpg",
         "oshidomari": "cams/2026-11-07/17_oshidomari.jpg",
-        "otadomari": "cams/2026-11-07/17_otadomari.jpg",
-        "senposhi": "cams/2026-11-07/17_senposhi.jpg"
+        "otadomari": "cams/2026-11-07/17_otadomari.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-07T06:07:09.803701+09:00",
+        "ferry": "cams/2026-11-07/06_ferry.jpg",
+        "himenuma": "cams/2026-11-07/06_himenuma.jpg",
+        "oshidomari": "cams/2026-11-07/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-07/06_otadomari.jpg",
+        "senposhi": "cams/2026-11-07/06_senposhi.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-07T07:07:22.809802+09:00",
+        "ferry": "cams/2026-11-07/07_ferry.jpg",
+        "himenuma": "cams/2026-11-07/07_himenuma.jpg",
+        "oshidomari": "cams/2026-11-07/07_oshidomari.jpg",
+        "otadomari": "cams/2026-11-07/07_otadomari.jpg",
+        "senposhi": "cams/2026-11-07/07_senposhi.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-07T08:10:21.778604+09:00",
+        "oshidomari": "cams/2026-11-07/08_oshidomari.jpg",
+        "senposhi": "cams/2026-11-07/08_senposhi.jpg",
+        "ferry": "cams/2026-11-07/08_ferry.jpg",
+        "himenuma": "cams/2026-11-07/08_himenuma.jpg",
+        "otadomari": "cams/2026-11-07/08_otadomari.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-07T09:07:28.362527+09:00",
+        "ferry": "cams/2026-11-07/09_ferry.jpg",
+        "himenuma": "cams/2026-11-07/09_himenuma.jpg",
+        "oshidomari": "cams/2026-11-07/09_oshidomari.jpg",
+        "otadomari": "cams/2026-11-07/09_otadomari.jpg",
+        "senposhi": "cams/2026-11-07/09_senposhi.jpg"
       }
     },
     "2026-11-08": {
-      "06": {
-        "timestamp": "2026-11-08T06:07:12.617527+09:00",
-        "ferry": "cams/2026-11-08/06_ferry.jpg",
-        "himenuma": "cams/2026-11-08/06_himenuma.jpg",
-        "oshidomari": "cams/2026-11-08/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-08T07:07:22.130722+09:00",
-        "ferry": "cams/2026-11-08/07_ferry.jpg",
-        "himenuma": "cams/2026-11-08/07_himenuma.jpg",
-        "oshidomari": "cams/2026-11-08/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-08T08:06:56.057478+09:00",
-        "ferry": "cams/2026-11-08/08_ferry.jpg",
-        "himenuma": "cams/2026-11-08/08_himenuma.jpg",
-        "oshidomari": "cams/2026-11-08/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-08T09:07:02.140678+09:00",
-        "ferry": "cams/2026-11-08/09_ferry.jpg",
-        "himenuma": "cams/2026-11-08/09_himenuma.jpg",
-        "oshidomari": "cams/2026-11-08/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-11-08T10:07:12.489561+09:00",
         "ferry": "cams/2026-11-08/10_ferry.jpg",
         "himenuma": "cams/2026-11-08/10_himenuma.jpg",
         "oshidomari": "cams/2026-11-08/10_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/10_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/10_senposhi.jpg"
+        "otadomari": "cams/2026-11-08/10_otadomari.jpg"
       },
       "11": {
         "timestamp": "2026-11-08T11:07:08.108842+09:00",
         "ferry": "cams/2026-11-08/11_ferry.jpg",
         "himenuma": "cams/2026-11-08/11_himenuma.jpg",
         "oshidomari": "cams/2026-11-08/11_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/11_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/11_senposhi.jpg"
+        "otadomari": "cams/2026-11-08/11_otadomari.jpg"
       },
       "12": {
         "timestamp": "2026-11-08T12:06:50.840824+09:00",
         "ferry": "cams/2026-11-08/12_ferry.jpg",
         "himenuma": "cams/2026-11-08/12_himenuma.jpg",
         "oshidomari": "cams/2026-11-08/12_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/12_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/12_senposhi.jpg"
+        "otadomari": "cams/2026-11-08/12_otadomari.jpg"
       },
       "13": {
         "timestamp": "2026-11-08T13:07:11.768469+09:00",
         "ferry": "cams/2026-11-08/13_ferry.jpg",
         "himenuma": "cams/2026-11-08/13_himenuma.jpg",
         "oshidomari": "cams/2026-11-08/13_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/13_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/13_senposhi.jpg"
+        "otadomari": "cams/2026-11-08/13_otadomari.jpg"
       },
       "14": {
         "timestamp": "2026-11-08T14:07:19.243594+09:00",
         "ferry": "cams/2026-11-08/14_ferry.jpg",
         "himenuma": "cams/2026-11-08/14_himenuma.jpg",
         "oshidomari": "cams/2026-11-08/14_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/14_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/14_senposhi.jpg"
+        "otadomari": "cams/2026-11-08/14_otadomari.jpg"
       },
       "15": {
         "timestamp": "2026-11-08T15:07:03.877459+09:00",
         "ferry": "cams/2026-11-08/15_ferry.jpg",
         "himenuma": "cams/2026-11-08/15_himenuma.jpg",
         "oshidomari": "cams/2026-11-08/15_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/15_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/15_senposhi.jpg"
+        "otadomari": "cams/2026-11-08/15_otadomari.jpg"
       },
       "16": {
         "timestamp": "2026-11-08T16:07:06.493729+09:00",
         "ferry": "cams/2026-11-08/16_ferry.jpg",
         "himenuma": "cams/2026-11-08/16_himenuma.jpg",
         "oshidomari": "cams/2026-11-08/16_oshidomari.jpg",
-        "otadomari": "cams/2026-11-08/16_otadomari.jpg",
-        "senposhi": "cams/2026-11-08/16_senposhi.jpg"
+        "otadomari": "cams/2026-11-08/16_otadomari.jpg"
       },
       "17": {
         "timestamp": "2026-11-08T17:07:30.024400+09:00",
-        "oshidomari": "cams/2026-11-08/17_oshidomari.jpg",
-        "senposhi": "cams/2026-11-08/17_senposhi.jpg"
+        "oshidomari": "cams/2026-11-08/17_oshidomari.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-08T06:07:12.617527+09:00",
+        "ferry": "cams/2026-11-08/06_ferry.jpg",
+        "himenuma": "cams/2026-11-08/06_himenuma.jpg",
+        "oshidomari": "cams/2026-11-08/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-08/06_otadomari.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-08T07:07:22.130722+09:00",
+        "ferry": "cams/2026-11-08/07_ferry.jpg",
+        "himenuma": "cams/2026-11-08/07_himenuma.jpg",
+        "oshidomari": "cams/2026-11-08/07_oshidomari.jpg",
+        "otadomari": "cams/2026-11-08/07_otadomari.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-08T08:06:56.057478+09:00",
+        "ferry": "cams/2026-11-08/08_ferry.jpg",
+        "himenuma": "cams/2026-11-08/08_himenuma.jpg",
+        "oshidomari": "cams/2026-11-08/08_oshidomari.jpg",
+        "otadomari": "cams/2026-11-08/08_otadomari.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-08T09:07:02.140678+09:00",
+        "ferry": "cams/2026-11-08/09_ferry.jpg",
+        "himenuma": "cams/2026-11-08/09_himenuma.jpg",
+        "oshidomari": "cams/2026-11-08/09_oshidomari.jpg",
+        "otadomari": "cams/2026-11-08/09_otadomari.jpg"
       }
     },
     "2026-11-09": {
+      "10": {
+        "timestamp": "2026-11-09T10:06:39.182022+09:00",
+        "ferry": "cams/2026-11-09/10_ferry.jpg",
+        "himenuma": "cams/2026-11-09/10_himenuma.jpg",
+        "oshidomari": "cams/2026-11-09/10_oshidomari.jpg",
+        "otadomari": "cams/2026-11-09/10_otadomari.jpg"
+      },
+      "11": {
+        "timestamp": "2026-11-09T11:06:57.840992+09:00",
+        "ferry": "cams/2026-11-09/11_ferry.jpg",
+        "oshidomari": "cams/2026-11-09/11_oshidomari.jpg",
+        "otadomari": "cams/2026-11-09/11_otadomari.jpg"
+      },
+      "12": {
+        "timestamp": "2026-11-09T12:06:48.622977+09:00",
+        "ferry": "cams/2026-11-09/12_ferry.jpg",
+        "oshidomari": "cams/2026-11-09/12_oshidomari.jpg",
+        "otadomari": "cams/2026-11-09/12_otadomari.jpg"
+      },
+      "13": {
+        "timestamp": "2026-11-09T13:06:44.205040+09:00",
+        "ferry": "cams/2026-11-09/13_ferry.jpg",
+        "oshidomari": "cams/2026-11-09/13_oshidomari.jpg",
+        "otadomari": "cams/2026-11-09/13_otadomari.jpg"
+      },
+      "14": {
+        "timestamp": "2026-11-09T14:06:39.789165+09:00",
+        "ferry": "cams/2026-11-09/14_ferry.jpg",
+        "oshidomari": "cams/2026-11-09/14_oshidomari.jpg",
+        "otadomari": "cams/2026-11-09/14_otadomari.jpg"
+      },
+      "15": {
+        "timestamp": "2026-11-09T16:06:38.545793+09:00",
+        "ferry": "cams/2026-11-09/15_ferry.jpg",
+        "oshidomari": "cams/2026-11-09/15_oshidomari.jpg",
+        "otadomari": "cams/2026-11-09/15_otadomari.jpg"
+      },
+      "16": {
+        "timestamp": "2026-11-09T16:06:38.545793+09:00",
+        "ferry": "cams/2026-11-09/16_ferry.jpg",
+        "oshidomari": "cams/2026-11-09/16_oshidomari.jpg",
+        "otadomari": "cams/2026-11-09/16_otadomari.jpg"
+      },
       "06": {
         "timestamp": "2026-11-09T06:06:45.146883+09:00",
         "ferry": "cams/2026-11-09/06_ferry.jpg",
         "himenuma": "cams/2026-11-09/06_himenuma.jpg",
         "oshidomari": "cams/2026-11-09/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/06_senposhi.jpg"
+        "otadomari": "cams/2026-11-09/06_otadomari.jpg"
       },
       "07": {
         "timestamp": "2026-11-09T07:06:39.787118+09:00",
         "ferry": "cams/2026-11-09/07_ferry.jpg",
         "himenuma": "cams/2026-11-09/07_himenuma.jpg",
         "oshidomari": "cams/2026-11-09/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/07_senposhi.jpg"
+        "otadomari": "cams/2026-11-09/07_otadomari.jpg"
       },
       "08": {
         "timestamp": "2026-11-09T08:06:38.790072+09:00",
         "ferry": "cams/2026-11-09/08_ferry.jpg",
         "himenuma": "cams/2026-11-09/08_himenuma.jpg",
         "oshidomari": "cams/2026-11-09/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/08_senposhi.jpg"
+        "otadomari": "cams/2026-11-09/08_otadomari.jpg"
       },
       "09": {
         "timestamp": "2026-11-09T09:06:46.767531+09:00",
         "ferry": "cams/2026-11-09/09_ferry.jpg",
         "himenuma": "cams/2026-11-09/09_himenuma.jpg",
         "oshidomari": "cams/2026-11-09/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/09_senposhi.jpg"
-      },
-      "10": {
-        "timestamp": "2026-11-09T10:06:39.182022+09:00",
-        "ferry": "cams/2026-11-09/10_ferry.jpg",
-        "himenuma": "cams/2026-11-09/10_himenuma.jpg",
-        "oshidomari": "cams/2026-11-09/10_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/10_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/10_senposhi.jpg"
-      },
-      "11": {
-        "timestamp": "2026-11-09T11:06:57.840992+09:00",
-        "ferry": "cams/2026-11-09/11_ferry.jpg",
-        "himenuma": "cams/2026-11-09/11_himenuma.jpg",
-        "oshidomari": "cams/2026-11-09/11_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/11_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/11_senposhi.jpg"
-      },
-      "12": {
-        "timestamp": "2026-11-09T12:06:48.622977+09:00",
-        "ferry": "cams/2026-11-09/12_ferry.jpg",
-        "himenuma": "cams/2026-11-09/12_himenuma.jpg",
-        "oshidomari": "cams/2026-11-09/12_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/12_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/12_senposhi.jpg"
-      },
-      "13": {
-        "timestamp": "2026-11-09T13:06:44.205040+09:00",
-        "ferry": "cams/2026-11-09/13_ferry.jpg",
-        "himenuma": "cams/2026-11-09/13_himenuma.jpg",
-        "oshidomari": "cams/2026-11-09/13_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/13_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/13_senposhi.jpg"
-      },
-      "14": {
-        "timestamp": "2026-11-09T14:06:39.789165+09:00",
-        "ferry": "cams/2026-11-09/14_ferry.jpg",
-        "himenuma": "cams/2026-11-09/14_himenuma.jpg",
-        "oshidomari": "cams/2026-11-09/14_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/14_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/14_senposhi.jpg"
-      },
-      "15": {
-        "timestamp": "2026-11-09T16:06:38.545793+09:00",
-        "ferry": "cams/2026-11-09/15_ferry.jpg",
-        "himenuma": "cams/2026-11-09/15_himenuma.jpg",
-        "oshidomari": "cams/2026-11-09/15_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/15_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/15_senposhi.jpg"
-      },
-      "16": {
-        "timestamp": "2026-11-09T16:06:38.545793+09:00",
-        "ferry": "cams/2026-11-09/16_ferry.jpg",
-        "himenuma": "cams/2026-11-09/16_himenuma.jpg",
-        "oshidomari": "cams/2026-11-09/16_oshidomari.jpg",
-        "otadomari": "cams/2026-11-09/16_otadomari.jpg",
-        "senposhi": "cams/2026-11-09/16_senposhi.jpg"
+        "otadomari": "cams/2026-11-09/09_otadomari.jpg"
       }
     },
     "2026-11-10": {
-      "06": {
-        "timestamp": "2026-11-10T06:06:57.859517+09:00",
-        "ferry": "cams/2026-11-10/06_ferry.jpg",
-        "himenuma": "cams/2026-11-10/06_himenuma.jpg",
-        "oshidomari": "cams/2026-11-10/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-10/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-10/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-10T07:07:10.030416+09:00",
-        "ferry": "cams/2026-11-10/07_ferry.jpg",
-        "himenuma": "cams/2026-11-10/07_himenuma.jpg",
-        "oshidomari": "cams/2026-11-10/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-10/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-10/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-10T08:06:39.265214+09:00",
-        "ferry": "cams/2026-11-10/08_ferry.jpg",
-        "himenuma": "cams/2026-11-10/08_himenuma.jpg",
-        "oshidomari": "cams/2026-11-10/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-10/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-10/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-10T09:00:58.578812+09:00",
-        "oshidomari": "cams/2026-11-10/09_oshidomari.jpg",
-        "senposhi": "cams/2026-11-10/09_senposhi.jpg",
-        "ferry": "cams/2026-11-10/09_ferry.jpg",
-        "himenuma": "cams/2026-11-10/09_himenuma.jpg",
-        "otadomari": "cams/2026-11-10/09_otadomari.jpg"
-      },
       "10": {
         "timestamp": "2026-11-10T10:07:28.260398+09:00",
         "ferry": "cams/2026-11-10/10_ferry.jpg",
-        "himenuma": "cams/2026-11-10/10_himenuma.jpg",
         "oshidomari": "cams/2026-11-10/10_oshidomari.jpg",
-        "otadomari": "cams/2026-11-10/10_otadomari.jpg",
-        "senposhi": "cams/2026-11-10/10_senposhi.jpg"
+        "otadomari": "cams/2026-11-10/10_otadomari.jpg"
       },
       "11": {
         "timestamp": "2026-11-10T11:11:19.237322+09:00",
         "ferry": "cams/2026-11-10/11_ferry.jpg",
-        "himenuma": "cams/2026-11-10/11_himenuma.jpg",
         "oshidomari": "cams/2026-11-10/11_oshidomari.jpg",
-        "otadomari": "cams/2026-11-10/11_otadomari.jpg",
-        "senposhi": "cams/2026-11-10/11_senposhi.jpg"
+        "otadomari": "cams/2026-11-10/11_otadomari.jpg"
       },
       "12": {
         "timestamp": "2026-11-10T12:06:34.696264+09:00",
         "ferry": "cams/2026-11-10/12_ferry.jpg",
-        "himenuma": "cams/2026-11-10/12_himenuma.jpg",
         "oshidomari": "cams/2026-11-10/12_oshidomari.jpg",
-        "otadomari": "cams/2026-11-10/12_otadomari.jpg",
-        "senposhi": "cams/2026-11-10/12_senposhi.jpg"
+        "otadomari": "cams/2026-11-10/12_otadomari.jpg"
       },
       "13": {
         "timestamp": "2026-11-10T13:10:46.097712+09:00",
         "oshidomari": "cams/2026-11-10/13_oshidomari.jpg",
-        "senposhi": "cams/2026-11-10/13_senposhi.jpg",
         "ferry": "cams/2026-11-10/13_ferry.jpg",
-        "himenuma": "cams/2026-11-10/13_himenuma.jpg",
         "otadomari": "cams/2026-11-10/13_otadomari.jpg"
       },
       "14": {
         "timestamp": "2026-11-10T14:12:46.481021+09:00",
         "ferry": "cams/2026-11-10/14_ferry.jpg",
-        "himenuma": "cams/2026-11-10/14_himenuma.jpg",
         "oshidomari": "cams/2026-11-10/14_oshidomari.jpg",
-        "otadomari": "cams/2026-11-10/14_otadomari.jpg",
-        "senposhi": "cams/2026-11-10/14_senposhi.jpg"
+        "otadomari": "cams/2026-11-10/14_otadomari.jpg"
       },
       "15": {
         "timestamp": "2026-11-10T15:08:13.763442+09:00",
         "ferry": "cams/2026-11-10/15_ferry.jpg",
-        "himenuma": "cams/2026-11-10/15_himenuma.jpg",
         "oshidomari": "cams/2026-11-10/15_oshidomari.jpg",
-        "otadomari": "cams/2026-11-10/15_otadomari.jpg",
-        "senposhi": "cams/2026-11-10/15_senposhi.jpg"
+        "otadomari": "cams/2026-11-10/15_otadomari.jpg"
       },
       "16": {
         "timestamp": "2026-11-10T16:04:49.814007+09:00",
         "ferry": "cams/2026-11-10/16_ferry.jpg",
-        "himenuma": "cams/2026-11-10/16_himenuma.jpg",
         "oshidomari": "cams/2026-11-10/16_oshidomari.jpg",
-        "otadomari": "cams/2026-11-10/16_otadomari.jpg",
-        "senposhi": "cams/2026-11-10/16_senposhi.jpg"
+        "otadomari": "cams/2026-11-10/16_otadomari.jpg"
       },
       "17": {
         "timestamp": "2026-11-10T17:11:49.943881+09:00",
         "ferry": "cams/2026-11-10/17_ferry.jpg",
-        "himenuma": "cams/2026-11-10/17_himenuma.jpg",
         "oshidomari": "cams/2026-11-10/17_oshidomari.jpg",
-        "otadomari": "cams/2026-11-10/17_otadomari.jpg",
-        "senposhi": "cams/2026-11-10/17_senposhi.jpg"
+        "otadomari": "cams/2026-11-10/17_otadomari.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-10T06:06:57.859517+09:00",
+        "ferry": "cams/2026-11-10/06_ferry.jpg",
+        "oshidomari": "cams/2026-11-10/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-10/06_otadomari.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-10T07:07:10.030416+09:00",
+        "ferry": "cams/2026-11-10/07_ferry.jpg",
+        "oshidomari": "cams/2026-11-10/07_oshidomari.jpg",
+        "otadomari": "cams/2026-11-10/07_otadomari.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-10T08:06:39.265214+09:00",
+        "ferry": "cams/2026-11-10/08_ferry.jpg",
+        "oshidomari": "cams/2026-11-10/08_oshidomari.jpg",
+        "otadomari": "cams/2026-11-10/08_otadomari.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-10T09:00:58.578812+09:00",
+        "oshidomari": "cams/2026-11-10/09_oshidomari.jpg",
+        "ferry": "cams/2026-11-10/09_ferry.jpg",
+        "otadomari": "cams/2026-11-10/09_otadomari.jpg"
       }
     },
     "2026-11-11": {
-      "06": {
-        "timestamp": "2026-11-11T06:06:59.959044+09:00",
-        "ferry": "cams/2026-11-11/06_ferry.jpg",
-        "himenuma": "cams/2026-11-11/06_himenuma.jpg",
-        "oshidomari": "cams/2026-11-11/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-11T07:06:58.514495+09:00",
-        "ferry": "cams/2026-11-11/07_ferry.jpg",
-        "himenuma": "cams/2026-11-11/07_himenuma.jpg",
-        "oshidomari": "cams/2026-11-11/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-11T08:06:50.572027+09:00",
-        "ferry": "cams/2026-11-11/08_ferry.jpg",
-        "himenuma": "cams/2026-11-11/08_himenuma.jpg",
-        "oshidomari": "cams/2026-11-11/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-11T09:06:55.310082+09:00",
-        "ferry": "cams/2026-11-11/09_ferry.jpg",
-        "himenuma": "cams/2026-11-11/09_himenuma.jpg",
-        "oshidomari": "cams/2026-11-11/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-11-11T10:07:47.937618+09:00",
         "ferry": "cams/2026-11-11/10_ferry.jpg",
-        "himenuma": "cams/2026-11-11/10_himenuma.jpg",
         "oshidomari": "cams/2026-11-11/10_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/10_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/10_senposhi.jpg"
+        "otadomari": "cams/2026-11-11/10_otadomari.jpg"
       },
       "11": {
         "timestamp": "2026-11-11T11:07:36.905078+09:00",
         "ferry": "cams/2026-11-11/11_ferry.jpg",
-        "himenuma": "cams/2026-11-11/11_himenuma.jpg",
         "oshidomari": "cams/2026-11-11/11_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/11_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/11_senposhi.jpg"
+        "otadomari": "cams/2026-11-11/11_otadomari.jpg"
       },
       "12": {
         "timestamp": "2026-11-11T12:07:51.523324+09:00",
         "ferry": "cams/2026-11-11/12_ferry.jpg",
-        "himenuma": "cams/2026-11-11/12_himenuma.jpg",
         "oshidomari": "cams/2026-11-11/12_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/12_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/12_senposhi.jpg"
+        "otadomari": "cams/2026-11-11/12_otadomari.jpg"
       },
       "13": {
         "timestamp": "2026-11-11T13:07:32.220270+09:00",
         "ferry": "cams/2026-11-11/13_ferry.jpg",
-        "himenuma": "cams/2026-11-11/13_himenuma.jpg",
         "oshidomari": "cams/2026-11-11/13_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/13_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/13_senposhi.jpg"
+        "otadomari": "cams/2026-11-11/13_otadomari.jpg"
       },
       "14": {
         "timestamp": "2026-11-11T14:07:44.207646+09:00",
         "ferry": "cams/2026-11-11/14_ferry.jpg",
-        "himenuma": "cams/2026-11-11/14_himenuma.jpg",
         "kutsugata": "cams/2026-11-11/14_kutsugata.jpg",
         "oshidomari": "cams/2026-11-11/14_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/14_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/14_senposhi.jpg"
+        "otadomari": "cams/2026-11-11/14_otadomari.jpg"
       },
       "15": {
         "timestamp": "2026-11-11T15:07:34.120845+09:00",
         "ferry": "cams/2026-11-11/15_ferry.jpg",
-        "himenuma": "cams/2026-11-11/15_himenuma.jpg",
         "kutsugata": "cams/2026-11-11/15_kutsugata.jpg",
         "oshidomari": "cams/2026-11-11/15_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/15_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/15_senposhi.jpg"
+        "otadomari": "cams/2026-11-11/15_otadomari.jpg"
       },
       "16": {
         "timestamp": "2026-11-11T16:10:23.699525+09:00",
         "kutsugata": "cams/2026-11-11/16_kutsugata.jpg",
         "oshidomari": "cams/2026-11-11/16_oshidomari.jpg",
-        "senposhi": "cams/2026-11-11/16_senposhi.jpg",
         "ferry": "cams/2026-11-11/16_ferry.jpg",
-        "himenuma": "cams/2026-11-11/16_himenuma.jpg",
         "otadomari": "cams/2026-11-11/16_otadomari.jpg"
       },
       "17": {
         "timestamp": "2026-11-11T17:07:55.376284+09:00",
         "ferry": "cams/2026-11-11/17_ferry.jpg",
-        "himenuma": "cams/2026-11-11/17_himenuma.jpg",
         "kutsugata": "cams/2026-11-11/17_kutsugata.jpg",
         "oshidomari": "cams/2026-11-11/17_oshidomari.jpg",
-        "otadomari": "cams/2026-11-11/17_otadomari.jpg",
-        "senposhi": "cams/2026-11-11/17_senposhi.jpg"
+        "otadomari": "cams/2026-11-11/17_otadomari.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-11T06:06:59.959044+09:00",
+        "ferry": "cams/2026-11-11/06_ferry.jpg",
+        "oshidomari": "cams/2026-11-11/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-11/06_otadomari.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-11T07:06:58.514495+09:00",
+        "ferry": "cams/2026-11-11/07_ferry.jpg",
+        "oshidomari": "cams/2026-11-11/07_oshidomari.jpg",
+        "otadomari": "cams/2026-11-11/07_otadomari.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-11T08:06:50.572027+09:00",
+        "ferry": "cams/2026-11-11/08_ferry.jpg",
+        "oshidomari": "cams/2026-11-11/08_oshidomari.jpg",
+        "otadomari": "cams/2026-11-11/08_otadomari.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-11T09:06:55.310082+09:00",
+        "ferry": "cams/2026-11-11/09_ferry.jpg",
+        "oshidomari": "cams/2026-11-11/09_oshidomari.jpg",
+        "otadomari": "cams/2026-11-11/09_otadomari.jpg"
       }
     },
     "2026-11-12": {
-      "06": {
-        "timestamp": "2026-11-12T06:07:31.906990+09:00",
-        "ferry": "cams/2026-11-12/06_ferry.jpg",
-        "himenuma": "cams/2026-11-12/06_himenuma.jpg",
-        "kutsugata": "cams/2026-11-12/06_kutsugata.jpg",
-        "oshidomari": "cams/2026-11-12/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-12/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-12/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-12T07:07:38.724906+09:00",
-        "ferry": "cams/2026-11-12/07_ferry.jpg",
-        "himenuma": "cams/2026-11-12/07_himenuma.jpg",
-        "kutsugata": "cams/2026-11-12/07_kutsugata.jpg",
-        "oshidomari": "cams/2026-11-12/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-12/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-12/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-12T08:07:33.032774+09:00",
-        "ferry": "cams/2026-11-12/08_ferry.jpg",
-        "himenuma": "cams/2026-11-12/08_himenuma.jpg",
-        "kutsugata": "cams/2026-11-12/08_kutsugata.jpg",
-        "oshidomari": "cams/2026-11-12/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-12/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-12/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-12T09:07:31.329084+09:00",
-        "ferry": "cams/2026-11-12/09_ferry.jpg",
-        "himenuma": "cams/2026-11-12/09_himenuma.jpg",
-        "kutsugata": "cams/2026-11-12/09_kutsugata.jpg",
-        "oshidomari": "cams/2026-11-12/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-12/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-12/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-11-12T10:07:41.802943+09:00",
         "ferry": "cams/2026-11-12/10_ferry.jpg",
-        "himenuma": "cams/2026-11-12/10_himenuma.jpg",
         "kutsugata": "cams/2026-11-12/10_kutsugata.jpg",
         "oshidomari": "cams/2026-11-12/10_oshidomari.jpg",
-        "otadomari": "cams/2026-11-12/10_otadomari.jpg",
-        "senposhi": "cams/2026-11-12/10_senposhi.jpg"
+        "otadomari": "cams/2026-11-12/10_otadomari.jpg"
       },
       "11": {
         "timestamp": "2026-11-12T11:08:20.032663+09:00",
         "ferry": "cams/2026-11-12/11_ferry.jpg",
-        "himenuma": "cams/2026-11-12/11_himenuma.jpg",
         "kutsugata": "cams/2026-11-12/11_kutsugata.jpg",
         "oshidomari": "cams/2026-11-12/11_oshidomari.jpg",
-        "otadomari": "cams/2026-11-12/11_otadomari.jpg",
-        "senposhi": "cams/2026-11-12/11_senposhi.jpg"
+        "otadomari": "cams/2026-11-12/11_otadomari.jpg"
       },
       "12": {
         "timestamp": "2026-11-12T12:10:24.525487+09:00",
         "kutsugata": "cams/2026-11-12/12_kutsugata.jpg",
         "oshidomari": "cams/2026-11-12/12_oshidomari.jpg",
-        "senposhi": "cams/2026-11-12/12_senposhi.jpg",
         "ferry": "cams/2026-11-12/12_ferry.jpg",
-        "himenuma": "cams/2026-11-12/12_himenuma.jpg",
         "otadomari": "cams/2026-11-12/12_otadomari.jpg"
       },
       "13": {
         "timestamp": "2026-11-12T13:07:37.375663+09:00",
         "ferry": "cams/2026-11-12/13_ferry.jpg",
-        "himenuma": "cams/2026-11-12/13_himenuma.jpg",
         "kutsugata": "cams/2026-11-12/13_kutsugata.jpg",
         "oshidomari": "cams/2026-11-12/13_oshidomari.jpg",
-        "otadomari": "cams/2026-11-12/13_otadomari.jpg",
-        "senposhi": "cams/2026-11-12/13_senposhi.jpg"
+        "otadomari": "cams/2026-11-12/13_otadomari.jpg"
       },
       "14": {
         "timestamp": "2026-11-12T14:08:09.303208+09:00",
         "ferry": "cams/2026-11-12/14_ferry.jpg",
-        "himenuma": "cams/2026-11-12/14_himenuma.jpg",
         "kutsugata": "cams/2026-11-12/14_kutsugata.jpg",
         "oshidomari": "cams/2026-11-12/14_oshidomari.jpg",
-        "otadomari": "cams/2026-11-12/14_otadomari.jpg",
-        "senposhi": "cams/2026-11-12/14_senposhi.jpg"
+        "otadomari": "cams/2026-11-12/14_otadomari.jpg"
       },
       "15": {
         "timestamp": "2026-11-12T15:07:37.120845+09:00",
         "ferry": "cams/2026-11-12/15_ferry.jpg",
-        "himenuma": "cams/2026-11-12/15_himenuma.jpg",
         "kutsugata": "cams/2026-11-12/15_kutsugata.jpg",
         "oshidomari": "cams/2026-11-12/15_oshidomari.jpg",
-        "otadomari": "cams/2026-11-12/15_otadomari.jpg",
-        "senposhi": "cams/2026-11-12/15_senposhi.jpg"
+        "otadomari": "cams/2026-11-12/15_otadomari.jpg"
       },
       "16": {
         "timestamp": "2026-11-12T16:07:46.755505+09:00",
         "ferry": "cams/2026-11-12/16_ferry.jpg",
-        "himenuma": "cams/2026-11-12/16_himenuma.jpg",
         "kutsugata": "cams/2026-11-12/16_kutsugata.jpg",
         "oshidomari": "cams/2026-11-12/16_oshidomari.jpg",
-        "otadomari": "cams/2026-11-12/16_otadomari.jpg",
-        "senposhi": "cams/2026-11-12/16_senposhi.jpg"
+        "otadomari": "cams/2026-11-12/16_otadomari.jpg"
       },
       "17": {
         "timestamp": "2026-11-12T17:09:47.957282+09:00",
         "kutsugata": "cams/2026-11-12/17_kutsugata.jpg",
-        "oshidomari": "cams/2026-11-12/17_oshidomari.jpg",
-        "senposhi": "cams/2026-11-12/17_senposhi.jpg"
+        "oshidomari": "cams/2026-11-12/17_oshidomari.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-12T06:07:31.906990+09:00",
+        "ferry": "cams/2026-11-12/06_ferry.jpg",
+        "kutsugata": "cams/2026-11-12/06_kutsugata.jpg",
+        "oshidomari": "cams/2026-11-12/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-12/06_otadomari.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-12T07:07:38.724906+09:00",
+        "ferry": "cams/2026-11-12/07_ferry.jpg",
+        "kutsugata": "cams/2026-11-12/07_kutsugata.jpg",
+        "oshidomari": "cams/2026-11-12/07_oshidomari.jpg",
+        "otadomari": "cams/2026-11-12/07_otadomari.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-12T08:07:33.032774+09:00",
+        "ferry": "cams/2026-11-12/08_ferry.jpg",
+        "kutsugata": "cams/2026-11-12/08_kutsugata.jpg",
+        "oshidomari": "cams/2026-11-12/08_oshidomari.jpg",
+        "otadomari": "cams/2026-11-12/08_otadomari.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-12T09:07:31.329084+09:00",
+        "ferry": "cams/2026-11-12/09_ferry.jpg",
+        "kutsugata": "cams/2026-11-12/09_kutsugata.jpg",
+        "oshidomari": "cams/2026-11-12/09_oshidomari.jpg",
+        "otadomari": "cams/2026-11-12/09_otadomari.jpg"
       }
     },
     "2026-11-13": {
-      "06": {
-        "timestamp": "2026-11-13T06:07:31.602911+09:00",
-        "ferry": "cams/2026-11-13/06_ferry.jpg",
-        "himenuma": "cams/2026-11-13/06_himenuma.jpg",
-        "kutsugata": "cams/2026-11-13/06_kutsugata.jpg",
-        "oshidomari": "cams/2026-11-13/06_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/06_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/06_senposhi.jpg"
-      },
-      "07": {
-        "timestamp": "2026-11-13T07:07:58.452766+09:00",
-        "ferry": "cams/2026-11-13/07_ferry.jpg",
-        "himenuma": "cams/2026-11-13/07_himenuma.jpg",
-        "kutsugata": "cams/2026-11-13/07_kutsugata.jpg",
-        "oshidomari": "cams/2026-11-13/07_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/07_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/07_senposhi.jpg"
-      },
-      "08": {
-        "timestamp": "2026-11-13T08:07:28.267191+09:00",
-        "ferry": "cams/2026-11-13/08_ferry.jpg",
-        "himenuma": "cams/2026-11-13/08_himenuma.jpg",
-        "kutsugata": "cams/2026-11-13/08_kutsugata.jpg",
-        "oshidomari": "cams/2026-11-13/08_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/08_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/08_senposhi.jpg"
-      },
-      "09": {
-        "timestamp": "2026-11-13T09:07:24.287895+09:00",
-        "ferry": "cams/2026-11-13/09_ferry.jpg",
-        "himenuma": "cams/2026-11-13/09_himenuma.jpg",
-        "kutsugata": "cams/2026-11-13/09_kutsugata.jpg",
-        "oshidomari": "cams/2026-11-13/09_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/09_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/09_senposhi.jpg"
-      },
       "10": {
         "timestamp": "2026-11-13T10:07:34.858390+09:00",
         "ferry": "cams/2026-11-13/10_ferry.jpg",
-        "himenuma": "cams/2026-11-13/10_himenuma.jpg",
         "kutsugata": "cams/2026-11-13/10_kutsugata.jpg",
         "oshidomari": "cams/2026-11-13/10_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/10_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/10_senposhi.jpg"
+        "otadomari": "cams/2026-11-13/10_otadomari.jpg"
       },
       "11": {
         "timestamp": "2026-11-13T11:07:13.699962+09:00",
         "ferry": "cams/2026-11-13/11_ferry.jpg",
-        "himenuma": "cams/2026-11-13/11_himenuma.jpg",
         "kutsugata": "cams/2026-11-13/11_kutsugata.jpg",
         "oshidomari": "cams/2026-11-13/11_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/11_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/11_senposhi.jpg"
+        "otadomari": "cams/2026-11-13/11_otadomari.jpg"
       },
       "12": {
         "timestamp": "2026-11-13T12:07:23.195705+09:00",
         "ferry": "cams/2026-11-13/12_ferry.jpg",
-        "himenuma": "cams/2026-11-13/12_himenuma.jpg",
         "kutsugata": "cams/2026-11-13/12_kutsugata.jpg",
         "oshidomari": "cams/2026-11-13/12_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/12_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/12_senposhi.jpg"
+        "otadomari": "cams/2026-11-13/12_otadomari.jpg"
       },
       "13": {
         "timestamp": "2026-11-13T13:07:54.599403+09:00",
         "ferry": "cams/2026-11-13/13_ferry.jpg",
-        "himenuma": "cams/2026-11-13/13_himenuma.jpg",
         "kutsugata": "cams/2026-11-13/13_kutsugata.jpg",
         "oshidomari": "cams/2026-11-13/13_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/13_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/13_senposhi.jpg"
+        "otadomari": "cams/2026-11-13/13_otadomari.jpg"
       },
       "14": {
         "timestamp": "2026-11-13T14:07:16.513604+09:00",
         "ferry": "cams/2026-11-13/14_ferry.jpg",
-        "himenuma": "cams/2026-11-13/14_himenuma.jpg",
         "kutsugata": "cams/2026-11-13/14_kutsugata.jpg",
         "oshidomari": "cams/2026-11-13/14_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/14_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/14_senposhi.jpg"
+        "otadomari": "cams/2026-11-13/14_otadomari.jpg"
       },
       "15": {
         "timestamp": "2026-11-13T15:07:42.164107+09:00",
         "ferry": "cams/2026-11-13/15_ferry.jpg",
-        "himenuma": "cams/2026-11-13/15_himenuma.jpg",
         "kutsugata": "cams/2026-11-13/15_kutsugata.jpg",
         "oshidomari": "cams/2026-11-13/15_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/15_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/15_senposhi.jpg"
+        "otadomari": "cams/2026-11-13/15_otadomari.jpg"
       },
       "16": {
         "timestamp": "2026-11-13T16:07:28.015283+09:00",
         "ferry": "cams/2026-11-13/16_ferry.jpg",
-        "himenuma": "cams/2026-11-13/16_himenuma.jpg",
         "kutsugata": "cams/2026-11-13/16_kutsugata.jpg",
         "oshidomari": "cams/2026-11-13/16_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/16_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/16_senposhi.jpg"
+        "otadomari": "cams/2026-11-13/16_otadomari.jpg"
       },
       "17": {
         "timestamp": "2026-11-13T17:07:34.205633+09:00",
         "ferry": "cams/2026-11-13/17_ferry.jpg",
-        "himenuma": "cams/2026-11-13/17_himenuma.jpg",
         "kutsugata": "cams/2026-11-13/17_kutsugata.jpg",
         "oshidomari": "cams/2026-11-13/17_oshidomari.jpg",
-        "otadomari": "cams/2026-11-13/17_otadomari.jpg",
-        "senposhi": "cams/2026-11-13/17_senposhi.jpg"
+        "otadomari": "cams/2026-11-13/17_otadomari.jpg"
+      },
+      "06": {
+        "timestamp": "2026-11-13T06:07:31.602911+09:00",
+        "ferry": "cams/2026-11-13/06_ferry.jpg",
+        "kutsugata": "cams/2026-11-13/06_kutsugata.jpg",
+        "oshidomari": "cams/2026-11-13/06_oshidomari.jpg",
+        "otadomari": "cams/2026-11-13/06_otadomari.jpg"
+      },
+      "07": {
+        "timestamp": "2026-11-13T07:07:58.452766+09:00",
+        "ferry": "cams/2026-11-13/07_ferry.jpg",
+        "kutsugata": "cams/2026-11-13/07_kutsugata.jpg",
+        "oshidomari": "cams/2026-11-13/07_oshidomari.jpg",
+        "otadomari": "cams/2026-11-13/07_otadomari.jpg"
+      },
+      "08": {
+        "timestamp": "2026-11-13T08:07:28.267191+09:00",
+        "ferry": "cams/2026-11-13/08_ferry.jpg",
+        "kutsugata": "cams/2026-11-13/08_kutsugata.jpg",
+        "oshidomari": "cams/2026-11-13/08_oshidomari.jpg",
+        "otadomari": "cams/2026-11-13/08_otadomari.jpg"
+      },
+      "09": {
+        "timestamp": "2026-11-13T09:07:24.287895+09:00",
+        "ferry": "cams/2026-11-13/09_ferry.jpg",
+        "kutsugata": "cams/2026-11-13/09_kutsugata.jpg",
+        "oshidomari": "cams/2026-11-13/09_oshidomari.jpg",
+        "otadomari": "cams/2026-11-13/09_otadomari.jpg"
       }
+    }
+  },
+  "cameraStatus": {
+    "oshidomari": {
+      "status": "active",
+      "lastValidAt": "2026-11-13 17:00",
+      "updatedAt": "2026-11-13T22:03:52.419+09:00"
+    },
+    "ferry": {
+      "status": "active",
+      "lastValidAt": "2026-11-13 17:00",
+      "updatedAt": "2026-11-13T22:03:52.419+09:00"
+    },
+    "himenuma": {
+      "status": "seasonal_closed",
+      "since": "2026-11-09",
+      "note": "冬季配信終了のため休止中",
+      "lastValidAt": "2026-11-09 10:00",
+      "updatedAt": "2026-11-13T22:03:52.419+09:00"
+    },
+    "kutsugata": {
+      "status": "active",
+      "lastValidAt": "2026-11-13 17:00",
+      "updatedAt": "2026-11-13T22:03:52.419+09:00"
+    },
+    "otadomari": {
+      "status": "active",
+      "lastValidAt": "2026-11-13 17:00",
+      "updatedAt": "2026-11-13T22:03:52.419+09:00"
+    },
+    "senposhi": {
+      "status": "monitoring",
+      "health": "blackout",
+      "since": "2026-11-08",
+      "note": "配信側の映像暗転につき復旧待ち（正常映像を検知次第自動復帰）",
+      "lastValidAt": "2026-11-07 15:00",
+      "lastCheckedAt": "2026-11-13T22:03:52.419+09:00",
+      "updatedAt": "2026-11-13T22:03:52.419+09:00"
     }
   }
 }

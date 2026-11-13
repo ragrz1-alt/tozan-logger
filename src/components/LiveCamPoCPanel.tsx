@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Sun,
   RefreshCw,
@@ -35,10 +35,18 @@ import {
   getTargetHoursForDate,
   getEffectiveElevation,
   estimateEastAspectElevation,
+  isValidCameraAnalysis,
 } from '../hooks/useCameraAnalysis';
 import { loadCameraAnalysisFromFirestore } from '../utils/firebaseStorage';
 import { fetchWeatherData, type WeatherData } from '../utils/weatherApi';
-import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
+import { getCamImageUrl } from '../utils/camUrl';
+import {
+  fetchCamHistory,
+  partitionCamerasForDisplay,
+  detectImageBlackoutFromDataUrl,
+  type CamHistory,
+} from '../utils/cameraStatus';
+import { InactiveCamerasNotice } from './InactiveCamerasNotice';
 
 export interface LiveCamPoCPanelProps {
   isAdmin?: boolean;
@@ -139,15 +147,16 @@ const STRICT_SYSTEM_PROMPT = `あなたは北海道・利尻山（独立峰・�
 2. summit_visible (boolean):
    - true: 利尻山の最高峰ピーク（標高1,721mの尖った山頂部）が雲や霧に隠れず、明確に輪郭まで見えている場合のみ true。
    - false: 山頂部に笠雲・山岳波雲・雪雲・ガスがかかって隠れている場合や、山全体が見えない場合は必ず false。
-3. visibility ('clear' | 'cloudy' | 'foggy'):
+3. visibility ('clear' | 'cloudy' | 'foggy' | 'camera_error'):
    - 'clear' (山頂快晴): 山頂ピーク(1,721m)から稜線・山麓までクッキリ見えている状態（summit_visible が true であることが絶対条件）。
    - 'cloudy' (山頂雲隠れ・中腹視認): 山の裾野〜中腹（稜線の一部やオープンバーン）は見えているが、山頂ピーク付近が雲や笠雲に隠れている状態。または高曇りで山全体の輪郭は見えるが厚い雲で日差しがない状態。
    - 'foggy' (山体ガス・視界不良・不可視): 低い雲・濃霧・吹雪・悪天候により、利尻山の山体全体（または中腹から上の大部分）が白や灰色の雲に覆われて見えない状態。※カメラ手前の町や海・沼が見えていても、肝心の「山」が見えなければ必ず 'foggy' と判定してください。
+   - 'camera_error' (カメラ映像障害・無信号・完全暗転): 画面全体が真っ暗なノイズ画面、単色エラー画面、または配信停止テキスト画面などでカメラとして映像が機能していない状態（※悪天候の 'foggy' とは厳密に区別してください）。
 4. visible_elevation_m (1700 | 1000 | 500 | 0 の4段階の整数) ＆ bc_field_status ('alpine_clear' | 'mid_mountain_ok' | 'treeline_only' | 'whiteout'):
    - 1700 / 'alpine_clear': 山頂ピーク（1,500〜1,721m）まで雲に隠れず視界が抜けている状態（summit_visible = true のとき）。
    - 1000 / 'mid_mountain_ok': 山頂ピークは雲の中だが、中腹のオープンバーン・稜線中段（標高800〜1,300m付近：長官山・三眺山・中腹斜面）までは雲底より下にあって明確に視認できる状態。
    - 500 / 'treeline_only': 中腹以上（標高600m以上）は厚い雲やガス・吹雪に隠れているが、下部の森林限界〜山麓・裾野（標高300〜600m付近）の斜面輪郭は見えている状態。
-   - 0 / 'whiteout': 山麓から山体がまったく見えない状態（濃霧・全面ガス・吹雪・ホワイトアウト・暗闇）。
+   - 0 / 'whiteout': 濃霧・全面ガス・吹雪・ホワイトアウト等により山麓から山体がまったく見えない状態（ただしカメラ無信号・真っ暗エラーは visibility='camera_error' として扱うこと）。
 5. snow_line ('none' | 'summit_cap' | 'mid_slope' | 'full_snow'):
    - 'none': 山体に積雪・冠雪が見られない状態（または山体が見えず積雪が確認できない場合）。
    - 'summit_cap': 山頂部・高標高帯（目安1,200m以上）のみ白く冠雪している状態（初冠雪・残雪末期）。
@@ -205,6 +214,7 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
   }, [selectedDate]);
 
   const [historyRecords, setHistoryRecords] = useState<Record<string, Record<string, Record<string, string>>>>({});
+  const [camHistory, setCamHistory] = useState<CamHistory | null>(null);
 
   // 詳細設定（任意期間指定・モデル変更・データ管理・容量確認）の開閉ステート
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
@@ -243,28 +253,23 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
     analysisResultsRef.current = analysisResults;
   }, [analysisResults]);
 
-  // history.json から最新のキャプチャ最終日＆全記録状況を取得して反映
+  // history.json から最新のキャプチャ最終日＆全記録状況・カメラ稼働状態を取得して反映
   useEffect(() => {
     const syncLatestHistory = async () => {
-      try {
-        let res = await fetch(getHistoryJsonUrl());
-        if (!res.ok) {
-          res = await fetch(`/cams/history.json?t=${Date.now()}`);
-        }
-        if (!res.ok) return;
-        const data = await res.json();
-        const records = data?.records || {};
-        setHistoryRecords(records);
-        const dates = Object.keys(records).sort();
-        if (dates.length > 0) {
-          const maxD = dates[dates.length - 1];
-          const today = getTodayJstStr();
-          const bestEnd = maxD > today ? maxD : today;
-          setLatestEndDate(bestEnd);
-          setRangeEnd(bestEnd);
-          setSelectedDate(bestEnd);
-        }
-      } catch {}
+      const data = await fetchCamHistory();
+      if (!data) return;
+      setCamHistory(data);
+      const records = data.records || {};
+      setHistoryRecords(records);
+      const dates = Object.keys(records).sort();
+      if (dates.length > 0) {
+        const maxD = dates[dates.length - 1];
+        const today = getTodayJstStr();
+        const bestEnd = maxD > today ? maxD : today;
+        setLatestEndDate(bestEnd);
+        setRangeEnd(bestEnd);
+        setSelectedDate(bestEnd);
+      }
     };
     syncLatestHistory();
   }, []);
@@ -350,37 +355,49 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
     return { totalPhotos, estMB, limitMB, ratio };
   }, [historyRecords, availableDates.length]);
 
-  // 対象日に有効なカメラリストを返す（6地点体制対応・過去3地点日の自動判別）
-  const getLocationsForDate = (dateStr: string) => {
-    const dayRec = historyRecords[dateStr] || {};
-    const recordedCamIds = new Set<string>();
-    Object.values(dayRec).forEach(hrObj => {
-      if (hrObj && typeof hrObj === 'object') {
+  // 対象日に有効なカメラリストを返す（6地点体制・過去3地点日・休止/調整中カメラの自動仕分け）
+  const getLocationsPartitionForDate = useCallback(
+    (dateStr: string, hourStr?: string) => {
+      const dayRec = historyRecords[dateStr] || {};
+      const recordedCamIds = new Set<string>();
+      if (hourStr) {
+        const hrObj = dayRec[hourStr] || {};
         Object.keys(hrObj).forEach(k => {
           if (k !== 'timestamp') recordedCamIds.add(k);
         });
-      }
-    });
-    const dayAnalysis = analysisResults[dateStr] || [];
-    dayAnalysis.forEach(a => {
-      if (a.status === 'ok') {
-        ALL_LOCATIONS.forEach(l => {
-          if (a.fileName.includes(`_${l.id}.jpg`)) recordedCamIds.add(l.id);
+      } else {
+        Object.values(dayRec).forEach(hrObj => {
+          if (hrObj && typeof hrObj === 'object') {
+            Object.keys(hrObj).forEach(k => {
+              if (k !== 'timestamp') recordedCamIds.add(k);
+            });
+          }
         });
       }
-    });
+      const dayAnalysis = analysisResults[dateStr] || [];
+      dayAnalysis.forEach(a => {
+        if (isValidCameraAnalysis(a) && (!hourStr || a.fileName.startsWith(`${hourStr}_`))) {
+          ALL_LOCATIONS.forEach(l => {
+            if (a.fileName.includes(`_${l.id}.jpg`)) recordedCamIds.add(l.id);
+          });
+        }
+      });
 
-    const isSixCam =
-      dateStr >= '2026-10-28' ||
-      recordedCamIds.has('ferry') ||
-      recordedCamIds.has('himenuma') ||
-      recordedCamIds.has('otadomari');
-    return isSixCam ? ALL_LOCATIONS : ALL_LOCATIONS.filter(l => l.isCore || recordedCamIds.has(l.id));
-  };
+      return partitionCamerasForDisplay(ALL_LOCATIONS, {
+        dateStr,
+        history: camHistory,
+        recordedCamIds,
+        selectedHour: hourStr,
+      });
+    },
+    [historyRecords, analysisResults, camHistory]
+  );
 
-  const activeLocationsForSelectedDate = useMemo(
-    () => getLocationsForDate(selectedDate),
-    [selectedDate, historyRecords, analysisResults]
+  const getLocationsForDate = (dateStr: string) => getLocationsPartitionForDate(dateStr).visible;
+
+  const { visible: activeLocationsForSelectedDate, inactive: inactiveLocationsForSelectedDate } = useMemo(
+    () => getLocationsPartitionForDate(selectedDate, undefined),
+    [selectedDate, getLocationsPartitionForDate]
   );
 
   // 選択日のAI解析対象時間帯（5-8月: 9回, 9-10月・3-4月: 7回, 11-2月: 5回）
@@ -419,9 +436,7 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
 
   // 時間帯フェーズ別の視界要約（夏山用 / 冬山BC用）
   const timePhaseSummary = useMemo(() => {
-    const valid = (currentResults || []).filter(
-      c => c.status !== 'missing' && c.visibility !== 'missing' && c.cloud_cover >= 0
-    );
+    const valid = (currentResults || []).filter(isValidCameraAnalysis);
     const evalGroup = (hours: string[]) => {
       const items = valid.filter(c => hours.some(h => c.fileName.startsWith(`${h}_`)));
       if (items.length === 0) return { label: '記録なし', maxElev: null as number | null, hasClear: false };
@@ -537,7 +552,7 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
                       summit_visible: { type: 'BOOLEAN' },
                       is_sunny: { type: 'BOOLEAN' },
                       cloud_cover: { type: 'INTEGER' },
-                      visibility: { type: 'STRING', enum: ['clear', 'cloudy', 'foggy'] },
+                      visibility: { type: 'STRING', enum: ['clear', 'cloudy', 'foggy', 'camera_error'] },
                       visible_elevation_m: { type: 'INTEGER' },
                       bc_field_status: {
                         type: 'STRING',
@@ -588,6 +603,18 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
         const normalized: ImageAnalysis[] = [];
 
         for (const res of resultJson) {
+          if (res.visibility === 'camera_error') {
+            res.is_sunny = false;
+            res.summit_visible = false;
+            res.cloud_cover = -1;
+            res.visible_elevation_m = 0;
+            res.bc_field_status = 'whiteout';
+            res.snow_line = 'none';
+            res.status = 'camera_error';
+            normalized.push(res);
+            continue;
+          }
+
           if (res.summit_visible === false && res.visibility === 'clear') {
             res.visibility = 'cloudy';
           }
@@ -644,7 +671,7 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
     }
 
     const fetchResults = await Promise.all(imageUrls.map(fetchAsBase64));
-    const validImages = fetchResults.filter(r => !r.isMissing);
+    const fetchedImages = fetchResults.filter(r => !r.isMissing);
     const dateResults: ImageAnalysis[] = [];
 
     fetchResults
@@ -663,6 +690,34 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
           status: 'missing',
         });
       });
+
+    // クライアント側で暗転・単色エラー画像を事前検知し、Gemini API送信と悪天候(foggy)誤認を防ぐ
+    const blackoutChecks = await Promise.all(
+      fetchedImages.map(async img => ({
+        img,
+        check: await detectImageBlackoutFromDataUrl(img.data, img.mimeType),
+      }))
+    );
+
+    const validImages: { fileName: string; data: string; mimeType: string }[] = [];
+    for (const { img, check } of blackoutChecks) {
+      if (check.isInvalid) {
+        dateResults.push({
+          fileName: img.fileName,
+          is_sunny: false,
+          summit_visible: false,
+          cloud_cover: -1,
+          visibility: 'camera_error',
+          visible_elevation_m: 0,
+          bc_field_status: 'whiteout',
+          snow_line: 'none',
+          reason: `カメラ障害・暗転のため統計から除外 (${check.reason})`,
+          status: 'camera_error',
+        });
+      } else {
+        validImages.push(img);
+      }
+    }
 
     if (validImages.length === 0) {
       return { results: dateResults, usedModel: 'skip' };
@@ -1945,6 +2000,23 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
                           </td>
                         );
                       }
+                      if (rec.status === 'camera_error' || rec.visibility === 'camera_error') {
+                        return (
+                          <td
+                            key={t}
+                            style={{
+                              textAlign: 'center',
+                              padding: '0.45rem 0.35rem',
+                              color: '#d97706',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                            }}
+                            title={rec.reason || 'カメラ映像障害・暗転のため統計から除外'}
+                          >
+                            🔧
+                          </td>
+                        );
+                      }
                       const { elevationM, bcStatus } = getEffectiveElevation(rec);
                       const bg =
                         bcStatus === 'alpine_clear'
@@ -2072,17 +2144,18 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
               </tbody>
             </table>
           </div>
+          <InactiveCamerasNotice items={inactiveLocationsForSelectedDate} compact />
         </div>
       )}
 
       {/* ===== 4. 時間帯別 カメラ画像＆AI判定一覧 ===== */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        {inactiveLocationsForSelectedDate.length > 0 && !currentResults && (
+          <InactiveCamerasNotice items={inactiveLocationsForSelectedDate} compact />
+        )}
         {activeTimesForSelectedDate.map(time => {
-          // 2026-10-28の13時以前（14時に6地点へ拡張する前）は記録済みの3地点のみ表示して不要な未記録枠を出さない
-          const locationsForSlot =
-            selectedDate === '2026-10-28' && parseInt(time, 10) <= 13
-              ? activeLocationsForSelectedDate.filter(l => l.isCore)
-              : activeLocationsForSelectedDate;
+          // 対象日・時間帯に稼働しているカメラのみ表示（過去3地点日や休止・暗転待ちカメラを整理）
+          const locationsForSlot = getLocationsPartitionForDate(selectedDate, time).visible;
 
           return (
           <div key={time}>
@@ -2128,7 +2201,11 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
                 const isBroken = !!brokenImages[imgKey];
 
                 const result = currentResults?.find(r => r.fileName === fileName);
-                const isMissingResult = result?.status === 'missing' || result?.visibility === 'missing';
+                const isMissingResult =
+                  result?.status === 'missing' ||
+                  result?.status === 'camera_error' ||
+                  result?.visibility === 'missing' ||
+                  result?.visibility === 'camera_error';
                 const elevInfo = result && !isMissingResult ? getEffectiveElevation(result) : null;
 
                 return (

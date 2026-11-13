@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ExternalLink, Maximize2, X, Thermometer, Wind, Droplets, Mountain, VideoOff } from 'lucide-react';
 import type { HourlyWeatherData } from '../utils/weatherApi';
-import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
+import { getCamImageUrl } from '../utils/camUrl';
+import { fetchCamHistory, partitionCamerasForDisplay, type CamHistory } from '../utils/cameraStatus';
+import { InactiveCamerasNotice } from './InactiveCamerasNotice';
 
 interface LiveCamViewerProps {
   dateStr: string;
   hourlyWeather?: Record<string, HourlyWeatherData>;
   externalSelectedHour?: string | null;
-}
-
-interface CamHistory {
-  updatedAt: string;
-  cameras: Record<string, { name: string; videoId: string; url: string }>;
-  records: Record<string, Record<string, Record<string, string>>>;
 }
 
 export const ALL_ARCHIVE_CAMERAS = [
@@ -90,21 +86,9 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
 
   // カメラ履歴 metadata をロード（GitHub Pages CDNから即時取得、失敗時はローカルフォールバック）
   useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        let res = await fetch(getHistoryJsonUrl());
-        if (!res.ok) {
-          res = await fetch('/cams/history.json?t=' + Date.now());
-        }
-        if (res.ok) {
-          const data: CamHistory = await res.json();
-          setHistory(data);
-        }
-      } catch (err) {
-        console.warn('history.json のロードに失敗しました:', err);
-      }
-    };
-    fetchHistory();
+    fetchCamHistory().then(data => {
+      if (data) setHistory(data);
+    });
   }, [dateStr]);
 
   // 利用可能な時間帯をチェック
@@ -113,17 +97,18 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
     return !!dateRecords[hr] && Object.keys(dateRecords[hr]).some(k => k !== 'timestamp');
   };
 
-  // 選択日・選択時間に実際に記録があるカメラ（または2026-10-28 14時以降の6地点運用）を判定
-  const activeCameras = useMemo(() => {
+  // 選択日・選択時間に表示する「稼働中カメラ」と「休止・調整中カメラ」を仕分け
+  const { visible: activeCameras, inactive: inactiveCameras } = useMemo(() => {
     const hrObj = dateRecords[selectedHour] || {};
     const recordedInHour = new Set<string>(Object.keys(hrObj).filter(k => k !== 'timestamp'));
 
-    // 2026-10-28の13時以前（6地点拡張前）や2026-10-27以前は3地点表示にして不要な「未撮影」枠を出さない
-    if (dateStr < '2026-10-28' || (dateStr === '2026-10-28' && parseInt(selectedHour, 10) <= 13 && !recordedInHour.has('ferry'))) {
-      return ALL_ARCHIVE_CAMERAS.filter(c => c.isCore || recordedInHour.has(c.id));
-    }
-    return ALL_ARCHIVE_CAMERAS;
-  }, [dateStr, dateRecords, selectedHour]);
+    return partitionCamerasForDisplay(ALL_ARCHIVE_CAMERAS, {
+      dateStr,
+      history,
+      recordedCamIds: recordedInHour,
+      selectedHour,
+    });
+  }, [dateStr, dateRecords, selectedHour, history]);
 
   const currentHourWeather = hourlyWeather?.[selectedHour] || hourlyWeather?.[`${selectedHour.padStart(2, '0')}:00`] || hourlyWeather?.[parseInt(selectedHour, 10).toString()];
 
@@ -195,7 +180,7 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
                 backgroundColor: 'rgba(59, 130, 246, 0.12)',
                 color: '#2563eb'
               }}>
-                {activeCameras.length}地点表示中
+                {activeCameras.length}地点表示中{inactiveCameras.length > 0 ? `（${inactiveCameras.length}地点休止・調整中）` : ''}
               </span>
             </h4>
           </div>
@@ -284,10 +269,10 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
         </div>
       )}
 
-      {/* 画像カード（3カラム×最大2段グリッド） */}
+      {/* 画像カード（稼働中カメラの自動最適化グリッド） */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gridTemplateColumns: activeCameras.length === 4 ? 'repeat(auto-fit, minmax(380px, 1fr))' : 'repeat(auto-fit, minmax(300px, 1fr))',
         gap: '1.25rem'
       }}>
         {activeCameras.map(cam => {
@@ -432,6 +417,9 @@ export const LiveCamViewer: React.FC<LiveCamViewerProps> = ({ dateStr, hourlyWea
           );
         })}
       </div>
+
+      {/* 休止・調整中カメラのステータス案内 */}
+      <InactiveCamerasNotice items={inactiveCameras} />
 
       {/* モーダルライトボックス (拡大表示) */}
       {modalImage && (

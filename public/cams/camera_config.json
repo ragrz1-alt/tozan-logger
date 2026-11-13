@@ -1,0 +1,24 @@
+{
+  "oshidomari": {
+    "mode": "active"
+  },
+  "ferry": {
+    "mode": "active"
+  },
+  "himenuma": {
+    "mode": "seasonal_closed",
+    "since": "2026-11-09",
+    "note": "冬季配信終了のため休止中"
+  },
+  "kutsugata": {
+    "mode": "active"
+  },
+  "otadomari": {
+    "mode": "active"
+  },
+  "senposhi": {
+    "mode": "monitoring",
+    "since": "2026-11-08",
+    "note": "配信側の映像暗転につき復旧待ち（正常映像を検知次第自動復帰）"
+  }
+}

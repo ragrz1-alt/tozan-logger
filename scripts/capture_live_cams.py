@@ -19,6 +19,7 @@ import os
 import re
 import sys
 import json
+import hashlib
 import socket
 import shutil
 import tempfile
@@ -31,6 +32,7 @@ from datetime import datetime, timezone, timedelta
 
 PLAYWRIGHT_LOCK = threading.Lock()
 BACKFILL_LOCK = threading.Lock()
+CONFIG_LOCK = threading.Lock()
 
 # 日本標準時 (JST)
 JST = timezone(timedelta(hours=9))
@@ -213,6 +215,107 @@ def ensure_compressed_image(image_path, max_bytes=58000):
     except Exception as e:
         print(f"[WARN] 画像圧縮処理例外: {e}")
 
+MONITORING_CHECK_HOURS = {"09", "12", "15"}
+
+def load_camera_config(cams_dir):
+    config_path = os.path.join(cams_dir, "camera_config.json")
+    if not os.path.exists(config_path):
+        return {}
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception as e:
+        print(f"[WARN] camera_config.json 読み込み失敗: {e}")
+        return {}
+
+def save_camera_config(cams_dir, config):
+    config_path = os.path.join(cams_dir, "camera_config.json")
+    try:
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[WARN] camera_config.json 保存失敗: {e}")
+
+def promote_monitoring_camera_to_active(cams_dir, course_id, now_jst):
+    with CONFIG_LOCK:
+        cfg = load_camera_config(cams_dir)
+        entry = cfg.get(course_id)
+        if isinstance(entry, dict) and entry.get("mode") == "monitoring":
+            cfg[course_id] = {
+                "mode": "active",
+                "recoveredAt": now_jst.isoformat(),
+                "note": f"正常映像の復帰を自動検知し通常稼働へ戻しました ({now_jst.strftime('%Y-%m-%d %H:%M JST')})"
+            }
+            save_camera_config(cams_dir, cfg)
+            print(f" 🎉 [{course_id}] 正常映像の回復を検知したため monitoring -> active へ自動復帰しました！")
+
+def file_md5(file_path):
+    try:
+        h = hashlib.md5()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        return h.hexdigest()
+    except Exception:
+        return None
+
+def get_recent_camera_hashes(cams_dir, course_id, max_days=7, max_files=12):
+    hashes = set()
+    try:
+        dates = sorted(
+            (d for d in os.listdir(cams_dir)
+             if os.path.isdir(os.path.join(cams_dir, d)) and len(d) == 10 and d.startswith("202")),
+            reverse=True
+        )[:max_days]
+        suffix = f"_{course_id}.jpg"
+        count = 0
+        for d in dates:
+            d_dir = os.path.join(cams_dir, d)
+            files = sorted((f for f in os.listdir(d_dir) if f.endswith(suffix)), reverse=True)
+            for fname in files:
+                h = file_md5(os.path.join(d_dir, fname))
+                if h:
+                    hashes.add(h)
+                count += 1
+                if count >= max_files:
+                    return hashes
+    except Exception:
+        pass
+    return hashes
+
+def is_blackout_or_invalid_frame(image_path):
+    """
+    真っ暗（無信号・電源OFFノイズ）や全面単色エラー画面を検知する。
+    (実測: 無信号暗転フレームは mean≈20.8, p99≈27, max≈35, std≈2.5 / 夜間正常フレームは街灯・文字で max≈245〜255)
+    """
+    try:
+        if not os.path.exists(image_path) or os.path.getsize(image_path) <= 1000:
+            return True, "file_missing_or_tiny"
+        from PIL import Image, ImageStat
+        with Image.open(image_path) as im:
+            g = im.convert("L")
+            st = ImageStat.Stat(g)
+            mean = st.mean[0]
+            stddev = st.stddev[0]
+            hist = g.histogram()
+            total = sum(hist) or 1
+            target = total * 0.99
+            acc = 0
+            p99 = 255
+            for val, cnt in enumerate(hist):
+                acc += cnt
+                if acc >= target:
+                    p99 = val
+                    break
+            if p99 <= 55 and mean <= 35.0 and stddev <= 8.0:
+                return True, f"blackout(mean={mean:.1f}, p99={p99}, std={stddev:.1f})"
+            if stddev <= 3.0:
+                return True, f"solid_frame(mean={mean:.1f}, std={stddev:.1f})"
+    except Exception as e:
+        print(f"[DEBUG] フレーム暗転チェック例外: {e}")
+    return False, "ok"
+
 def extract_frame_from_segment_url(seg_url, output_path, proxy_url=None):
     """
     単一HLSセグメント (.ts / .mp4) をダウンロードし、ローカル一時ファイルから ffmpeg で1フレームを抽出する
@@ -322,6 +425,14 @@ def backfill_missing_hours_from_dvr(course_id, timed_entries, target_dir, date_s
                     f"({dt_jst_seg.strftime('%H:%M:%S')} JST) から自動復元中..."
                 )
                 if extract_frame_from_segment_url(best_seg[1], img_path, proxy_url=proxy_url):
+                    is_bad, bad_reason = is_blackout_or_invalid_frame(img_path)
+                    if is_bad:
+                        print(f" -> [DVR_BACKFILL 除外] {img_name} は暗転/異常フレーム ({bad_reason}) のため破棄します。")
+                        try:
+                            os.remove(img_path)
+                        except Exception:
+                            pass
+                        continue
                     ensure_compressed_image(img_path)
                     rel_path = f"cams/{date_str}/{img_name}"
                     print(f" -> [DVR_BACKFILL 成功] {rel_path} ({os.path.getsize(img_path)} bytes)")
@@ -390,6 +501,7 @@ def run_ytdlp_get_url(video_url, format_selector, extra_args=None, proxy_url=Non
 def capture_stream_frame(video_url, output_path, course_id=None, target_dir=None, date_str=None, now_jst=None):
     """
     プロキシ候補 × クライアント候補の組み合わせで HLS ストリームからリアルタイム撮影（＆DVRバックフィル）を行う
+    戻り値: (status: "ok" | "blackout" | "failed", restored: list)
     """
     if os.path.exists(output_path):
         try:
@@ -421,8 +533,16 @@ def capture_stream_frame(video_url, output_path, course_id=None, target_dir=None
                 proxy_url=proxy_url,
             )
             if ok and os.path.exists(output_path) and os.path.getsize(output_path) > 1500:
+                is_bad, bad_reason = is_blackout_or_invalid_frame(output_path)
+                if is_bad:
+                    print(f" -> [STREAM_BLACKOUT] yt-dlp({label}) 映像は取得できましたが暗転/異常フレーム ({bad_reason}) のため除外します")
+                    try:
+                        os.remove(output_path)
+                    except Exception:
+                        pass
+                    return "blackout", restored
                 print(f" -> [STREAM_SCREENSHOT] yt-dlp({label}, proxy={proxy_url or 'direct'}) + HLSセグメント抽出成功")
-                return True, restored
+                return "ok", restored
 
             # 2. 直接 ffmpeg -i stream_url フォールバック
             ffmpeg_bin = resolve_ffmpeg_bin()
@@ -444,12 +564,20 @@ def capture_stream_frame(video_url, output_path, course_id=None, target_dir=None
             try:
                 ffmpeg_res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, timeout=30)
                 if ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1500:
+                    is_bad, bad_reason = is_blackout_or_invalid_frame(output_path)
+                    if is_bad:
+                        print(f" -> [STREAM_BLACKOUT] yt-dlp/ffmpeg({label}) 暗転/異常フレーム ({bad_reason}) のため除外します")
+                        try:
+                            os.remove(output_path)
+                        except Exception:
+                            pass
+                        return "blackout", restored
                     print(f" -> [STREAM_SCREENSHOT] yt-dlp/ffmpeg ({label}, proxy={proxy_url or 'direct'}) で撮影成功")
-                    return True, restored
+                    return "ok", restored
             except Exception:
                 pass
 
-    return False, []
+    return "failed", []
 
 def capture_with_playwright_iframe(video_id, output_path):
     """
@@ -536,22 +664,56 @@ def capture_static_image(image_url, output_path):
         print(f"[WARN] 静止画ダウンロード失敗 ({image_url}): {e}")
     return False
 
-def process_camera(course_id, info, target_dir, date_str, hour_str, now_jst, force=False):
+def process_camera(course_id, info, target_dir, cams_dir, date_str, hour_str, now_jst, camera_config=None, force=False):
+    cfg_entry = (camera_config or {}).get(course_id, {})
+    cam_mode = cfg_entry.get("mode", "active")
+
+    if cam_mode == "seasonal_closed" and not force:
+        print(f"❄️ [{course_id}] ({info['name']}) 冬季/シーズン終了設定 (seasonal_closed) のため撮影をスキップします。")
+        return course_id, "seasonal_closed", None, []
+
+    if cam_mode == "monitoring" and not force and hour_str not in MONITORING_CHECK_HOURS:
+        print(f"🔧 [{course_id}] ({info['name']}) 復旧待ち監視モード (monitoring) のため {hour_str}:00 はチェックをスキップします (確認枠: {sorted(MONITORING_CHECK_HOURS)})。")
+        return course_id, "monitoring_skip", None, []
+
     img_name = f"{hour_str}_{course_id}.jpg"
     img_path = os.path.join(target_dir, img_name)
     rel_path = f"cams/{date_str}/{img_name}"
     restored_list = []
 
-    print(f"[{course_id}] ({info['name']}) リアルタイム撮影試行中...")
+    print(f"[{course_id}] ({info['name']}) リアルタイム撮影試行中... (mode={cam_mode})")
+
+    outcome = "failed"
+    recent_hashes = get_recent_camera_hashes(cams_dir, course_id)
 
     if not info.get("videoId") or info.get("url", "").lower().endswith(".jpg"):
-        success = capture_static_image(info["url"], img_path)
+        if capture_static_image(info["url"], img_path):
+            is_bad, bad_reason = is_blackout_or_invalid_frame(img_path)
+            if is_bad:
+                print(f" -> [STATIC_BLACKOUT] {course_id}: 暗転/異常フレーム ({bad_reason}) のため破棄します。")
+                try:
+                    os.remove(img_path)
+                except Exception:
+                    pass
+                outcome = "blackout"
+            else:
+                ensure_compressed_image(img_path)
+                h = file_md5(img_path)
+                if h and h in recent_hashes:
+                    print(f" -> [STATIC_STALE] {course_id}: 直近画像と完全一致（配信停止/フリーズ疑い）のため保存をスキップします。")
+                    try:
+                        os.remove(img_path)
+                    except Exception:
+                        pass
+                    outcome = "stale"
+                else:
+                    outcome = "ok"
     else:
         video_id = info["videoId"]
         is_custom_thumb = bool(info.get("customThumbnail", False))
 
         # 1. まず高速な yt-dlp + HLSセグメント直接抽出（＆DVR過去欠落枠自動バックフィル）を試行
-        success, restored_list = capture_stream_frame(
+        stream_status, restored_list = capture_stream_frame(
             info["url"],
             img_path,
             course_id=course_id,
@@ -559,32 +721,168 @@ def process_camera(course_id, info, target_dir, date_str, hour_str, now_jst, for
             date_str=date_str,
             now_jst=now_jst,
         )
-
-        # 2. クラウドIP等でyt-dlpが弾かれた場合は Playwright 仮想ドメイン iframe + Canvas で生フレーム抽出
-        if not success:
+        if stream_status == "ok":
+            outcome = "ok"
+        elif stream_status == "blackout":
+            # ストリーム自体が暗転している場合は、古いサムネイル(_live.jpg)を誤って拾わないようここで打ち切る
+            outcome = "blackout"
+        else:
+            # 2. クラウドIP等でyt-dlpが弾かれた場合は Playwright 仮想ドメイン iframe + Canvas で生フレーム抽出
             print(f"[{course_id}] Playwright 仮想ドメイン iframe + Canvas 生フレーム抽出を実行中...")
-            success = capture_with_playwright_iframe(video_id, img_path)
+            if capture_with_playwright_iframe(video_id, img_path):
+                is_bad, bad_reason = is_blackout_or_invalid_frame(img_path)
+                if is_bad:
+                    print(f" -> [PLAYWRIGHT_BLACKOUT] {course_id}: 暗転/異常フレーム ({bad_reason}) のため破棄します。")
+                    try:
+                        os.remove(img_path)
+                    except Exception:
+                        pass
+                    outcome = "blackout"
+                else:
+                    outcome = "ok"
 
-        # 3. カスタムサムネイル未設定のカメラ（oshidomari, senposhi）のみ _live.jpg フォールバックを許可
-        if not success and not is_custom_thumb:
-            print(f"[{course_id}] リアルタイムサムネイル (_live.jpg) でフォールバック中...")
-            success = capture_fallback_thumbnail(video_id, img_path)
+            # 3. active かつ カスタムサムネイル未設定のカメラのみ _live.jpg フォールバックを許可
+            #    (monitoring モードでは古いキャッシュサムネによる誤復帰を防ぐため _live.jpg を使わない)
+            if outcome == "failed" and cam_mode == "active" and not is_custom_thumb:
+                print(f"[{course_id}] リアルタイムサムネイル (_live.jpg) でフォールバック中...")
+                if capture_fallback_thumbnail(video_id, img_path):
+                    is_bad, bad_reason = is_blackout_or_invalid_frame(img_path)
+                    if is_bad:
+                        print(f" -> [THUMB_BLACKOUT] {course_id}: 暗転フレーム ({bad_reason}) のため破棄します。")
+                        try:
+                            os.remove(img_path)
+                        except Exception:
+                            pass
+                        outcome = "blackout"
+                    else:
+                        ensure_compressed_image(img_path)
+                        h = file_md5(img_path)
+                        if h and h in recent_hashes:
+                            print(f" -> [THUMB_STALE] {course_id}: 過去のキャッシュサムネイルと完全一致するため破棄します。")
+                            try:
+                                os.remove(img_path)
+                            except Exception:
+                                pass
+                            outcome = "stale"
+                        else:
+                            outcome = "ok"
 
-    if success and os.path.exists(img_path) and os.path.getsize(img_path) > 1000:
+    if outcome == "ok" and os.path.exists(img_path) and os.path.getsize(img_path) > 1000:
         ensure_compressed_image(img_path)
         print(f" -> 成功: {rel_path} ({os.path.getsize(img_path)} bytes)")
-        return course_id, True, rel_path, restored_list
+        if cam_mode == "monitoring":
+            promote_monitoring_camera_to_active(cams_dir, course_id, now_jst)
+        return course_id, "ok", rel_path, restored_list
     else:
-        print(f" -> 失敗: {course_id} の画像取得ができませんでした。")
-        return course_id, False, None, restored_list
+        if os.path.exists(img_path):
+            try:
+                os.remove(img_path)
+            except Exception:
+                pass
+        print(f" -> 未保存 ({outcome}): {course_id} の有効な映像を取得できませんでした。")
+        return course_id, outcome, None, restored_list
 
-def sync_existing_files_to_history(cams_dir, history_file, now_jst, target_date_str=None):
+def find_last_valid_at(records, cam_id):
+    for d_str in sorted(records.keys(), reverse=True):
+        day_rec = records.get(d_str) or {}
+        for hr in sorted((k for k in day_rec.keys() if k.isdigit()), reverse=True):
+            if cam_id in (day_rec.get(hr) or {}):
+                return f"{d_str} {hr}:00"
+    return None
+
+def build_camera_status(records, camera_config, now_jst, run_outcomes=None):
+    status_map = {}
+    run_outcomes = run_outcomes or {}
+    sorted_dates = sorted((d for d in records.keys() if len(d) == 10 and d.startswith("202")), reverse=True)
+    latest_date = sorted_dates[0] if sorted_dates else None
+
+    for cam_id in CAMERAS.keys():
+        cfg = camera_config.get(cam_id, {}) if isinstance(camera_config, dict) else {}
+        mode = cfg.get("mode", "active")
+        last_valid_at = find_last_valid_at(records, cam_id)
+        outcome = run_outcomes.get(cam_id)
+
+        if mode == "seasonal_closed":
+            status_map[cam_id] = {
+                "status": "seasonal_closed",
+                "since": cfg.get("since"),
+                "note": cfg.get("note") or "冬季配信終了のため休止中",
+                "lastValidAt": last_valid_at,
+                "updatedAt": now_jst.isoformat(),
+            }
+            continue
+
+        if mode == "monitoring":
+            status_map[cam_id] = {
+                "status": "monitoring",
+                "health": outcome or "blackout",
+                "since": cfg.get("since"),
+                "note": cfg.get("note") or "配信側の映像不具合につき復旧待ち",
+                "lastValidAt": last_valid_at,
+                "lastCheckedAt": now_jst.isoformat(),
+                "updatedAt": now_jst.isoformat(),
+            }
+            continue
+
+        # mode == "active" の自動障害検知
+        if outcome == "blackout":
+            status_map[cam_id] = {
+                "status": "blackout",
+                "note": "カメラ映像の暗転・無信号を検知（復旧確認中）",
+                "lastValidAt": last_valid_at,
+                "updatedAt": now_jst.isoformat(),
+            }
+            continue
+
+        # 直近の最新日において、他カメラが2スロット以上記録されているのに直近2スロット連続で欠損しているかチェック
+        is_recent_offline = False
+        if latest_date:
+            day_rec = records.get(latest_date, {})
+            valid_hours = sorted(
+                hr for hr, hr_obj in day_rec.items()
+                if hr.isdigit() and isinstance(hr_obj, dict) and any(k != "timestamp" for k in hr_obj.keys())
+            )
+            if len(valid_hours) >= 2:
+                recent_two = valid_hours[-2:]
+                if all(cam_id not in (day_rec.get(hr) or {}) for hr in recent_two):
+                    is_recent_offline = True
+
+        if outcome in ("failed", "stale") and is_recent_offline:
+            status_map[cam_id] = {
+                "status": "offline",
+                "note": "配信一時停止中または取得失敗（復旧確認中）",
+                "lastValidAt": last_valid_at,
+                "updatedAt": now_jst.isoformat(),
+            }
+        elif not outcome and is_recent_offline:
+            status_map[cam_id] = {
+                "status": "offline",
+                "note": "配信一時停止中または取得失敗（復旧確認中）",
+                "lastValidAt": last_valid_at,
+                "updatedAt": now_jst.isoformat(),
+            }
+        else:
+            entry = {
+                "status": "active",
+                "lastValidAt": last_valid_at,
+                "updatedAt": now_jst.isoformat(),
+            }
+            if cfg.get("recoveredAt"):
+                entry["recoveredAt"] = cfg.get("recoveredAt")
+            if cfg.get("note"):
+                entry["note"] = cfg.get("note")
+            status_map[cam_id] = entry
+
+    return status_map
+
+def sync_existing_files_to_history(cams_dir, history_file, now_jst, target_date_str=None, run_outcomes=None):
     """
     public/cams/YYYY-MM-DD/ 内の実ファイルから history.json を安全に再同期する（git pull競合復旧＆DVRバックフィル反映用）
     """
     history_data = {
         "updatedAt": now_jst.isoformat(),
         "cameras": CAMERAS,
+        "cameraStatus": {},
         "records": {}
     }
     if os.path.exists(history_file):
@@ -605,19 +903,42 @@ def sync_existing_files_to_history(cams_dir, history_file, now_jst, target_date_
         d_dir = os.path.join(cams_dir, d_str)
         if not os.path.isdir(d_dir):
             continue
-        if d_str not in history_data["records"]:
-            history_data["records"][d_str] = {}
+        existing_day = history_data["records"].get(d_str, {})
+        # スキャン対象日の既存レコードから、実ファイルが消えたエントリを取り除く
+        rebuilt_day = {}
+        for hr_key, hr_val in existing_day.items():
+            if not isinstance(hr_val, dict):
+                continue
+            kept = {}
+            if "timestamp" in hr_val:
+                kept["timestamp"] = hr_val["timestamp"]
+            for k, rel in hr_val.items():
+                if k == "timestamp":
+                    continue
+                fname = os.path.basename(rel)
+                if os.path.exists(os.path.join(d_dir, fname)):
+                    kept[k] = rel
+            if any(k != "timestamp" for k in kept.keys()):
+                rebuilt_day[hr_key] = kept
+
         for fname in sorted(os.listdir(d_dir)):
             if not fname.endswith(".jpg") or "_" not in fname:
                 continue
             hr_part, rest = fname.split("_", 1)
             cam_id = rest[:-4] # remove .jpg
             if len(hr_part) == 2 and hr_part.isdigit():
-                if hr_part not in history_data["records"][d_str]:
-                    history_data["records"][d_str][hr_part] = {"timestamp": now_jst.isoformat()}
-                history_data["records"][d_str][hr_part][cam_id] = f"cams/{d_str}/{fname}"
+                if hr_part not in rebuilt_day:
+                    rebuilt_day[hr_part] = {"timestamp": now_jst.isoformat()}
+                rebuilt_day[hr_part][cam_id] = f"cams/{d_str}/{fname}"
 
+        if rebuilt_day:
+            history_data["records"][d_str] = rebuilt_day
+        elif d_str in history_data["records"]:
+            del history_data["records"][d_str]
+
+    camera_config = load_camera_config(cams_dir)
     history_data["cameras"] = CAMERAS
+    history_data["cameraStatus"] = build_camera_status(history_data["records"], camera_config, now_jst, run_outcomes=run_outcomes)
     history_data["updatedAt"] = now_jst.isoformat()
     with open(history_file, "w", encoding="utf-8") as f:
         json.dump(history_data, f, ensure_ascii=False, indent=2)
@@ -628,6 +949,7 @@ def main():
     parser.add_argument("--debug", action="store_true", help="デバッグモード")
     parser.add_argument("--force", action="store_true", help="日照時間外でも強制撮影する")
     parser.add_argument("--sync-only", action="store_true", help="撮影せず既存ファイルからhistory.jsonのみ同期する")
+    parser.add_argument("--sync-all", action="store_true", help="全日程の実ファイルからhistory.jsonを再同期する")
     parser.add_argument("--backfill-only", action="store_true", help="当日の過去欠落時間帯のみDVRからバックフィル復元する")
     args = parser.parse_args()
 
@@ -640,16 +962,26 @@ def main():
     date_str = now.strftime("%Y-%m-%d")
     hour_str = now.strftime("%H")
     target_dir = os.path.join(cams_dir, date_str)
-    os.makedirs(target_dir, exist_ok=True)
+
+    if args.sync_all:
+        sync_existing_files_to_history(cams_dir, history_file, now, target_date_str=None)
+        return
 
     if args.sync_only:
         sync_existing_files_to_history(cams_dir, history_file, now, date_str)
         return
 
+    os.makedirs(target_dir, exist_ok=True)
+    camera_config = load_camera_config(cams_dir)
+
     if args.backfill_only:
         print(f"=== 当日 ({date_str}) の未取得カメラ枠 DVRバックフィルチェック開始 ===")
         for course_id, info in CAMERAS.items():
             if not info.get("videoId"):
+                continue
+            mode = (camera_config.get(course_id) or {}).get("mode", "active")
+            if mode in ("seasonal_closed", "monitoring") and not args.force:
+                print(f" -> [スキップ] {course_id} (mode={mode})")
                 continue
             tmp_out = os.path.join(tempfile.gettempdir(), f"bf_probe_{course_id}.jpg")
             capture_stream_frame(info["url"], tmp_out, course_id=course_id, target_dir=target_dir, date_str=date_str, now_jst=now)
@@ -675,16 +1007,18 @@ def main():
     print(f"=== 利尻山6地点ライブカメラ 定時撮影処理開始 ({date_str} {hour_str}:00 JST / {now.month}月稼働枠 {start_h:02d}〜{end_h:02d}時) ===")
 
     # 3スレッド並列で6カメラを効率的に撮影
+    run_outcomes = {}
     with ThreadPoolExecutor(max_workers=3) as executor:
         futures = [
-            executor.submit(process_camera, course_id, info, target_dir, date_str, hour_str, now, args.force)
+            executor.submit(process_camera, course_id, info, target_dir, cams_dir, date_str, hour_str, now, camera_config, args.force)
             for course_id, info in CAMERAS.items()
         ]
         for future in as_completed(futures):
-            future.result()
+            c_id, outcome_status, _, _ = future.result()
+            run_outcomes[c_id] = outcome_status
 
     # 実ファイル群（DVRバックフィル復元分を含む）から history.json を完全同期
-    sync_existing_files_to_history(cams_dir, history_file, datetime.now(JST), date_str)
+    sync_existing_files_to_history(cams_dir, history_file, datetime.now(JST), date_str, run_outcomes=run_outcomes)
     print("=== 定時撮影完了 & history.json を更新しました ===")
 
 if __name__ == "__main__":

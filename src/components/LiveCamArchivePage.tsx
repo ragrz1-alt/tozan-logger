@@ -2,13 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar as CalendarIcon, Video, RefreshCw, Eye, Sun } from 'lucide-react';
 import { LiveCamViewer, ALL_ARCHIVE_CAMERAS } from './LiveCamViewer';
 import { fetchHourlyWeatherData, type HourlyWeatherData } from '../utils/weatherApi';
-import { getHistoryJsonUrl, getCamImageUrl } from '../utils/camUrl';
-
-interface CamHistory {
-  updatedAt: string;
-  cameras: Record<string, { name: string; videoId: string; url: string }>;
-  records: Record<string, Record<string, Record<string, string>>>;
-}
+import { getCamImageUrl } from '../utils/camUrl';
+import { fetchCamHistory, partitionCamerasForDisplay, type CamHistory } from '../utils/cameraStatus';
+import { InactiveCamerasNotice } from './InactiveCamerasNotice';
 
 export const LiveCamArchivePage: React.FC = () => {
   const [history, setHistory] = useState<CamHistory | null>(null);
@@ -18,29 +14,18 @@ export const LiveCamArchivePage: React.FC = () => {
 
   // Load /cams/history.json（GitHub Pages CDNから最新即時取得、失敗時はローカルフォールバック）
   const loadHistory = async () => {
-    try {
-      let res = await fetch(getHistoryJsonUrl());
-      if (!res.ok) {
-        res = await fetch('/cams/history.json?t=' + Date.now());
-      }
-      if (res.ok) {
-        const data: CamHistory = await res.json();
-        setHistory(data);
-
-        // 利用可能な日付の最新日を自動選択（なければ今日）
-        const availableDates = data.records ? Object.keys(data.records).sort().reverse() : [];
-        if (availableDates.length > 0 && !selectedDate) {
-          setSelectedDate(availableDates[0]);
-        } else if (!selectedDate) {
-          const today = new Date().toISOString().split('T')[0];
-          setSelectedDate(today);
-        }
-      } else {
+    const data = await fetchCamHistory();
+    if (data) {
+      setHistory(data);
+      // 利用可能な日付の最新日を自動選択（なければ今日）
+      const availableDates = data.records ? Object.keys(data.records).sort().reverse() : [];
+      if (availableDates.length > 0 && !selectedDate) {
+        setSelectedDate(availableDates[0]);
+      } else if (!selectedDate) {
         const today = new Date().toISOString().split('T')[0];
-        if (!selectedDate) setSelectedDate(today);
+        setSelectedDate(today);
       }
-    } catch (err) {
-      console.warn('history.json のロードに失敗しました:', err);
+    } else {
       const today = new Date().toISOString().split('T')[0];
       if (!selectedDate) setSelectedDate(today);
     }
@@ -65,8 +50,8 @@ export const LiveCamArchivePage: React.FC = () => {
     .filter(hr => Object.keys(selectedDateRecords[hr] || {}).some(k => k !== 'timestamp'))
     .sort();
 
-  // 選択日に有効なカメラ一覧（6地点対応・過去3地点日の自動判別）
-  const activeCamerasForDate = useMemo(() => {
+  // 選択日に有効な「稼働中カメラ」と「休止・調整中カメラ」を仕分け（過去3地点日・休止日対応）
+  const { visible: activeCamerasForDate, inactive: inactiveCamerasForDate } = useMemo(() => {
     const recordedCamIds = new Set<string>();
     Object.values(selectedDateRecords).forEach(hrObj => {
       if (hrObj && typeof hrObj === 'object') {
@@ -75,15 +60,12 @@ export const LiveCamArchivePage: React.FC = () => {
         });
       }
     });
-    const isSixCam =
-      selectedDate >= '2026-10-28' ||
-      recordedCamIds.has('ferry') ||
-      recordedCamIds.has('himenuma') ||
-      recordedCamIds.has('otadomari');
-    return isSixCam
-      ? ALL_ARCHIVE_CAMERAS
-      : ALL_ARCHIVE_CAMERAS.filter(c => c.isCore || recordedCamIds.has(c.id));
-  }, [selectedDate, selectedDateRecords]);
+    return partitionCamerasForDisplay(ALL_ARCHIVE_CAMERAS, {
+      dateStr: selectedDate,
+      history,
+      recordedCamIds,
+    });
+  }, [selectedDate, selectedDateRecords, history]);
 
   // 年月ごとにグループ化（数年分溜まった時のためのセレクトボックス用）
   const groupedDates = useMemo(() => {
@@ -296,10 +278,13 @@ export const LiveCamArchivePage: React.FC = () => {
         />
       ) : (
         <div className="card">
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Sun size={20} style={{ color: '#f59e0b' }} />
-            {selectedDate} の全撮影アーカイブ一覧 ({activeCamerasForDate.length}地点)
-          </h3>
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Sun size={20} style={{ color: '#f59e0b' }} />
+              <span>{selectedDate} の全撮影アーカイブ一覧 ({activeCamerasForDate.length}地点)</span>
+            </h3>
+            <InactiveCamerasNotice items={inactiveCamerasForDate} compact />
+          </div>
 
           {recordedHours.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-secondary)' }}>
@@ -335,7 +320,17 @@ export const LiveCamArchivePage: React.FC = () => {
                       <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{hr}時台</strong>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px', backgroundColor: 'var(--border-color)' }}>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns:
+                        (selectedDate === '2026-10-28' && parseInt(hr, 10) <= 13 && !hrRec.ferry
+                          ? activeCamerasForDate.filter(c => c.isCore).length
+                          : activeCamerasForDate.length) === 4
+                          ? 'repeat(2, 1fr)'
+                          : 'repeat(3, 1fr)',
+                      gap: '2px',
+                      backgroundColor: 'var(--border-color)'
+                    }}>
                       {(selectedDate === '2026-10-28' && parseInt(hr, 10) <= 13 && !hrRec.ferry
                         ? activeCamerasForDate.filter(c => c.isCore)
                         : activeCamerasForDate

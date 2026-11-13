@@ -9,6 +9,13 @@ export const getHistoryJsonUrl = () => {
 };
 
 /**
+ * クラウド上（GitHub）に保存された camera_config.json を取得するURLを返す
+ */
+export const getCameraConfigUrl = () => {
+  return `${GITHUB_RAW_BASE}/cams/camera_config.json?t=${Date.now()}`;
+};
+
+/**
  * 画像パス（例: "cams/2026-07-28/13_oshidomari.jpg"）からGitHub Raw直リンクURLを返す
  */
 export const getCamImageUrl = (relPath?: string) => {

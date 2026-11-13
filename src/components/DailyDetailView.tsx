@@ -8,7 +8,7 @@ import { ja } from 'date-fns/locale';
 import { LiveCamViewer } from './LiveCamViewer';
 import { getHistoryJsonUrl } from '../utils/camUrl';
 
-import type { ImageAnalysis } from '../hooks/useCameraAnalysis';
+import { isValidCameraAnalysis, type ImageAnalysis } from '../hooks/useCameraAnalysis';
 
 interface DailyDetailViewProps {
   details: DailyDetails;
@@ -177,7 +177,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                     <Camera size={14} /> 山頂(AI):
                   </span>
                   {(() => {
-                    const valid = cameraAnalysis.filter(c => c.status !== 'missing');
+                    const valid = cameraAnalysis.filter(isValidCameraAnalysis);
                     if (valid.length === 0) return <span>データなし</span>;
                     
                     const cams = [
@@ -515,7 +515,7 @@ export const DailyDetailView: React.FC<DailyDetailViewProps> = ({ details, weath
                     <td style={{ padding: '0.55rem 0.6rem', textAlign: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                         {(() => {
-                          const hourCams = cameraAnalysis.filter(c => c.fileName.startsWith(hrStr + '_') && c.status !== 'missing');
+                          const hourCams = cameraAnalysis.filter(c => c.fileName.startsWith(hrStr + '_') && isValidCameraAnalysis(c));
                           if (hourCams.length === 0) return null;
 
                           const cams = [

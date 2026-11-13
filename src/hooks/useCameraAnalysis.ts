@@ -14,12 +14,28 @@ export interface ImageAnalysis {
   is_sunny: boolean;
   summit_visible?: boolean;
   cloud_cover: number;
-  visibility: 'clear' | 'cloudy' | 'foggy' | 'missing';
+  visibility: 'clear' | 'cloudy' | 'foggy' | 'missing' | 'camera_error';
   visible_elevation_m?: number; // 1700 | 1000 | 500 | 0
   bc_field_status?: BcFieldStatus;
   snow_line?: SnowLineStatus;
   reason: string;
   status?: string;
+}
+
+/**
+ * AIカメラ解析結果が統計・視界集計の母数として有効かどうかを判定する。
+ * (未取得 missing や 暗転/カメラ故障 camera_error は母数から除外する)
+ */
+export function isValidCameraAnalysis(c?: ImageAnalysis | null): boolean {
+  if (!c) return false;
+  return (
+    c.status !== 'missing' &&
+    c.status !== 'camera_error' &&
+    c.visibility !== 'missing' &&
+    c.visibility !== 'camera_error' &&
+    typeof c.cloud_cover === 'number' &&
+    c.cloud_cover >= 0
+  );
 }
 
 export interface DailyCameraSummary {
@@ -296,9 +312,7 @@ export function evaluateDailyCameraVisibility(
     };
   }
 
-  const validCams = camData.filter(
-    c => c.status !== 'missing' && c.visibility !== 'missing' && c.cloud_cover >= 0
-  );
+  const validCams = camData.filter(isValidCameraAnalysis);
   if (validCams.length === 0) {
     return {
       seasonMode,

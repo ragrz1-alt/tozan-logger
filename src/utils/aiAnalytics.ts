@@ -8,6 +8,7 @@ import { getWeatherCategory, getWeatherDescription, type WeatherData } from './w
 import {
   evaluateDailyCameraVisibility,
   getEffectiveElevation,
+  isValidCameraAnalysis,
   type ImageAnalysis,
   type CameraId,
 } from '../hooks/useCameraAnalysis';
@@ -685,9 +686,7 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
     wk.afterSunsetExit += rawSt.afterSunsetExit;
 
     // カメラ有効データの時間帯別(提案A)・方向別＆風向別(提案C)集計
-    const validDayCams = (cam || []).filter(
-      c => c.status !== 'missing' && c.visibility !== 'missing' && c.cloud_cover >= 0
-    );
+    const validDayCams = (cam || []).filter(isValidCameraAnalysis);
     if (validDayCams.length > 0) {
       const wgKey = getWindGroupKey(w?.windDirection);
       const wgBucket = windCamMap[wgKey];

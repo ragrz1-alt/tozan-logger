@@ -1,19 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { fetchCurrentWeather, type CurrentWeather } from '../utils/weatherApi';
 import { Thermometer, Wind, Activity, MapPin } from 'lucide-react';
+import { fetchCamHistory, partitionCamerasForDisplay, type CamHistory } from '../utils/cameraStatus';
+import { InactiveCamerasNotice } from './InactiveCamerasNotice';
 
 const CAMERAS = [
-  { name: '鴛泊', id: '8BwfUCuPcVE' },
-  { name: '本泊', id: 'ag_nRE1jbXk' },
-  { name: '礼文島方面', id: 'aqXQI-SRigk' },
-  { name: '姫沼', id: 'wL2i45IZfvs' },
-  { name: 'オタドマリ沼', id: 'enBReBFAk7U' },
-  { name: '仙法志御崎公園', id: '5BG3KJVFRVM' }
+  { id: 'ferry', name: '鴛泊', videoId: '8BwfUCuPcVE' },
+  { id: 'oshidomari', name: '本泊', videoId: 'ag_nRE1jbXk' },
+  { id: 'rebun', name: '礼文島方面', videoId: 'aqXQI-SRigk' },
+  { id: 'himenuma', name: '姫沼', videoId: 'wL2i45IZfvs' },
+  { id: 'otadomari', name: 'オタドマリ沼', videoId: 'enBReBFAk7U' },
+  { id: 'senposhi', name: '仙法志御崎公園', videoId: '5BG3KJVFRVM' }
 ];
 
 export const RishiriNowPanel: React.FC = () => {
   const [weather, setWeather] = useState<{ kutsugata: CurrentWeather | null, motodomari: CurrentWeather | null }>({ kutsugata: null, motodomari: null });
   const [isLoading, setIsLoading] = useState(true);
+  const [camHistory, setCamHistory] = useState<CamHistory | null>(null);
+  const [showInactiveStreams, setShowInactiveStreams] = useState(false);
 
   useEffect(() => {
     const loadWeather = async () => {
@@ -23,7 +27,16 @@ export const RishiriNowPanel: React.FC = () => {
       setIsLoading(false);
     };
     loadWeather();
+    fetchCamHistory().then(h => {
+      if (h) setCamHistory(h);
+    });
   }, []);
+
+  const { visible: activeCameras, inactive: inactiveCameras } = useMemo(() => {
+    return partitionCamerasForDisplay(CAMERAS, { history: camHistory });
+  }, [camHistory]);
+
+  const displayedCameras = showInactiveStreams ? CAMERAS : activeCameras;
 
   return (
     <div style={{
@@ -70,18 +83,38 @@ export const RishiriNowPanel: React.FC = () => {
         borderRadius: '20px',
         padding: '1rem 0'
       }}>
-        <h2 style={{ margin: '0 0 1.5rem 1rem', fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <MapPin size={22} color="#10b981" /> ライブカメラ (自動再生)
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', margin: '0 1rem 1.5rem 1rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <MapPin size={22} color="#10b981" /> ライブカメラ (自動再生・{displayedCameras.length}地点)
+          </h2>
+          {inactiveCameras.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowInactiveStreams(v => !v)}
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-secondary)',
+                borderRadius: '8px',
+                padding: '0.35rem 0.75rem',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              {showInactiveStreams ? '休止・調整中の配信を隠す' : `休止・調整中の配信も確認する (${inactiveCameras.length})`}
+            </button>
+          )}
+        </div>
         
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gridTemplateColumns: displayedCameras.length === 4 ? 'repeat(auto-fit, minmax(380px, 1fr))' : 'repeat(auto-fit, minmax(320px, 1fr))',
           gap: '1.5rem',
           padding: '0 0.5rem'
         }}>
-          {CAMERAS.map((cam, idx) => (
-            <div key={idx} style={{
+          {displayedCameras.map((cam) => (
+            <div key={cam.id} style={{
               background: '#000',
               borderRadius: '16px',
               overflow: 'hidden',
@@ -112,7 +145,7 @@ export const RishiriNowPanel: React.FC = () => {
               <iframe
                 width="100%"
                 height="100%"
-                src={`https://www.youtube.com/embed/${cam.id}?autoplay=1&mute=1&playsinline=1&vq=small&loop=1&playlist=${cam.id}`}
+                src={`https://www.youtube.com/embed/${cam.videoId}?autoplay=1&mute=1&playsinline=1&vq=small&loop=1&playlist=${cam.videoId}`}
                 title={`${cam.name} Live Camera`}
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -122,6 +155,9 @@ export const RishiriNowPanel: React.FC = () => {
               ></iframe>
             </div>
           ))}
+        </div>
+        <div style={{ padding: '0 0.5rem' }}>
+          <InactiveCamerasNotice items={inactiveCameras} />
         </div>
       </div>
       
