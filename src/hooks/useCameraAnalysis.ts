@@ -230,32 +230,61 @@ export function cleanupObsoleteLocalStorageCaches(): void {
   }
 }
 
+const LOCAL_CACHE_KEY = 'tozan_weather_analysis_cache';
+const LOCAL_CLEARED_KEY = 'tozan_weather_analysis_cleared';
+const MAX_LOCAL_CACHED_DAYS = 45;
+
 /**
- * カメラAI解析データを localStorage ＆ Cloud Firestore（月別分割ドキュメント）の両方へ確実に永続保存する共通関数
+ * localStorage 5MB上限を圧迫しないよう、直近 MAX_LOCAL_CACHED_DAYS 日分に絞ってキャッシュ保存する
+ */
+function saveCameraAnalysisToLocalCache(map: Record<string, ImageAnalysis[]>, isCleared = false): void {
+  try {
+    if (isCleared) {
+      localStorage.removeItem(LOCAL_CACHE_KEY);
+      localStorage.setItem(LOCAL_CLEARED_KEY, 'true');
+      return;
+    }
+    localStorage.setItem(LOCAL_CLEARED_KEY, 'false');
+    const sortedDates = Object.keys(map).sort();
+    const trimToDays = (days: number) => {
+      const targetDates = sortedDates.slice(-days);
+      const trimmed: Record<string, ImageAnalysis[]> = {};
+      for (const d of targetDates) {
+        trimmed[d] = map[d];
+      }
+      return JSON.stringify(trimmed);
+    };
+
+    try {
+      localStorage.setItem(LOCAL_CACHE_KEY, trimToDays(MAX_LOCAL_CACHED_DAYS));
+    } catch {
+      cleanupObsoleteLocalStorageCaches();
+      try {
+        localStorage.setItem(LOCAL_CACHE_KEY, trimToDays(20));
+      } catch (e2) {
+        console.warn('localStorage保存スキップ（Cloud Firestoreへ保存します）:', e2);
+      }
+    }
+  } catch (e) {
+    console.warn('localStorage cache warning:', e);
+  }
+}
+
+let sharedAnalysisResults: Record<string, ImageAnalysis[]> = {};
+let hasCompletedCloudLoad = false;
+let inFlightLoadPromise: Promise<Record<string, ImageAnalysis[]>> | null = null;
+
+/**
+ * カメラAI解析データを インメモリ共有キャッシュ・localStorage・Cloud Firestore のすべてに反映する共通関数
  */
 export async function persistCameraAnalysisResults(
   updatedMap: Record<string, ImageAnalysis[]>,
   isCleared = false
 ): Promise<boolean> {
   cleanupObsoleteLocalStorageCaches();
-  try {
-    if (isCleared) {
-      localStorage.removeItem('tozan_weather_analysis_cache');
-      localStorage.setItem('tozan_weather_analysis_cleared', 'true');
-    } else {
-      localStorage.setItem('tozan_weather_analysis_cleared', 'false');
-      localStorage.setItem('tozan_weather_analysis_cache', JSON.stringify(updatedMap));
-    }
-  } catch (storageErr) {
-    console.warn('localStorage容量不足のため追加クリーンアップを実行します:', storageErr);
-    try {
-      cleanupObsoleteLocalStorageCaches();
-      localStorage.setItem('tozan_weather_analysis_cache', JSON.stringify(updatedMap));
-    } catch (e2) {
-      console.warn('localStorage保存スキップ（Cloud Firestoreへ保存します）:', e2);
-    }
-  }
-
+  sharedAnalysisResults = updatedMap;
+  hasCompletedCloudLoad = true;
+  saveCameraAnalysisToLocalCache(updatedMap, isCleared);
   notifyCameraAnalysisUpdated();
 
   const cloudOk = await saveCameraAnalysisToFirestore(updatedMap);
@@ -464,66 +493,118 @@ export function notifyCameraAnalysisUpdated() {
 }
 
 export const useCameraAnalysis = () => {
-  const [analysisResults, setAnalysisResults] = useState<Record<string, ImageAnalysis[]>>({});
-  const [isLoading, setIsLoading] = useState(true);
-
-  const loadAnalysis = useCallback(async () => {
-    cleanupObsoleteLocalStorageCaches();
-
-    const isClearedLocal = localStorage.getItem('tozan_weather_analysis_cleared') === 'true';
-    let localData: Record<string, ImageAnalysis[]> = {};
+  const [analysisResults, setAnalysisResults] = useState<Record<string, ImageAnalysis[]>>(() => {
+    if (Object.keys(sharedAnalysisResults).length > 0) {
+      return sharedAnalysisResults;
+    }
     try {
-      const cached = localStorage.getItem('tozan_weather_analysis_cache');
-      if (cached) localData = JSON.parse(cached);
+      const cached = localStorage.getItem(LOCAL_CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached) as Record<string, ImageAnalysis[]>;
+        sharedAnalysisResults = parsed;
+        return parsed;
+      }
     } catch {}
+    return {};
+  });
+  const [isLoading, setIsLoading] = useState(!hasCompletedCloudLoad);
 
-    if (Object.keys(localData).length > 0) {
-      setAnalysisResults(localData);
+  const loadAnalysis = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh && hasCompletedCloudLoad) {
+      setAnalysisResults(sharedAnalysisResults);
+      setIsLoading(false);
+      return;
     }
 
-    const [staticData, cloudPayload] = await Promise.all([
-      isClearedLocal
-        ? Promise.resolve({} as Record<string, ImageAnalysis[]>)
-        : fetch(`/cams/analysis_results.json?t=${Date.now()}`)
-            .then(r => (r.ok ? r.json() : {}))
-            .catch(() => ({} as Record<string, ImageAnalysis[]>)),
-      loadCameraAnalysisFromFirestore(),
-    ]);
+    if (!forceRefresh && inFlightLoadPromise) {
+      const result = await inFlightLoadPromise;
+      setAnalysisResults(result);
+      setIsLoading(false);
+      return;
+    }
 
-    const cloudRecords = (cloudPayload?.records as Record<string, ImageAnalysis[]>) || {};
-    const merged: Record<string, ImageAnalysis[]> = cloudPayload?.cleared
-      ? { ...cloudRecords, ...localData }
-      : { ...staticData, ...cloudRecords, ...localData };
+    const fetchTask = (async (): Promise<Record<string, ImageAnalysis[]>> => {
+      cleanupObsoleteLocalStorageCaches();
 
-    setAnalysisResults(merged);
-    setIsLoading(false);
-
-    if (Object.keys(merged).length > 0) {
+      const isClearedLocal = localStorage.getItem(LOCAL_CLEARED_KEY) === 'true';
+      let localData: Record<string, ImageAnalysis[]> = {};
       try {
-        localStorage.setItem('tozan_weather_analysis_cache', JSON.stringify(merged));
+        const cached = localStorage.getItem(LOCAL_CACHE_KEY);
+        if (cached) localData = JSON.parse(cached);
       } catch {}
+
+      const [staticData, cloudPayload] = await Promise.all([
+        isClearedLocal
+          ? Promise.resolve({} as Record<string, ImageAnalysis[]>)
+          : fetch(`/cams/analysis_results.json?t=${Date.now()}`)
+              .then(r => (r.ok ? r.json() : {}))
+              .catch(() => ({} as Record<string, ImageAnalysis[]>)),
+        loadCameraAnalysisFromFirestore(),
+      ]);
+
+      const cloudRecords = (cloudPayload?.records as Record<string, ImageAnalysis[]>) || {};
+      let merged: Record<string, ImageAnalysis[]>;
+
+      if (cloudPayload?.cleared && Object.keys(cloudRecords).length === 0) {
+        merged = {};
+        saveCameraAnalysisToLocalCache({}, true);
+      } else {
+        // クラウド(Firestore)の最新結果を優先し、ローカルキャッシュが古い結果で上書きするのを防ぐ
+        merged = cloudPayload?.cleared
+          ? { ...localData, ...cloudRecords }
+          : { ...staticData, ...localData, ...cloudRecords };
+        if (Object.keys(merged).length > 0) {
+          saveCameraAnalysisToLocalCache(merged, false);
+        }
+      }
+
+      sharedAnalysisResults = merged;
+      hasCompletedCloudLoad = true;
+      return merged;
+    })();
+
+    inFlightLoadPromise = fetchTask;
+    try {
+      const merged = await fetchTask;
+      setAnalysisResults(merged);
+      setIsLoading(false);
+    } finally {
+      if (inFlightLoadPromise === fetchTask) {
+        inFlightLoadPromise = null;
+      }
     }
   }, []);
 
   useEffect(() => {
-    loadAnalysis();
-    const handleUpdate = () => {
+    void loadAnalysis(false);
+    const handleInternalUpdate = () => {
+      setAnalysisResults(sharedAnalysisResults);
+    };
+    const handleStorageUpdate = (e: StorageEvent) => {
+      if (e.key !== LOCAL_CACHE_KEY && e.key !== LOCAL_CLEARED_KEY) return;
       try {
-        const cached = localStorage.getItem('tozan_weather_analysis_cache');
-        if (cached) {
-          setAnalysisResults(JSON.parse(cached));
-        } else if (localStorage.getItem('tozan_weather_analysis_cleared') === 'true') {
+        if (localStorage.getItem(LOCAL_CLEARED_KEY) === 'true') {
+          sharedAnalysisResults = {};
           setAnalysisResults({});
+          return;
+        }
+        const cached = localStorage.getItem(LOCAL_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached) as Record<string, ImageAnalysis[]>;
+          sharedAnalysisResults = parsed;
+          setAnalysisResults(parsed);
         }
       } catch {}
     };
-    window.addEventListener(CAMERA_ANALYSIS_UPDATED_EVENT, handleUpdate);
-    window.addEventListener('storage', handleUpdate);
+    window.addEventListener(CAMERA_ANALYSIS_UPDATED_EVENT, handleInternalUpdate);
+    window.addEventListener('storage', handleStorageUpdate);
     return () => {
-      window.removeEventListener(CAMERA_ANALYSIS_UPDATED_EVENT, handleUpdate);
-      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener(CAMERA_ANALYSIS_UPDATED_EVENT, handleInternalUpdate);
+      window.removeEventListener('storage', handleStorageUpdate);
     };
   }, [loadAnalysis]);
 
-  return { analysisResults, isLoading, reloadAnalysis: loadAnalysis };
+  const reloadAnalysis = useCallback(() => loadAnalysis(true), [loadAnalysis]);
+
+  return { analysisResults, isLoading, reloadAnalysis };
 };
