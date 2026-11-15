@@ -6,6 +6,13 @@ import * as JapaneseHolidays from 'japanese-holidays';
 import { isEntryEnter, type LogEntry } from './logParser';
 import { getWeatherCategory, getWeatherDescription, type WeatherData } from './weatherApi';
 import {
+  assertWithinMonthlyBudget,
+  getThinkingConfigForModel,
+  isBudgetExceededError,
+  recordGeminiUsage,
+  resolveGeminiApiKey,
+} from './aiBudgetGuard';
+import {
   evaluateDailyCameraVisibility,
   getEffectiveElevation,
   isValidCameraAnalysis,
@@ -187,6 +194,7 @@ export interface PeriodFactSheet {
 }
 
 const REPORT_MODELS = [
+  'gemini-4-hydrogen',
   'gemini-3.7-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
@@ -550,6 +558,9 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
   let summitClearDays = 0;
   let summitCloudyDays = 0;
   let summitFoggyDays = 0;
+  let highOvercastSlots = 0;
+  let summitCapSlots = 0;
+  let midCloudBandSlots = 0;
   let sunnyBaseButFoggySummitDays = 0;
   const morningClearAfternoonBadDays: string[] = [];
 
@@ -790,6 +801,9 @@ export function buildPeriodFactSheet(data: AIAnalysisRequest): PeriodFactSheet {
       if (camEval.morningClearAfternoonFoggy) {
         morningClearAfternoonBadDays.push(`${format(parseISO(d.date), 'M/d(E)', { locale: ja })}`);
       }
+      highOvercastSlots += camEval.highOvercastCount;
+      summitCapSlots += camEval.summitCapCount;
+      midCloudBandSlots += camEval.midCloudBandCount;
     }
 
     // ハザード日 (雨30mm以上 または 風15m/s以上)
@@ -1132,7 +1146,11 @@ ${lateExitText}
 【第3の柱：気象庁アメダス実測 × 全方位7時間帯AIカメラ解析データ】
 ・島の晴天日数: ${baseSunnyDays}日 / ${daysCount}日 (${baseSunnyRate}%)
 ・好天（降水2mm以下・風12.5m/s以下・山頂ガスなし）日数: ${goodWeatherDaysCount}日
-・AIカメラ山頂視界内訳 (解析済 ${camAnalyzedDays}日分): 山頂快晴(Clear) ${summitClearDays}日 / 山頂雲隠れ(Cloudy) ${summitCloudyDays}日 / 山体ガス不可視(Foggy) ${summitFoggyDays}日
+・AIカメラ山頂視界内訳 (解析済 ${camAnalyzedDays}日分): 山頂視界良好(Clear・高曇り含む) ${summitClearDays}日 / 山頂雲隠れ(Cloudy) ${summitCloudyDays}日 / 山体ガス不可視(Foggy) ${summitFoggyDays}日${
+  highOvercastSlots + summitCapSlots + midCloudBandSlots > 0
+    ? `\n・雲のつき方内訳 (Gemini 4解析コマ累計): 高曇り(山頂クリア) ${highOvercastSlots}コマ / 山頂笠雲 ${summitCapSlots}コマ / 中腹雲帯 ${midCloudBandSlots}コマ`
+    : ''
+}
 ・麓は晴れだが山頂がガスだったギャップ日数: ${sunnyBaseButFoggySummitDays}日
 ・朝(5〜9時)は山頂快晴で午後(11〜15時)にガスへ急変した警戒日: ${morningClearAfternoonBadDays.length > 0 ? morningClearAfternoonBadDays.join(', ') : '該当なし'}
 ・【提案A】時間帯別「山頂視界ゴールデンタイム」推移 (午前05-09時平均快晴率: ${morningSummitClearRate}% vs 午後13-15時平均快晴率: ${afternoonSummitClearRate}%):
@@ -1229,10 +1247,14 @@ export function saveCachedAIReport(
 export async function generateMonthlyAnalysis(
   data: AIAnalysisRequest
 ): Promise<{ report: string; modelUsed: string; factSheet: PeriodFactSheet }> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const { apiKey } = resolveGeminiApiKey();
   if (!apiKey) {
-    throw new Error('VITE_GEMINI_API_KEY が設定されていません。環境変数 (.env) を確認してください。');
+    throw new Error(
+      'Gemini APIキーが設定されていません。ローカル環境の .env.development.local に設定するか、画面上の「一時APIキー設定」から入力してください。'
+    );
   }
+
+  assertWithinMonthlyBudget();
 
   const ai = new GoogleGenAI({ apiKey });
   const factSheet = buildPeriodFactSheet(data);
@@ -1270,9 +1292,15 @@ ${data.notes || '特記事項なし'}
 
   for (const modelName of REPORT_MODELS) {
     try {
+      assertWithinMonthlyBudget();
+
       const config: any = {
         temperature: 0.4,
       };
+      const thinkingConfig = getThinkingConfigForModel(modelName, 'report');
+      if (thinkingConfig) {
+        config.thinkingConfig = thinkingConfig;
+      }
       if (data.useWebSearch) {
         config.tools = [{ googleSearch: {} }];
       }
@@ -1282,6 +1310,8 @@ ${data.notes || '特記事項なし'}
         contents: prompt,
         config,
       });
+
+      recordGeminiUsage(modelName, response.usageMetadata);
 
       const reportText = response.text || '解析結果を生成できませんでした。';
 
@@ -1298,6 +1328,9 @@ ${data.notes || '特記事項なし'}
         factSheet,
       };
     } catch (error: any) {
+      if (isBudgetExceededError(error)) {
+        throw error;
+      }
       console.warn(`[AI Report] モデル ${modelName} でエラーが発生しました。予備モデルへフォールバックします:`, error);
       lastError = error;
     }

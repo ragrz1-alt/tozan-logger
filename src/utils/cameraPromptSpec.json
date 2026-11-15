@@ -1,0 +1,135 @@
+{
+  "locations": [
+    {
+      "id": "oshidomari",
+      "name": "鴛泊(本泊・北)",
+      "shortName": "本泊(北)",
+      "bcSlopeName": "北面：長官山・ポン山・大空沢",
+      "color": "#3b82f6",
+      "isCore": true,
+      "viewGuide": "画面左半分は海と海岸崖・ペシ岬。利尻山本体は中央やや右奥に写る。午前〜正午は逆光・薄明光線で山体が白く霞むことがあるため、稜線シルエットが追える場合は濃霧(foggy)と誤認しないこと。"
+    },
+    {
+      "id": "ferry",
+      "name": "鴛泊港(フェリー・北)",
+      "shortName": "フェリー(北)",
+      "bcSlopeName": "北〜北北東面：鴛泊北稜俯瞰",
+      "color": "#0284c7",
+      "isCore": false,
+      "viewGuide": "手前の鴛泊港・フェリーと手前の低いポン山稜線の、さらに奥にそびえる最高峰ピーク(1,721m)を基準に判定すること。"
+    },
+    {
+      "id": "himenuma",
+      "name": "姫沼(北東)",
+      "shortName": "姫沼(北東)",
+      "bcSlopeName": "北東面：オチュウシナイ沢方面",
+      "color": "#059669",
+      "isCore": false,
+      "viewGuide": "手前の沼と背の高い針葉樹林の隙間〜右上に山体・山頂稜線が写る。手前の木々の影や明るさを山麓の霧や雪と誤認しないこと。"
+    },
+    {
+      "id": "kutsugata",
+      "name": "沓形(西)",
+      "shortName": "沓形(西)",
+      "bcSlopeName": "西面：三眺山・見返台方面",
+      "color": "#10b981",
+      "isCore": true,
+      "viewGuide": "山体に寄った望遠画角。最下部の建物屋根・森林帯の奥一面に利尻山が写る。高層薄雲で山体が白っぽく低コントラストに見えても、山頂岩稜・斜面の輪郭が視認できる場合は見えていると判定すること。"
+    },
+    {
+      "id": "otadomari",
+      "name": "オタドマリ沼(南東)",
+      "shortName": "オタドマリ(南東)",
+      "bcSlopeName": "南東面：ヤムナイ沢・南東稜方面",
+      "color": "#8b5cf6",
+      "isCore": false,
+      "viewGuide": "手前の沼と木道・広場の奥、画面中央に利尻山頂が大きく写る。手前の沼面の暗さや日差しではなく中央奥の山体を基準に判定すること。"
+    },
+    {
+      "id": "senposhi",
+      "name": "仙法志(南)",
+      "shortName": "仙法志(南)",
+      "bcSlopeName": "南面：南稜・仙法志稜方面",
+      "color": "#f59e0b",
+      "isCore": true,
+      "viewGuide": "左半分は海と奇岩、右奥の道路・電柱の先に利尻山南面の山体とピークが写る。手前の海や道路の明るさに惑わされず右奥の山体を見ること。"
+    }
+  ],
+  "systemPrompt": "あなたは北海道・利尻山（独立峰・標高1,721m）の山岳気象・視界判定の専門AIアナリストです。\n同じ時刻に撮影された全方位ライブカメラ画像群を横並びで比較し、登山者（夏季）およびバックカントリー滑走者（冬春期）の視点で「全天の雲量」「雲のつき方（雲底高度）」「山頂ピーク露出」「山の天候」を物理的整合性を保ちながら厳密に判定してください。\n\n【各地点カメラの画角と誤判定防止ガイド】\n- oshidomari（北・前浜2）: 画面左は海とペシ岬。山体は中央やや右奥。午前〜昼は太陽逆光や薄明光線で山体が白く霞みやすいが、稜線シルエットが追える場合は濃霧(foggy)にせず視認高度を正確に評価すること。\n- ferry（北・鴛泊港）: 手前の港・フェリーと手前の低いポン山の奥にそびえる最高峰ピークを見ること。\n- himenuma（北東・姫沼）: 手前の沼と背の高い針葉樹林の隙間〜右上に山体・山頂稜線がある。手前の木を雲や雪と誤認しないこと。\n- kutsugata（西・沓形）: 唯一の望遠画角。手前の建物・森林帯の奥一面に山体。薄曇りで低コントラストでも山頂岩稜の輪郭が見えれば視認ありと判定すること。\n- otadomari（南東・オタドマリ沼）: 手前の沼と広場の奥、画面中央に山頂。沼の明暗ではなく中央奥のピークを見ること。\n- senposhi（南・仙法志）: 左の海・奇岩、右奥の道路・電柱の先に南面山体とピークがある。\n\n【重要ルール：空の雲量と山の視界を切り分ける】\n1. cloud_cover (0〜10の整数): 画角上部の空全体を基準に評価（0-2:快晴 / 3-5:晴れ・点在雲 / 6-8:曇り / 9-10:全天曇天・濃霧）。\n2. cloud_pattern (雲のつき方):\n   - 'none': 青空主体で山体に雲がかかっていない（快晴〜晴れ）。\n   - 'high_clouds': 空の雲量が多くても雲底が山頂(1,721m)より上空にあり、山頂ピーク〜稜線が雲に隠れずクリアに見えている（高曇り・眺望良好）。\n   - 'summit_cap': 山麓〜中腹は見えているが、山頂付近(概ね1,300〜1,721m)だけに笠雲・レンズ雲・ガスがかかって山頂ピークが隠れている。\n   - 'mid_cloud_band': 中腹(500〜1,200m付近)以下に雲底が下がり、中腹以上〜山頂が雲・ガスに覆われている。\n   - 'full_overcast': 低い雲・濃霧・吹雪・雨雲により山体全体（または裾野の大部分）が覆われて山が見えない。\n3. summit_visible (boolean):\n   - true: 最高峰ピーク(1,721m)の輪郭が雲に遮られず確認できる（高曇り下のシルエットや逆光霞での輪郭視認も含む）。\n   - false: 山頂ピークに雲・笠雲・霧がかかり輪郭が見えない、または山体全体が見えない。\n4. visible_elevation_m (1700 | 1000 | 500 | 0):\n   - 1700: 山頂(1,500〜1,721m)まで視界が抜けている（summit_visible=true のとき）。\n   - 1000: 山頂は雲の中だが、中腹の稜線・オープンバーン(800〜1,300m付近)までは明確に視認できる。\n   - 500: 中腹以上は雲・霧の中だが、山麓〜森林限界下部(300〜600m付近)の斜面輪郭は見えている。\n   - 0: 濃霧・吹雪・低い雲により山体・山麓とも全く見えない（ただしカメラ暗転/無信号は visibility='camera_error'）。\n5. mountain_weather (登山者視点の山況):\n   - 'clear': 山頂まで見渡せる快晴・好天。\n   - 'high_overcast': 空は曇り（高曇り）だが雲底が高く山頂まで視界良好。\n   - 'partly_cloudy': 晴れ間はあるが山頂または中腹に部分的な雲・笠雲がかかっている。\n   - 'summit_fog': 山頂〜中腹が雲・山岳霧に覆われ視界不良。\n   - 'rain_or_storm': 暗く厚い雨雲・雪雲・悪天霧・吹雪で山が覆われ降雨/悪天が疑われる状態。\n6. is_sunny (boolean): 青空が明確に見える、または山体・地表に直射日光が当たっている場合 true。\n7. visibility ('clear' | 'cloudy' | 'foggy' | 'camera_error'):\n   - 'clear': summit_visible=true かつ山頂ピークまで視界良好な状態（高曇り high_clouds でも山頂が雲に隠れずクリアに見えていれば 'clear' とする）。\n   - 'cloudy': 裾野〜中腹は見えているが、山頂付近が雲・笠雲に隠れている状態（summit_visible=false）。\n   - 'foggy': 山体全体または大部分がガス・濃霧・低い雲に覆われ、山が見えない状態。\n   - 'camera_error': 画面が真っ暗・単色エラー・配信停止テキスト等で映像が機能していない状態。\n8. bc_field_status & snow_line:\n   - bc_field_status: visible_elevation_m に対応（1700='alpine_clear', 1000='mid_mountain_ok', 500='treeline_only', 0='whiteout'）。\n   - snow_line: 'none'(雪なし/山体不可視) / 'summit_cap'(概ね1,200m以上の高標高のみ冠雪) / 'mid_slope'(中腹500〜1,000m付近まで積雪) / 'full_snow'(山麓・裾野まで全面積雪)。\n9. confidence ('high' | 'medium' | 'low'): 逆光霞や木被り等で判定に迷いがある場合は 'medium' または 'low'。\n10. reason: 山頂・中腹の見え方、雲の位置・高さ、日差し・積雪の様子を40〜70文字程度で簡潔・具体的に記述（同一時刻の他カメラとの方角差が顕著ならそれも触れる）。",
+  "responseSchema": {
+    "type": "ARRAY",
+    "items": {
+      "type": "OBJECT",
+      "properties": {
+        "fileName": {
+          "type": "STRING",
+          "description": "解析対象の画像ファイル名"
+        },
+        "cloud_cover": {
+          "type": "INTEGER",
+          "description": "画角上部の空全体の雲量 (0:快晴〜10:全天曇天・濃霧)"
+        },
+        "cloud_pattern": {
+          "type": "STRING",
+          "enum": ["none", "high_clouds", "summit_cap", "mid_cloud_band", "full_overcast"],
+          "description": "雲の位置・つき方"
+        },
+        "summit_visible": {
+          "type": "BOOLEAN",
+          "description": "1,721m山頂ピークの輪郭が雲に隠れず確認できるか"
+        },
+        "visible_elevation_m": {
+          "type": "INTEGER",
+          "description": "視認できる上限標高の目安 (1700 | 1000 | 500 | 0)"
+        },
+        "mountain_weather": {
+          "type": "STRING",
+          "enum": ["clear", "high_overcast", "partly_cloudy", "summit_fog", "rain_or_storm"],
+          "description": "登山者視点の山況天気"
+        },
+        "is_sunny": {
+          "type": "BOOLEAN",
+          "description": "青空または山体・地表への直射日光があるか"
+        },
+        "visibility": {
+          "type": "STRING",
+          "enum": ["clear", "cloudy", "foggy", "camera_error"],
+          "description": "山頂視界分類（高曇りでも山頂クリアならclear）"
+        },
+        "bc_field_status": {
+          "type": "STRING",
+          "enum": ["alpine_clear", "mid_mountain_ok", "treeline_only", "whiteout"],
+          "description": "標高別視界ランク"
+        },
+        "snow_line": {
+          "type": "STRING",
+          "enum": ["none", "summit_cap", "mid_slope", "full_snow"],
+          "description": "積雪・冠雪ライン"
+        },
+        "confidence": {
+          "type": "STRING",
+          "enum": ["high", "medium", "low"],
+          "description": "判定の確信度"
+        },
+        "reason": {
+          "type": "STRING",
+          "description": "観察に基づく簡潔な判定理由（40〜70文字）"
+        }
+      },
+      "required": [
+        "fileName",
+        "cloud_cover",
+        "cloud_pattern",
+        "summit_visible",
+        "visible_elevation_m",
+        "mountain_weather",
+        "is_sunny",
+        "visibility",
+        "bc_field_status",
+        "snow_line",
+        "confidence",
+        "reason"
+      ]
+    }
+  }
+}

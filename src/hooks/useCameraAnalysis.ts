@@ -8,16 +8,22 @@ export type CameraId = 'oshidomari' | 'ferry' | 'himenuma' | 'kutsugata' | 'otad
 export type SeasonMode = 'summer' | 'winter_bc';
 export type BcFieldStatus = 'alpine_clear' | 'mid_mountain_ok' | 'treeline_only' | 'whiteout';
 export type SnowLineStatus = 'none' | 'summit_cap' | 'mid_slope' | 'full_snow';
+export type CloudPattern = 'none' | 'high_clouds' | 'summit_cap' | 'mid_cloud_band' | 'full_overcast';
+export type MountainWeather = 'clear' | 'high_overcast' | 'partly_cloudy' | 'summit_fog' | 'rain_or_storm';
+export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
 export interface ImageAnalysis {
   fileName: string;
   is_sunny: boolean;
   summit_visible?: boolean;
   cloud_cover: number;
+  cloud_pattern?: CloudPattern;
+  mountain_weather?: MountainWeather;
   visibility: 'clear' | 'cloudy' | 'foggy' | 'missing' | 'camera_error';
   visible_elevation_m?: number; // 1700 | 1000 | 500 | 0
   bc_field_status?: BcFieldStatus;
   snow_line?: SnowLineStatus;
+  confidence?: ConfidenceLevel;
   reason: string;
   status?: string;
 }
@@ -58,6 +64,10 @@ export interface DailyCameraSummary {
   dominantSnowLine: SnowLineStatus;
   byCameraElevation: Record<CameraId, number | null>;
   eastAspectEstimatedElevationM: number | null; // 東面（アフトロマナイ沢）推定視界高度
+  // 夏季「雲量 × 山の視界」雲型サマリー
+  highOvercastCount: number; // 高曇りだが山頂クリアだったコマ数
+  summitCapCount: number; // 山頂のみ笠雲のコマ数
+  midCloudBandCount: number; // 中腹雲帯のコマ数
 }
 
 /**
@@ -338,6 +348,9 @@ export function evaluateDailyCameraVisibility(
       dominantSnowLine: 'none',
       byCameraElevation: defaultByCamElev,
       eastAspectEstimatedElevationM: null,
+      highOvercastCount: 0,
+      summitCapCount: 0,
+      midCloudBandCount: 0,
     };
   }
 
@@ -362,6 +375,9 @@ export function evaluateDailyCameraVisibility(
       dominantSnowLine: 'none',
       byCameraElevation: defaultByCamElev,
       eastAspectEstimatedElevationM: null,
+      highOvercastCount: 0,
+      summitCapCount: 0,
+      midCloudBandCount: 0,
     };
   }
 
@@ -464,6 +480,12 @@ export function evaluateDailyCameraVisibility(
     afternoonCams.every(c => c.visibility === 'foggy' || (c.visibility === 'cloudy' && c.cloud_cover >= 8));
   const morningClearAfternoonFoggy = morningHasClear && afternoonAllBad;
 
+  const highOvercastCount = validCams.filter(
+    c => c.cloud_pattern === 'high_clouds' || c.mountain_weather === 'high_overcast'
+  ).length;
+  const summitCapCount = validCams.filter(c => c.cloud_pattern === 'summit_cap').length;
+  const midCloudBandCount = validCams.filter(c => c.cloud_pattern === 'mid_cloud_band').length;
+
   return {
     seasonMode,
     mountainCategory,
@@ -483,6 +505,9 @@ export function evaluateDailyCameraVisibility(
     dominantSnowLine,
     byCameraElevation,
     eastAspectEstimatedElevationM: eastEst.elevationM,
+    highOvercastCount,
+    summitCapCount,
+    midCloudBandCount,
   };
 }
 

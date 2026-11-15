@@ -39,8 +39,13 @@ jobs:
 
       - name: Build production bundle
         run: npm run build
-        env:
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+        # 🔒 セキュリティ保護:
+        # クレジット/課金設定を紐付けた Gemini API キーが公開用 JS バンドルへ露出するのを防ぐため、
+        # 本番ビルドへの VITE_GEMINI_API_KEY 埋め込みは無効化しています。
+        # 公開サイトで一時的に実行する場合は管理画面の「一時APIキー設定 (sessionStorage)」を使用してください。
+        # （※無料枠専用の別プロジェクトキーをあえて埋め込む場合のみ以下を有効化）
+        # env:
+        #   VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
 
       - name: Deploy to Firebase Hosting
         run: npx -p firebase-tools firebase deploy --only hosting --non-interactive

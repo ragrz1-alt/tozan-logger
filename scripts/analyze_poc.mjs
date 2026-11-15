@@ -1,19 +1,12 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import fs from 'fs/promises';
 import path from 'path';
-
-// .env ファイルから API キーを簡易的に読み込む
-async function loadApiKey() {
-  if (process.env.VITE_GEMINI_API_KEY) return process.env.VITE_GEMINI_API_KEY;
-  try {
-    const envContent = await fs.readFile(path.join(process.cwd(), '.env'), 'utf-8');
-    const match = envContent.match(/VITE_GEMINI_API_KEY=(.*)/);
-    if (match) return match[1].trim();
-  } catch (e) {
-    console.error('.envファイルの読み込みに失敗しました', e);
-  }
-  throw new Error('VITE_GEMINI_API_KEY is not set');
-}
+import {
+  assertWithinMonthlyBudget,
+  isBudgetExceededError,
+  loadGeminiApiKey,
+  recordGeminiUsage,
+} from './ai_budget_guard.mjs';
 
 // 画像ファイルをBase64に変換
 async function fileToGenerativePart(filePath, mimeType) {
@@ -27,7 +20,8 @@ async function fileToGenerativePart(filePath, mimeType) {
 }
 
 async function analyzeImages() {
-  const apiKey = await loadApiKey();
+  await assertWithinMonthlyBudget();
+  const apiKey = await loadGeminiApiKey();
   const ai = new GoogleGenAI({ apiKey });
 
   const targetDir = path.join(process.cwd(), 'public', 'cams', '2026-08-01');
@@ -64,6 +58,7 @@ async function analyzeImages() {
     console.log(`\n解析中: ${fileName}...`);
     
     try {
+      await assertWithinMonthlyBudget();
       const imagePart = await fileToGenerativePart(filePath, "image/jpeg");
       
       const response = await ai.models.generateContent({
@@ -84,11 +79,16 @@ async function analyzeImages() {
         }
       });
 
+      await recordGeminiUsage('gemini-2.5-flash', response.usageMetadata);
       const resultJson = JSON.parse(response.text);
       results[fileName] = resultJson;
       console.log(`[完了] ${fileName}:`, resultJson);
 
     } catch (error) {
+      if (isBudgetExceededError(error)) {
+        console.error(error.message);
+        break;
+      }
       console.error(`[エラー] ${fileName} の解析に失敗しました:`, error.message);
     }
   }

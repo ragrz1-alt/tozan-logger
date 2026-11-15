@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+.ai-usage-budget.json
+public/cams/analysis_results.backup.json
 
 # Editor directories and files
 .vscode/*

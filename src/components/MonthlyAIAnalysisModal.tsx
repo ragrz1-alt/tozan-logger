@@ -8,6 +8,13 @@ import {
   getCachedAIReport,
   type AIAnalysisRequest,
 } from '../utils/aiAnalytics';
+import {
+  AI_USAGE_UPDATED_EVENT,
+  getMonthlyBudgetLimitUsd,
+  getMonthlyUsageState,
+  resolveGeminiApiKey,
+} from '../utils/aiBudgetGuard';
+import { AiBudgetStatusBar } from './AiBudgetStatusBar';
 
 interface MonthlyAIAnalysisModalProps {
   isOpen: boolean;
@@ -26,6 +33,23 @@ export const MonthlyAIAnalysisModal: React.FC<MonthlyAIAnalysisModalProps> = ({
   const [result, setResult] = useState<string | null>(null);
   const [metaInfo, setMetaInfo] = useState<{ createdAt: string; modelUsed: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isConfigured, setIsConfigured] = useState(() => resolveGeminiApiKey().source !== 'none');
+  const [isBudgetBlocked, setIsBudgetBlocked] = useState(
+    () => getMonthlyUsageState().estimatedCostUsd >= getMonthlyBudgetLimitUsd()
+  );
+
+  useEffect(() => {
+    const syncAuthAndBudget = () => {
+      setIsConfigured(resolveGeminiApiKey().source !== 'none');
+      setIsBudgetBlocked(getMonthlyUsageState().estimatedCostUsd >= getMonthlyBudgetLimitUsd());
+    };
+    window.addEventListener(AI_USAGE_UPDATED_EVENT, syncAuthAndBudget);
+    window.addEventListener('storage', syncAuthAndBudget);
+    return () => {
+      window.removeEventListener(AI_USAGE_UPDATED_EVENT, syncAuthAndBudget);
+      window.removeEventListener('storage', syncAuthAndBudget);
+    };
+  }, []);
 
   // 事前集計ファクトシート（APIを呼ばずに0.01秒で算出）
   const factSheet = useMemo(() => {
@@ -77,7 +101,6 @@ export const MonthlyAIAnalysisModal: React.FC<MonthlyAIAnalysisModalProps> = ({
     }
   };
 
-  const isConfigured = !!import.meta.env.VITE_GEMINI_API_KEY;
   const titleLabel =
     analysisData.month !== null
       ? `${analysisData.year}年${analysisData.month}月 AI総合解析レポート`
@@ -180,20 +203,23 @@ export const MonthlyAIAnalysisModal: React.FC<MonthlyAIAnalysisModalProps> = ({
             flex: 1,
           }}
         >
+          <AiBudgetStatusBar />
+
           {!isConfigured && (
             <div
               style={{
-                padding: '1rem',
-                backgroundColor: '#fee2e2',
-                border: '1px solid #f87171',
+                padding: '0.85rem 1rem',
+                backgroundColor: '#fef3c7',
+                border: '1px solid #f59e0b',
                 borderRadius: '8px',
-                color: '#991b1b',
-                marginBottom: '1.25rem',
+                color: '#92400e',
+                marginBottom: '1rem',
+                fontSize: '0.85rem',
               }}
             >
-              <p style={{ margin: 0, fontWeight: 'bold' }}>⚠️ APIキーが設定されていません</p>
-              <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.88rem' }}>
-                .env ファイルに <code>VITE_GEMINI_API_KEY</code> を設定してください。
+              <p style={{ margin: 0, fontWeight: 'bold' }}>🔒 APIキー未設定（公開ビルド保護状態）</p>
+              <p style={{ margin: '0.35rem 0 0 0' }}>
+                ローカルの <code>.env.development.local</code> に <code>VITE_GEMINI_API_KEY</code> を設定するか、上の「一時APIキー設定」からこのタブ限定のキーを入力してください。
               </p>
             </div>
           )}
@@ -328,7 +354,7 @@ export const MonthlyAIAnalysisModal: React.FC<MonthlyAIAnalysisModalProps> = ({
 
               <button
                 onClick={handleAnalyze}
-                disabled={isLoading || !isConfigured}
+                disabled={isLoading || !isConfigured || isBudgetBlocked}
                 style={{
                   marginTop: '1rem',
                   width: '100%',
@@ -339,8 +365,8 @@ export const MonthlyAIAnalysisModal: React.FC<MonthlyAIAnalysisModalProps> = ({
                   borderRadius: '10px',
                   fontSize: '1rem',
                   fontWeight: 700,
-                  cursor: isLoading || !isConfigured ? 'not-allowed' : 'pointer',
-                  opacity: isLoading || !isConfigured ? 0.7 : 1,
+                  cursor: isLoading || !isConfigured || isBudgetBlocked ? 'not-allowed' : 'pointer',
+                  opacity: isLoading || !isConfigured || isBudgetBlocked ? 0.7 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

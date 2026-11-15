@@ -55,9 +55,21 @@ export interface LiveCamPoCPanelProps {
   isAdmin?: boolean;
 }
 
-function getVisibilityBadge(vis: string, summitVisible?: boolean) {
+function getVisibilityBadge(
+  vis: string,
+  summitVisible?: boolean,
+  mountainWeather?: string,
+  cloudPattern?: string
+) {
   switch (vis) {
     case 'clear':
+      if (mountainWeather === 'high_overcast' || cloudPattern === 'high_clouds') {
+        return (
+          <span style={{ backgroundColor: '#0ea5e9', color: '#fff', padding: '0.16rem 0.48rem', borderRadius: '4px', fontSize: '0.73rem', fontWeight: 'bold' }}>
+            ⛅ 山頂視界良好(高曇り)
+          </span>
+        );
+      }
       return (
         <span style={{ backgroundColor: '#f59e0b', color: '#fff', padding: '0.16rem 0.48rem', borderRadius: '4px', fontSize: '0.73rem', fontWeight: 'bold' }}>
           ☀️ 山頂快晴
@@ -164,7 +176,7 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
     return today >= '2026-07-28' ? today : '2026-10-22';
   });
   const [overwriteExisting, setOverwriteExisting] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('gemini-3.5-flash-lite');
+  const [selectedModel, setSelectedModel] = useState('gemini-4-hydrogen');
 
   const [weatherMap, setWeatherMap] = useState<Record<string, WeatherData>>({});
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
@@ -498,6 +510,35 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
     setStatusMsg('💾 バックアップ用 analysis_results.json をダウンロードしました。');
   };
 
+  const handleImportJson = async (file: File) => {
+    setErrorMsg(null);
+    setStatusMsg(`📥 ${file.name} を読み込み中...`);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as Record<string, ImageAnalysis[]>;
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('JSON形式が不正です（日付キーのオブジェクトが必要です）。');
+      }
+      const dateKeys = Object.keys(parsed).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k) && Array.isArray(parsed[k]));
+      if (dateKeys.length === 0) {
+        throw new Error('有効な YYYY-MM-DD 形式の解析データが含まれていません。');
+      }
+      const merged: Record<string, ImageAnalysis[]> = { ...analysisResultsRef.current };
+      for (const d of dateKeys) {
+        merged[d] = parsed[d];
+      }
+      analysisResultsRef.current = merged;
+      setIsSyncingCloud(true);
+      await persistCameraAnalysisResults(merged, false);
+      setIsSyncingCloud(false);
+      setStatusMsg(`✅ ${dateKeys.length}日分の解析データをインポートし、クラウド(Firestore)へ同期しました。`);
+    } catch (err: unknown) {
+      setIsSyncingCloud(false);
+      setStatusMsg(null);
+      setErrorMsg(err instanceof Error ? err.message : 'JSONインポートに失敗しました。');
+    }
+  };
+
   return (
     <div className="card" style={{ borderTop: '4px solid #3b82f6', marginBottom: '2rem' }}>
       {/* ===== 1. シンプルなヘッダー ＆ 季節モード切替 ===== */}
@@ -746,6 +787,7 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
           onModelChange={setSelectedModel}
           onRunCustomRange={runCustomRangeBatch}
           onExportJson={handleExportJson}
+          onImportJson={handleImportJson}
           onClearAll={handleClearAllAnalysis}
         />
       )}
@@ -1131,7 +1173,12 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
                         {result && !isMissingResult && elevInfo ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem' }}>
-                              {getVisibilityBadge(result.visibility, result.summit_visible)}
+                              {getVisibilityBadge(
+                                result.visibility,
+                                result.summit_visible,
+                                result.mountain_weather,
+                                result.cloud_pattern
+                              )}
                               <span style={{ fontSize: '0.73rem', fontWeight: 700, color: result.is_sunny ? '#f59e0b' : 'var(--text-secondary)' }}>
                                 {result.is_sunny ? '☀️ 日差し' : '☁️ 日差しなし'} (雲量 {result.cloud_cover}/10)
                               </span>
@@ -1139,6 +1186,20 @@ export const LiveCamPoCPanel: React.FC<LiveCamPoCPanelProps> = ({ isAdmin = fals
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
                               {getElevationBadge(elevInfo.elevationM, elevInfo.bcStatus)}
                               {getSnowLineBadge(elevInfo.snowLine)}
+                              {result.confidence === 'low' && (
+                                <span
+                                  style={{
+                                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                    color: '#dc2626',
+                                    padding: '0.12rem 0.4rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.68rem',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  要確認(低確信度)
+                                </span>
+                              )}
                             </div>
                             <div style={{ fontSize: '0.73rem', color: 'var(--text-primary)', marginTop: '0.1rem', lineHeight: 1.4 }}>
                               {result.reason}

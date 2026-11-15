@@ -9,7 +9,10 @@
     "build": "npm run generate:weather && tsc -b && vite build",
     "build:fast": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cams:sync": "node scripts/sync_cams_to_firestore.mjs",
+    "cams:publish": "node scripts/analyze_cams_batch.mjs --sync --push",
+    "cams:summer": "node scripts/analyze_cams_batch.mjs --force --from 2026-07-28 --to 2026-09-30 --sync --push"
   },
   "dependencies": {
     "@google/genai": "^2.20.0",

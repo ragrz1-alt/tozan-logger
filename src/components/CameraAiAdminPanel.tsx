@@ -1,6 +1,7 @@
 import React from 'react';
-import { Calendar, Download, Trash2, Cloud, HardDrive } from 'lucide-react';
+import { Calendar, Download, Upload, Trash2, Cloud, HardDrive } from 'lucide-react';
 import { CAMERA_MODELS } from '../utils/cameraAiClient';
+import { AiBudgetStatusBar } from './AiBudgetStatusBar';
 
 interface CameraAiAdminPanelProps {
   availableDates: string[];
@@ -23,6 +24,7 @@ interface CameraAiAdminPanelProps {
   onModelChange: (val: string) => void;
   onRunCustomRange: () => void;
   onExportJson: () => void;
+  onImportJson?: (file: File) => void;
   onClearAll: () => void;
 }
 
@@ -42,6 +44,7 @@ export const CameraAiAdminPanel: React.FC<CameraAiAdminPanelProps> = ({
   onModelChange,
   onRunCustomRange,
   onExportJson,
+  onImportJson,
   onClearAll,
 }) => {
   return (
@@ -119,6 +122,8 @@ export const CameraAiAdminPanel: React.FC<CameraAiAdminPanelProps> = ({
           </select>
         </div>
       </div>
+
+      <AiBudgetStatusBar compact />
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.82rem' }}>
@@ -210,6 +215,41 @@ export const CameraAiAdminPanel: React.FC<CameraAiAdminPanelProps> = ({
             <Download size={14} />
             <span>JSONバックアップ出力</span>
           </button>
+
+          {onImportJson && (
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.35rem 0.7rem',
+                borderRadius: '6px',
+                border: '1px solid #10b981',
+                backgroundColor: isAnalyzing || isSyncingCloud ? 'var(--bg-secondary)' : 'rgba(16, 185, 129, 0.1)',
+                color: '#059669',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: isAnalyzing || isSyncingCloud ? 'not-allowed' : 'pointer',
+              }}
+              title="バッチスクリプトで生成した public/cams/analysis_results.json を読み込み、Firebase Firestore と同期します"
+            >
+              <Upload size={14} />
+              <span>JSONインポート(クラウド同期)</span>
+              <input
+                type="file"
+                accept=".json,application/json"
+                disabled={isAnalyzing || isSyncingCloud}
+                style={{ display: 'none' }}
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    onImportJson(file);
+                    e.target.value = '';
+                  }
+                }}
+              />
+            </label>
+          )}
 
           <button
             onClick={onClearAll}
