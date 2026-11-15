@@ -3,7 +3,8 @@
  * (Playwright 仮想ドメイン iframe 埋め込み + HTML5 <video> -> <canvas> 直接キャプチャ)
  *
  * 使い方:
- *   node scripts/capture_youtube_iframe.mjs <videoId> <outputPath> [proxyUrl]
+ *   単発: node scripts/capture_youtube_iframe.mjs <videoId> <outputPath> [proxyUrl]
+ *   一括: node scripts/capture_youtube_iframe.mjs --batch <jobsJsonPath> [proxyUrl]
  */
 
 import { chromium } from 'playwright';
@@ -11,11 +12,26 @@ import fs from 'fs';
 import path from 'path';
 import net from 'net';
 
-const [, , videoId, outputPath, cliProxy] = process.argv;
+function parseCliArgs(argv) {
+  const args = argv.slice(2);
+  if (args[0] === '--batch') {
+    const jobsPath = args[1];
+    const cliProxy = args[2] || null;
+    if (!jobsPath || !fs.existsSync(jobsPath)) {
+      console.error('Usage: node scripts/capture_youtube_iframe.mjs --batch <jobsJsonPath> [proxyUrl]');
+      process.exit(1);
+    }
+    const raw = fs.readFileSync(jobsPath, 'utf-8').replace(/^\uFEFF/, '');
+    const jobs = JSON.parse(raw);
+    return { mode: 'batch', jobs, cliProxy };
+  }
 
-if (!videoId || !outputPath) {
-  console.error('Usage: node scripts/capture_youtube_iframe.mjs <videoId> <outputPath> [proxyUrl]');
-  process.exit(1);
+  const [videoId, outputPath, cliProxy] = args;
+  if (!videoId || !outputPath) {
+    console.error('Usage: node scripts/capture_youtube_iframe.mjs <videoId> <outputPath> [proxyUrl]');
+    process.exit(1);
+  }
+  return { mode: 'single', jobs: [{ videoId, outputPath }], cliProxy: cliProxy || null };
 }
 
 function checkLocalPort(port, host = '127.0.0.1', timeoutMs = 600) {
@@ -37,43 +53,34 @@ function checkLocalPort(port, host = '127.0.0.1', timeoutMs = 600) {
   });
 }
 
-async function tryCaptureOnce(vid, outFile, proxyServer) {
-  let browser;
+async function launchChromium(proxyServer) {
+  const launchArgs = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--autoplay-policy=no-user-gesture-required',
+    '--disable-blink-features=AutomationControlled',
+    '--mute-audio',
+  ];
+
+  const launchOpts = {
+    headless: true,
+    args: launchArgs,
+    ...(proxyServer ? { proxy: { server: proxyServer } } : {}),
+  };
+
   try {
-    const launchArgs = [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--autoplay-policy=no-user-gesture-required',
-      '--disable-blink-features=AutomationControlled',
-      '--mute-audio',
-    ];
+    return await chromium.launch({ ...launchOpts, channel: 'chrome' });
+  } catch {
+    return await chromium.launch(launchOpts);
+  }
+}
 
-    const launchOpts = {
-      headless: true,
-      args: launchArgs,
-      ...(proxyServer ? { proxy: { server: proxyServer } } : {}),
-    };
+async function captureVideoOnContext(context, vid, outFile, proxyLabel) {
+  const page = await context.newPage();
+  const virtualOrigin = 'https://rishiri-trail-analytics.web.app/';
 
-    try {
-      browser = await chromium.launch({
-        ...launchOpts,
-        channel: 'chrome',
-      });
-    } catch {
-      browser = await chromium.launch(launchOpts);
-    }
-
-    const context = await browser.newContext({
-      viewport: { width: 1280, height: 720 },
-      userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      locale: 'ja-JP',
-    });
-
-    const page = await context.newPage();
-    const virtualOrigin = 'https://rishiri-trail-analytics.web.app/';
-
+  try {
     await page.route(virtualOrigin, route => {
       route.fulfill({
         status: 200,
@@ -98,18 +105,18 @@ async function tryCaptureOnce(vid, outFile, proxyServer) {
       });
     });
 
-    await page.goto(virtualOrigin, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    const frameElement = await page.waitForSelector('#yt-frame', { timeout: 12000 });
+    await page.goto(virtualOrigin, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    const frameElement = await page.waitForSelector('#yt-frame', { timeout: 8000 });
     const frame = await frameElement.contentFrame();
 
     let dataUrl = null;
     let lastDiag = {};
 
     if (frame) {
-      await frame.waitForSelector('video, .ytp-large-play-button, .ytp-error', { timeout: 15000 }).catch(() => {});
+      await frame.waitForSelector('video, .ytp-large-play-button, .ytp-error', { timeout: 10000 }).catch(() => {});
 
-      for (let attempt = 0; attempt < 26; attempt++) {
-        if (attempt === 1 || attempt === 5 || attempt === 10) {
+      for (let attempt = 0; attempt < 22; attempt++) {
+        if (attempt === 1 || attempt === 4 || attempt === 9) {
           try {
             const playBtn = await frame.$('.ytp-large-play-button');
             if (playBtn && (await playBtn.isVisible())) {
@@ -120,7 +127,7 @@ async function tryCaptureOnce(vid, outFile, proxyServer) {
           } catch {}
         }
 
-        const state = await frame.evaluate(() => {
+        const state = await frame.evaluate(att => {
           const errEl = document.querySelector('.ytp-error-content-wrap-reason, .ytp-error');
           const errText = errEl ? (errEl.textContent || '').trim().slice(0, 120) : '';
 
@@ -162,7 +169,7 @@ async function tryCaptureOnce(vid, outFile, proxyServer) {
             return { ready: false, fatalError: true, diag };
           }
 
-          if (v.readyState >= 2 && v.videoWidth > 0) {
+          if (v.readyState >= 2 && v.videoWidth >= 320 && v.videoHeight >= 180) {
             const canvas = document.createElement('canvas');
             const targetW = 800;
             const targetH = Math.round((v.videoHeight / v.videoWidth) * targetW) || 450;
@@ -171,22 +178,20 @@ async function tryCaptureOnce(vid, outFile, proxyServer) {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(v, 0, 0, targetW, targetH);
 
-            const samplePoints = [
-              [200, 120],
-              [400, 225],
-              [600, 120],
-              [400, 350],
-            ];
-            let nonBlack = false;
-            for (const [sx, sy] of samplePoints) {
-              const p = ctx.getImageData(sx, sy, 1, 1).data;
-              if (p[0] > 3 || p[1] > 3 || p[2] > 3) {
-                nonBlack = true;
-                break;
+            // 3x3 グリッドで初期黒フレーム・ロード待ちを除外（暗闇でも再生が進んでいれば取得する）
+            const xs = [160, 400, 640];
+            const ys = [Math.round(targetH * 0.25), Math.round(targetH * 0.5), Math.round(targetH * 0.75)];
+            let nonBlackCount = 0;
+            for (const sx of xs) {
+              for (const sy of ys) {
+                const p = ctx.getImageData(sx, sy, 1, 1).data;
+                if (p[0] > 4 || p[1] > 4 || p[2] > 4) {
+                  nonBlackCount++;
+                }
               }
             }
 
-            if (nonBlack || v.currentTime > 0.3) {
+            if (nonBlackCount >= 2 || (att >= 3 && v.currentTime > 0.3)) {
               for (const q of [0.80, 0.70, 0.60, 0.50]) {
                 const url = canvas.toDataURL('image/jpeg', q);
                 const approxBytes = Math.round((url.length - 23) * 0.75);
@@ -197,29 +202,22 @@ async function tryCaptureOnce(vid, outFile, proxyServer) {
             }
           }
           return { ready: false, fatalError: false, diag };
-        });
+        }, attempt);
 
         lastDiag = state.diag || {};
         if (state.ready && state.dataUrl) {
           dataUrl = state.dataUrl;
           break;
         }
-        if (state.fatalError && attempt >= 4) {
+        if (state.fatalError && attempt >= 2) {
           break;
         }
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(400);
       }
     }
 
-    await page.close();
-    await context.close();
-    await browser.close();
-
     if (!dataUrl) {
-      console.error(
-        `[PLAYWRIGHT_CANVAS] Failed (${proxyServer || 'direct'}) for ${vid}. Last state:`,
-        JSON.stringify(lastDiag)
-      );
+      console.error(`[PLAYWRIGHT_CANVAS] Failed (${proxyLabel}) for ${vid}. Last state:`, JSON.stringify(lastDiag));
       return false;
     }
 
@@ -232,22 +230,17 @@ async function tryCaptureOnce(vid, outFile, proxyServer) {
 
     fs.mkdirSync(path.dirname(outFile), { recursive: true });
     fs.writeFileSync(outFile, buffer);
-    console.log(
-      `[PLAYWRIGHT_CANVAS] Captured ${vid} (${proxyServer || 'direct'}) -> ${outFile} (${buffer.length} bytes)`
-    );
+    console.log(`[PLAYWRIGHT_CANVAS] Captured ${vid} (${proxyLabel}) -> ${outFile} (${buffer.length} bytes)`);
     return true;
   } catch (err) {
-    if (browser) {
-      try {
-        await browser.close();
-      } catch {}
-    }
-    console.error(`[PLAYWRIGHT_CANVAS] Error (${proxyServer || 'direct'}) for ${vid}:`, err.message);
+    console.error(`[PLAYWRIGHT_CANVAS] Error (${proxyLabel}) for ${vid}:`, err.message);
     return false;
+  } finally {
+    await page.close().catch(() => {});
   }
 }
 
-async function captureYouTubeLiveFrame(vid, outFile) {
+async function runCaptureBatch(jobs, cliProxy) {
   const candidates = [];
   const envProxy = cliProxy || process.env.YOUTUBE_SOCKS_PROXY || process.env.YOUTUBE_PROXY;
   if (envProxy) {
@@ -257,12 +250,40 @@ async function captureYouTubeLiveFrame(vid, outFile) {
   }
   candidates.push(null); // direct fallback
 
+  let remaining = jobs.map(j => ({ ...j }));
+
   for (const proxy of candidates) {
-    const ok = await tryCaptureOnce(vid, outFile, proxy);
-    if (ok) return true;
+    if (remaining.length === 0) break;
+    const proxyLabel = proxy || 'direct';
+    let browser;
+    try {
+      browser = await launchChromium(proxy);
+      const context = await browser.newContext({
+        viewport: { width: 1280, height: 720 },
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        locale: 'ja-JP',
+      });
+
+      const nextRemaining = [];
+      for (const job of remaining) {
+        const ok = await captureVideoOnContext(context, job.videoId, job.outputPath, proxyLabel);
+        if (!ok) nextRemaining.push(job);
+      }
+      remaining = nextRemaining;
+      await context.close().catch(() => {});
+    } catch (err) {
+      console.error(`[PLAYWRIGHT_CANVAS] Browser launch/context error (${proxyLabel}):`, err.message);
+    } finally {
+      if (browser) {
+        await browser.close().catch(() => {});
+      }
+    }
   }
-  return false;
+
+  return remaining.length === 0;
 }
 
-const ok = await captureYouTubeLiveFrame(videoId, outputPath);
-process.exit(ok ? 0 : 2);
+const { jobs, cliProxy } = parseCliArgs(process.argv);
+const allOk = await runCaptureBatch(jobs, cliProxy);
+process.exit(allOk ? 0 : 2);

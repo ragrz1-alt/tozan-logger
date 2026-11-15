@@ -19,6 +19,7 @@ import os
 import re
 import sys
 import json
+import time
 import hashlib
 import socket
 import shutil
@@ -157,6 +158,18 @@ def get_seasonal_solar_range(month):
 def is_within_seasonal_solar_hours(dt_jst):
     start_h, end_h = get_seasonal_solar_range(dt_jst.month)
     return start_h <= dt_jst.hour <= end_h
+
+def is_daytime_core_hour(dt_jst):
+    """
+    日没後の自然な暗がりを「カメラ暗転障害(blackout)」と誤判定しないための日中コア時間帯判定。
+    利尻島（北緯45.18度）の実日照に合わせ、薄明・日没後境界を除外する。
+    """
+    m, h = dt_jst.month, dt_jst.hour
+    if m in (5, 6, 7, 8):
+        return 5 <= h <= 18
+    if m in (3, 4, 9, 10):
+        return 6 <= h <= 16
+    return 8 <= h <= 15
 
 def ensure_compressed_image(image_path, max_bytes=58000):
     """
@@ -501,7 +514,7 @@ def run_ytdlp_get_url(video_url, format_selector, extra_args=None, proxy_url=Non
 def capture_stream_frame(video_url, output_path, course_id=None, target_dir=None, date_str=None, now_jst=None):
     """
     プロキシ候補 × クライアント候補の組み合わせで HLS ストリームからリアルタイム撮影（＆DVRバックフィル）を行う
-    戻り値: (status: "ok" | "blackout" | "failed", restored: list)
+    戻り値: (status: "ok" | "blackout" | "twilight_dark" | "failed", restored: list)
     """
     if os.path.exists(output_path):
         try:
@@ -509,6 +522,7 @@ def capture_stream_frame(video_url, output_path, course_id=None, target_dir=None
         except Exception:
             pass
 
+    is_core_daytime = is_daytime_core_hour(now_jst) if now_jst else True
     proxies = get_proxy_candidates()
     client_Strategies = [
         ("default(android_vr/web)", []),
@@ -535,11 +549,14 @@ def capture_stream_frame(video_url, output_path, course_id=None, target_dir=None
             if ok and os.path.exists(output_path) and os.path.getsize(output_path) > 1500:
                 is_bad, bad_reason = is_blackout_or_invalid_frame(output_path)
                 if is_bad:
-                    print(f" -> [STREAM_BLACKOUT] yt-dlp({label}) 映像は取得できましたが暗転/異常フレーム ({bad_reason}) のため除外します")
                     try:
                         os.remove(output_path)
                     except Exception:
                         pass
+                    if not is_core_daytime and bad_reason.startswith("blackout("):
+                        print(f" -> [TWILIGHT_DARK] yt-dlp({label}) 日照端境期の暗がり ({bad_reason}) のため今回枠をスキップします")
+                        return "twilight_dark", restored
+                    print(f" -> [STREAM_BLACKOUT] yt-dlp({label}) 映像は取得できましたが暗転/異常フレーム ({bad_reason}) のため除外します")
                     return "blackout", restored
                 print(f" -> [STREAM_SCREENSHOT] yt-dlp({label}, proxy={proxy_url or 'direct'}) + HLSセグメント抽出成功")
                 return "ok", restored
@@ -566,11 +583,14 @@ def capture_stream_frame(video_url, output_path, course_id=None, target_dir=None
                 if ffmpeg_res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1500:
                     is_bad, bad_reason = is_blackout_or_invalid_frame(output_path)
                     if is_bad:
-                        print(f" -> [STREAM_BLACKOUT] yt-dlp/ffmpeg({label}) 暗転/異常フレーム ({bad_reason}) のため除外します")
                         try:
                             os.remove(output_path)
                         except Exception:
                             pass
+                        if not is_core_daytime and bad_reason.startswith("blackout("):
+                            print(f" -> [TWILIGHT_DARK] yt-dlp/ffmpeg({label}) 日照端境期の暗がり ({bad_reason}) のため今回枠をスキップします")
+                            return "twilight_dark", restored
+                        print(f" -> [STREAM_BLACKOUT] yt-dlp/ffmpeg({label}) 暗転/異常フレーム ({bad_reason}) のため除外します")
                         return "blackout", restored
                     print(f" -> [STREAM_SCREENSHOT] yt-dlp/ffmpeg ({label}, proxy={proxy_url or 'direct'}) で撮影成功")
                     return "ok", restored
@@ -583,7 +603,6 @@ def capture_with_playwright_iframe(video_id, output_path):
     """
     カスタムサムネイル設定済みカメラ（およびクラウドIPでyt-dlpがブロックされた場合）向けに、
     Playwright 仮想ドメイン iframe 埋め込み + HTML5 <video> -> <canvas> から直接生フレームを抽出する
-    (2コアCI環境でのCPU競合を防ぐためロック制御で1ブラウザずつ安全に実行)
     """
     with PLAYWRIGHT_LOCK:
         try:
@@ -597,7 +616,7 @@ def capture_with_playwright_iframe(video_id, output_path):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=65
+                timeout=95
             )
             if res.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 1500:
                 print(f" -> [PLAYWRIGHT_CANVAS] 仮想ドメインiframeから純粋ライブ映像抽出成功 ({os.path.getsize(output_path)} bytes)")
@@ -610,6 +629,53 @@ def capture_with_playwright_iframe(video_id, output_path):
         except Exception as e:
             print(f"[WARN] Playwright iframe キャプチャ失敗 ({video_id}): {e}")
             return False
+
+def capture_batch_with_playwright_iframe(jobs):
+    """
+    複数カメラのPlaywrightフォールバックを1つのChromiumインスタンスでまとめて実行する
+    jobs: list of {"course_id": str, "videoId": str, "outputPath": str}
+    """
+    if not jobs:
+        return {}
+    root_dir = get_project_root()
+    script_path = os.path.join(root_dir, "scripts", "capture_youtube_iframe.mjs")
+    if not os.path.exists(script_path):
+        return {}
+
+    payload = [{"videoId": j["videoId"], "outputPath": j["outputPath"]} for j in jobs]
+    fd, tmp_json = tempfile.mkstemp(suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+        timeout_sec = 45 + 65 * len(jobs)
+        res = subprocess.run(
+            ["node", script_path, "--batch", tmp_json],
+            cwd=root_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout_sec,
+        )
+        out_log = (res.stdout or "").strip()
+        err_log = (res.stderr or "").strip()
+        if out_log:
+            print(out_log)
+        if err_log:
+            print(f" -> [PLAYWRIGHT_BATCH WARN] {err_log[:400]}")
+    except Exception as e:
+        print(f"[WARN] Playwright バッチ実行例外: {e}")
+    finally:
+        try:
+            if os.path.exists(tmp_json):
+                os.remove(tmp_json)
+        except Exception:
+            pass
+
+    results = {}
+    for j in jobs:
+        out_p = j["outputPath"]
+        results[j["course_id"]] = os.path.exists(out_p) and os.path.getsize(out_p) > 1500
+    return results
 
 def capture_fallback_thumbnail(video_id, output_path):
     """
@@ -642,29 +708,81 @@ def capture_fallback_thumbnail(video_id, output_path):
     return False
 
 def capture_static_image(image_url, output_path):
-    try:
-        if os.path.exists(output_path):
-            try:
-                os.remove(output_path)
-            except Exception:
-                pass
-        target_url = f"{image_url}?t={int(datetime.now(JST).timestamp())}"
-        req = urllib.request.Request(
-            target_url,
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        )
-        with urllib.request.urlopen(req, timeout=15) as res:
-            data = res.read()
-            if len(data) > 1000:
-                with open(output_path, "wb") as f:
-                    f.write(data)
-                print(f" -> [STATIC_IMAGE] 公式静止画カメラ保存成功 ({len(data)} bytes)")
-                return True
-    except Exception as e:
-        print(f"[WARN] 静止画ダウンロード失敗 ({image_url}): {e}")
+    if os.path.exists(output_path):
+        try:
+            os.remove(output_path)
+        except Exception:
+            pass
+
+    # 公式Webサーバー向けは直接接続（リトライ2回 + 指数バックオフ）を優先し、失敗時のみWARPプロキシも試す
+    proxy_attempts = [None, None] + [p for p in get_proxy_candidates() if p]
+    for attempt_idx, proxy_url in enumerate(proxy_attempts):
+        if attempt_idx > 0:
+            time.sleep(min(2 * attempt_idx, 4))
+        try:
+            target_url = f"{image_url}?t={int(datetime.now(JST).timestamp())}"
+            opener = build_opener(proxy_url)
+            req = urllib.request.Request(
+                target_url,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+            )
+            with opener.open(req, timeout=15) as res:
+                data = res.read()
+                if len(data) > 1000:
+                    with open(output_path, "wb") as f:
+                        f.write(data)
+                    via = proxy_url or "direct"
+                    print(f" -> [STATIC_IMAGE] 公式静止画カメラ保存成功 ({len(data)} bytes, via={via})")
+                    return True
+        except Exception as e:
+            print(f"[WARN] 静止画ダウンロード試行 {attempt_idx + 1}/{len(proxy_attempts)} 失敗 ({image_url}): {e}")
     return False
 
-def process_camera(course_id, info, target_dir, cams_dir, date_str, hour_str, now_jst, camera_config=None, force=False):
+def validate_and_finalize_frame(course_id, img_path, now_jst, recent_hashes, source_tag, check_stale=False):
+    """
+    取得済み画像を検査（暗転判定 / 日照端境期判定 / 圧縮 / 重複チェック）し、確定ステータスを返す。
+    """
+    if not os.path.exists(img_path) or os.path.getsize(img_path) <= 1000:
+        return "failed"
+
+    is_bad, bad_reason = is_blackout_or_invalid_frame(img_path)
+    if is_bad:
+        try:
+            os.remove(img_path)
+        except Exception:
+            pass
+        if not is_daytime_core_hour(now_jst) and bad_reason.startswith("blackout("):
+            print(f" -> [{source_tag}_TWILIGHT_DARK] {course_id}: 日照端境期の暗がり ({bad_reason}) のため今回枠をスキップします。")
+            return "twilight_dark"
+        print(f" -> [{source_tag}_BLACKOUT] {course_id}: 暗転/異常フレーム ({bad_reason}) のため破棄します。")
+        return "blackout"
+
+    ensure_compressed_image(img_path)
+    if check_stale:
+        h = file_md5(img_path)
+        if h and h in recent_hashes:
+            print(f" -> [{source_tag}_STALE] {course_id}: 直近画像と完全一致（配信停止/フリーズ疑い）のため保存をスキップします。")
+            try:
+                os.remove(img_path)
+            except Exception:
+                pass
+            return "stale"
+    return "ok"
+
+def try_live_thumbnail_fallback(course_id, video_id, img_path, now_jst, recent_hashes, cam_mode, is_custom_thumb):
+    """
+    active かつ カスタムサムネイル未設定のカメラのみ _live.jpg フォールバックを試行する
+    """
+    if cam_mode != "active" or is_custom_thumb:
+        return "failed"
+    print(f"[{course_id}] リアルタイムサムネイル (_live.jpg) でフォールバック中...")
+    if capture_fallback_thumbnail(video_id, img_path):
+        return validate_and_finalize_frame(
+            course_id, img_path, now_jst, recent_hashes, source_tag="THUMB", check_stale=True
+        )
+    return "failed"
+
+def process_camera(course_id, info, target_dir, cams_dir, date_str, hour_str, now_jst, camera_config=None, force=False, allow_playwright=True):
     cfg_entry = (camera_config or {}).get(course_id, {})
     cam_mode = cfg_entry.get("mode", "active")
 
@@ -681,6 +799,10 @@ def process_camera(course_id, info, target_dir, cams_dir, date_str, hour_str, no
     rel_path = f"cams/{date_str}/{img_name}"
     restored_list = []
 
+    if not force and os.path.exists(img_path) and os.path.getsize(img_path) > 1500:
+        print(f"⏭️ [{course_id}] ({info['name']}) 当時間帯 ({hour_str}:00) は取得済みのためスキップします: {rel_path}")
+        return course_id, "already_captured", rel_path, []
+
     print(f"[{course_id}] ({info['name']}) リアルタイム撮影試行中... (mode={cam_mode})")
 
     outcome = "failed"
@@ -688,26 +810,9 @@ def process_camera(course_id, info, target_dir, cams_dir, date_str, hour_str, no
 
     if not info.get("videoId") or info.get("url", "").lower().endswith(".jpg"):
         if capture_static_image(info["url"], img_path):
-            is_bad, bad_reason = is_blackout_or_invalid_frame(img_path)
-            if is_bad:
-                print(f" -> [STATIC_BLACKOUT] {course_id}: 暗転/異常フレーム ({bad_reason}) のため破棄します。")
-                try:
-                    os.remove(img_path)
-                except Exception:
-                    pass
-                outcome = "blackout"
-            else:
-                ensure_compressed_image(img_path)
-                h = file_md5(img_path)
-                if h and h in recent_hashes:
-                    print(f" -> [STATIC_STALE] {course_id}: 直近画像と完全一致（配信停止/フリーズ疑い）のため保存をスキップします。")
-                    try:
-                        os.remove(img_path)
-                    except Exception:
-                        pass
-                    outcome = "stale"
-                else:
-                    outcome = "ok"
+            outcome = validate_and_finalize_frame(
+                course_id, img_path, now_jst, recent_hashes, source_tag="STATIC", check_stale=True
+            )
     else:
         video_id = info["videoId"]
         is_custom_thumb = bool(info.get("customThumbnail", False))
@@ -721,51 +826,22 @@ def process_camera(course_id, info, target_dir, cams_dir, date_str, hour_str, no
             date_str=date_str,
             now_jst=now_jst,
         )
-        if stream_status == "ok":
-            outcome = "ok"
-        elif stream_status == "blackout":
-            # ストリーム自体が暗転している場合は、古いサムネイル(_live.jpg)を誤って拾わないようここで打ち切る
-            outcome = "blackout"
-        else:
-            # 2. クラウドIP等でyt-dlpが弾かれた場合は Playwright 仮想ドメイン iframe + Canvas で生フレーム抽出
+        if stream_status in ("ok", "blackout", "twilight_dark"):
+            # ストリーム自体が暗転/端境期の場合は、古いサムネイル(_live.jpg)を誤って拾わないようここで確定する
+            outcome = stream_status
+        elif allow_playwright:
+            # 2. 単体モード時のみ即座に Playwright 仮想ドメイン iframe + Canvas 生フレーム抽出を実行
             print(f"[{course_id}] Playwright 仮想ドメイン iframe + Canvas 生フレーム抽出を実行中...")
             if capture_with_playwright_iframe(video_id, img_path):
-                is_bad, bad_reason = is_blackout_or_invalid_frame(img_path)
-                if is_bad:
-                    print(f" -> [PLAYWRIGHT_BLACKOUT] {course_id}: 暗転/異常フレーム ({bad_reason}) のため破棄します。")
-                    try:
-                        os.remove(img_path)
-                    except Exception:
-                        pass
-                    outcome = "blackout"
-                else:
-                    outcome = "ok"
+                outcome = validate_and_finalize_frame(
+                    course_id, img_path, now_jst, recent_hashes, source_tag="PLAYWRIGHT", check_stale=False
+                )
 
-            # 3. active かつ カスタムサムネイル未設定のカメラのみ _live.jpg フォールバックを許可
-            #    (monitoring モードでは古いキャッシュサムネによる誤復帰を防ぐため _live.jpg を使わない)
-            if outcome == "failed" and cam_mode == "active" and not is_custom_thumb:
-                print(f"[{course_id}] リアルタイムサムネイル (_live.jpg) でフォールバック中...")
-                if capture_fallback_thumbnail(video_id, img_path):
-                    is_bad, bad_reason = is_blackout_or_invalid_frame(img_path)
-                    if is_bad:
-                        print(f" -> [THUMB_BLACKOUT] {course_id}: 暗転フレーム ({bad_reason}) のため破棄します。")
-                        try:
-                            os.remove(img_path)
-                        except Exception:
-                            pass
-                        outcome = "blackout"
-                    else:
-                        ensure_compressed_image(img_path)
-                        h = file_md5(img_path)
-                        if h and h in recent_hashes:
-                            print(f" -> [THUMB_STALE] {course_id}: 過去のキャッシュサムネイルと完全一致するため破棄します。")
-                            try:
-                                os.remove(img_path)
-                            except Exception:
-                                pass
-                            outcome = "stale"
-                        else:
-                            outcome = "ok"
+            # 3. _live.jpg フォールバック（active かつ カスタムサムネ未設定のみ）
+            if outcome == "failed":
+                outcome = try_live_thumbnail_fallback(
+                    course_id, video_id, img_path, now_jst, recent_hashes, cam_mode, is_custom_thumb
+                )
 
     if outcome == "ok" and os.path.exists(img_path) and os.path.getsize(img_path) > 1000:
         ensure_compressed_image(img_path)
@@ -779,7 +855,8 @@ def process_camera(course_id, info, target_dir, cams_dir, date_str, hour_str, no
                 os.remove(img_path)
             except Exception:
                 pass
-        print(f" -> 未保存 ({outcome}): {course_id} の有効な映像を取得できませんでした。")
+        if outcome != "failed" or allow_playwright or not info.get("videoId"):
+            print(f" -> 未保存 ({outcome}): {course_id} の有効な映像を取得できませんでした。")
         return course_id, outcome, None, restored_list
 
 def find_last_valid_at(records, cam_id):
@@ -1006,20 +1083,81 @@ def main():
     start_h, end_h = get_seasonal_solar_range(now.month)
     print(f"=== 利尻山6地点ライブカメラ 定時撮影処理開始 ({date_str} {hour_str}:00 JST / {now.month}月稼働枠 {start_h:02d}〜{end_h:02d}時) ===")
 
-    # 3スレッド並列で6カメラを効率的に撮影
+    # Phase 1: 3スレッド並列で静止画カメラ + yt-dlp/HLS撮影を実行（Playwrightフォールバックが必要なカメラは後段でバッチ実行）
     run_outcomes = {}
+    playwright_jobs = []
     with ThreadPoolExecutor(max_workers=3) as executor:
         futures = [
-            executor.submit(process_camera, course_id, info, target_dir, cams_dir, date_str, hour_str, now, camera_config, args.force)
+            executor.submit(
+                process_camera, course_id, info, target_dir, cams_dir, date_str, hour_str, now, camera_config, args.force, False
+            )
             for course_id, info in CAMERAS.items()
         ]
         for future in as_completed(futures):
             c_id, outcome_status, _, _ = future.result()
             run_outcomes[c_id] = outcome_status
+            if outcome_status == "failed" and CAMERAS[c_id].get("videoId"):
+                playwright_jobs.append({
+                    "course_id": c_id,
+                    "videoId": CAMERAS[c_id]["videoId"],
+                    "outputPath": os.path.join(target_dir, f"{hour_str}_{c_id}.jpg"),
+                })
+
+    # Phase 2: yt-dlpで取得できなかったYouTubeカメラを1つのChromiumインスタンスでまとめて撮影
+    if playwright_jobs:
+        print(f"=== Playwright バッチフォールバック開始 ({len(playwright_jobs)}カメラ: {[j['course_id'] for j in playwright_jobs]}) ===")
+        batch_results = capture_batch_with_playwright_iframe(playwright_jobs)
+        for job in playwright_jobs:
+            c_id = job["course_id"]
+            info = CAMERAS[c_id]
+            img_path = job["outputPath"]
+            rel_path = f"cams/{date_str}/{hour_str}_{c_id}.jpg"
+            cfg_entry = (camera_config or {}).get(c_id, {})
+            cam_mode = cfg_entry.get("mode", "active")
+            is_custom_thumb = bool(info.get("customThumbnail", False))
+            recent_hashes = get_recent_camera_hashes(cams_dir, c_id)
+
+            final_outcome = "failed"
+            if batch_results.get(c_id):
+                final_outcome = validate_and_finalize_frame(
+                    c_id, img_path, now, recent_hashes, source_tag="PLAYWRIGHT", check_stale=False
+                )
+
+            if final_outcome == "failed":
+                final_outcome = try_live_thumbnail_fallback(
+                    c_id, info["videoId"], img_path, now, recent_hashes, cam_mode, is_custom_thumb
+                )
+
+            if final_outcome == "ok" and os.path.exists(img_path) and os.path.getsize(img_path) > 1000:
+                ensure_compressed_image(img_path)
+                print(f" -> 成功(PW/Fallback): {rel_path} ({os.path.getsize(img_path)} bytes)")
+                if cam_mode == "monitoring":
+                    promote_monitoring_camera_to_active(cams_dir, c_id, now)
+                run_outcomes[c_id] = "ok"
+            else:
+                if os.path.exists(img_path):
+                    try:
+                        os.remove(img_path)
+                    except Exception:
+                        pass
+                print(f" -> 未保存 ({final_outcome}): {c_id} の有効な映像を取得できませんでした。")
+                run_outcomes[c_id] = final_outcome
 
     # 実ファイル群（DVRバックフィル復元分を含む）から history.json を完全同期
     sync_existing_files_to_history(cams_dir, history_file, datetime.now(JST), date_str, run_outcomes=run_outcomes)
+
+    warp_up = is_local_port_open(40000) or bool(os.environ.get("YOUTUBE_PROXY", "").strip())
+    pot_up = is_local_port_open(4416)
+    summary_parts = [f"{k}={v}" for k, v in run_outcomes.items()]
+    print(f"[CAPTURE_SUMMARY] warp_proxy={warp_up}, pot_server={pot_up}, outcomes={{{', '.join(summary_parts)}}}")
     print("=== 定時撮影完了 & history.json を更新しました ===")
+
+    # アクティブ対象カメラが1つ以上失敗し、新規成功(ok)も既存済(already_captured)も端境期(twilight_dark)もゼロの場合は異常終了コード1を返す
+    ok_or_valid = sum(1 for v in run_outcomes.values() if v in ("ok", "already_captured", "twilight_dark", "blackout"))
+    failed_count = sum(1 for v in run_outcomes.values() if v == "failed")
+    if ok_or_valid == 0 and failed_count > 0:
+        print("[ERROR] すべてのアクティブカメラの撮影に失敗したため終了コード 1 を返します。")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
