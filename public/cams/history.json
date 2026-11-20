@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T16:07:54.296917+09:00",
+  "updatedAt": "2026-11-20T17:07:52.866352+09:00",
   "cameras": {
     "oshidomari": {
       "name": "鴛泊（本泊・北）",
@@ -41,30 +41,30 @@
   "cameraStatus": {
     "oshidomari": {
       "status": "active",
-      "lastValidAt": "2026-11-20 16:00",
-      "updatedAt": "2026-11-20T16:07:54.296917+09:00"
+      "lastValidAt": "2026-11-20 17:00",
+      "updatedAt": "2026-11-20T17:07:52.866352+09:00"
     },
     "ferry": {
       "status": "active",
-      "lastValidAt": "2026-11-20 16:00",
-      "updatedAt": "2026-11-20T16:07:54.296917+09:00"
+      "lastValidAt": "2026-11-20 17:00",
+      "updatedAt": "2026-11-20T17:07:52.866352+09:00"
     },
     "himenuma": {
       "status": "seasonal_closed",
       "since": "2026-11-09",
       "note": "冬季配信終了のため休止中",
       "lastValidAt": "2026-11-09 10:00",
-      "updatedAt": "2026-11-20T16:07:54.296917+09:00"
+      "updatedAt": "2026-11-20T17:07:52.866352+09:00"
     },
     "kutsugata": {
       "status": "active",
-      "lastValidAt": "2026-11-20 16:00",
-      "updatedAt": "2026-11-20T16:07:54.296917+09:00"
+      "lastValidAt": "2026-11-20 17:00",
+      "updatedAt": "2026-11-20T17:07:52.866352+09:00"
     },
     "otadomari": {
       "status": "active",
-      "lastValidAt": "2026-11-20 16:00",
-      "updatedAt": "2026-11-20T16:07:54.296917+09:00"
+      "lastValidAt": "2026-11-20 17:00",
+      "updatedAt": "2026-11-20T17:07:52.866352+09:00"
     },
     "senposhi": {
       "status": "monitoring",
@@ -72,8 +72,8 @@
       "since": "2026-11-08",
       "note": "配信側の映像暗転につき復旧待ち（正常映像を検知次第自動復帰）",
       "lastValidAt": "2026-11-07 15:00",
-      "lastCheckedAt": "2026-11-20T16:07:54.296917+09:00",
-      "updatedAt": "2026-11-20T16:07:54.296917+09:00"
+      "lastCheckedAt": "2026-11-20T17:07:52.866352+09:00",
+      "updatedAt": "2026-11-20T17:07:52.866352+09:00"
     }
   },
   "records": {
@@ -15465,13 +15465,15 @@
         "timestamp": "2026-11-20T13:14:45.179049+09:00",
         "kutsugata": "cams/2026-11-20/13_kutsugata.jpg",
         "oshidomari": "cams/2026-11-20/13_oshidomari.jpg",
-        "otadomari": "cams/2026-11-20/13_otadomari.jpg"
+        "otadomari": "cams/2026-11-20/13_otadomari.jpg",
+        "ferry": "cams/2026-11-20/13_ferry.jpg"
       },
       "14": {
         "timestamp": "2026-11-20T14:13:17.139213+09:00",
         "kutsugata": "cams/2026-11-20/14_kutsugata.jpg",
         "oshidomari": "cams/2026-11-20/14_oshidomari.jpg",
-        "otadomari": "cams/2026-11-20/14_otadomari.jpg"
+        "otadomari": "cams/2026-11-20/14_otadomari.jpg",
+        "ferry": "cams/2026-11-20/14_ferry.jpg"
       },
       "15": {
         "timestamp": "2026-11-20T15:09:28.696346+09:00",
@@ -15486,6 +15488,13 @@
         "kutsugata": "cams/2026-11-20/16_kutsugata.jpg",
         "oshidomari": "cams/2026-11-20/16_oshidomari.jpg",
         "otadomari": "cams/2026-11-20/16_otadomari.jpg"
+      },
+      "17": {
+        "timestamp": "2026-11-20T17:07:52.866352+09:00",
+        "ferry": "cams/2026-11-20/17_ferry.jpg",
+        "kutsugata": "cams/2026-11-20/17_kutsugata.jpg",
+        "oshidomari": "cams/2026-11-20/17_oshidomari.jpg",
+        "otadomari": "cams/2026-11-20/17_otadomari.jpg"
       }
     }
   }
